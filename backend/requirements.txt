@@ -1,0 +1,6 @@
+FastAPI
+uvicorn
+requests
+python-dotenv
+pydantic
+websockets
