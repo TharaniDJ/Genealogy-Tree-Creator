@@ -7,6 +7,7 @@ router = APIRouter()
 
 @router.get("/relationships/{page_title}/{depth}", response_model=List[Relationship])
 async def get_relationships(page_title: str, depth: int):
+    print(page_title,depth)
     relationships = await fetch_relationships(page_title, depth)
     return relationships
 

@@ -4,6 +4,14 @@ import requests
 WIKIPEDIA_API = "https://en.wikipedia.org/w/api.php"
 WIKIDATA_API = "https://www.wikidata.org/wiki/Special:EntityData/{}.json"
 
+def fetch_relationships(page_title: str, depth: int) -> List[Dict[str, str]]:
+    """
+    Fetch relationships for a given Wikipedia page title and depth.
+    """
+    qid = get_qid(page_title)
+    return collect_relationships(qid, depth)
+
+
 def get_qid(page_title: str) -> str:
     params = {
         "action": "query",
