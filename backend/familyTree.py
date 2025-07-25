@@ -67,24 +67,50 @@ def collect_relationships(qid: str, depth: int, direction: str, relationships, v
     claims = entity.get("claims", {})
 
     if direction == "up":        # ancestors via P22+P25
-        # Father relationships (P22)
+        # Father relationships (P22) - store as child relationship
         for snak in claims.get("P22", []):
             father_qid = snak["mainsnak"]["datavalue"]["value"]["id"]
-            relationships.append([father_qid, "father of", qid])
+            relationships.append([qid, "child of", father_qid])
             collect_relationships(father_qid, depth - 1, direction, relationships, visited)
         
-        # Mother relationships (P25)
+        # Mother relationships (P25) - store as child relationship
         for snak in claims.get("P25", []):
             mother_qid = snak["mainsnak"]["datavalue"]["value"]["id"]
-            relationships.append([mother_qid, "mother of", qid])
+            relationships.append([qid, "child of", mother_qid])
             collect_relationships(mother_qid, depth - 1, direction, relationships, visited)
 
     elif direction == "down":    # descendants via P40
-        # Child relationships (P40)
+        # Child relationships (P40) - keep as child relationship but flip the order
         for snak in claims.get("P40", []):
             child_qid = snak["mainsnak"]["datavalue"]["value"]["id"]
-            relationships.append([qid, "parent of", child_qid])
+            relationships.append([child_qid, "child of", qid])
+            
+            # For each child, also check if current person's spouse is the other parent
+            child_entity = fetch_entity(child_qid)
+            child_claims = child_entity.get("claims", {})
+            
+            # Get child's parents (P22=father, P25=mother)
+            child_parents = set()
+            for parent_prop in ["P22", "P25"]:  # father and mother
+                for parent_snak in child_claims.get(parent_prop, []):
+                    parent_qid = parent_snak["mainsnak"]["datavalue"]["value"]["id"]
+                    child_parents.add(parent_qid)
+            
+            # For each spouse of current person, check if they are also parent of this child
+            for spouse_snak in claims.get("P26", []):
+                spouse_qid = spouse_snak["mainsnak"]["datavalue"]["value"]["id"]
+                if spouse_qid in child_parents:
+                    # This spouse is actually a parent of this child
+                    relationships.append([child_qid, "child of", spouse_qid])
+            
             collect_relationships(child_qid, depth - 1, direction, relationships, visited)
+    
+    # Spouse relationships (P26) - collect regardless of direction
+    for snak in claims.get("P26", []):
+        spouse_qid = snak["mainsnak"]["datavalue"]["value"]["id"]
+        relationships.append([qid, "spouse of", spouse_qid])
+        # Note: We don't recursively follow spouses to avoid infinite loops
+        # but we could collect their direct relationships if needed
 
 def collect_bidirectional_relationships(qid: str, depth: int):
     """Collect relationships in both directions and return formatted list."""
