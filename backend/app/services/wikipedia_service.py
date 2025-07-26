@@ -1,11 +1,47 @@
 from typing import List, Dict, Optional
 import requests
 import asyncio
+import aiohttp
 import json
 from app.core.websocket_manager import WebSocketManager
 
 WIKIPEDIA_API = "https://en.wikipedia.org/w/api.php"
 WIKIDATA_API = "https://www.wikidata.org/wiki/Special:EntityData/{}.json"
+SPARQL_API='https://query.wikidata.org/sparql'
+
+async def getPersonalDetails(page_title:str):
+    qid = get_qid(page_title)
+    if not qid:
+        return None
+    query = f"""
+    SELECT ?birthDate ?deathDate ?image WHERE {{
+      wd:{qid} wdt:P569 ?birthDate.
+      OPTIONAL {{ wd:{qid} wdt:P570 ?deathDate. }}
+      OPTIONAL {{ wd:{qid} wdt:P18 ?image. }}
+    }}
+    """
+    headers = {
+        "Accept": "application/sparql-results+json"
+    }
+    async with aiohttp.ClientSession() as session:
+        async with session.get(SPARQL_API, params={"query": query}, headers=headers) as resp:
+            data = await resp.json()
+            results = data["results"]["bindings"]
+
+            if not results:
+                return None
+
+            result = results[0]
+            birth_date = result.get("birthDate", {}).get("value")
+            death_date = result.get("deathDate", {}).get("value")
+            image = result.get("image", {}).get("value")
+
+            return {
+                "birth_year": birth_date[:4] if birth_date else None,
+                "death_year": death_date[:4] if death_date else None,
+                "image_url": image if image else None
+            }
+ 
 
 async def fetch_relationships(page_title: str, depth: int, websocket_manager: Optional[WebSocketManager] = None) -> List[Dict[str, str]]:
     """
