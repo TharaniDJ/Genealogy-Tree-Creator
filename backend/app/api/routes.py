@@ -17,5 +17,6 @@ async def websocket_relationships(websocket: WebSocket):
     while True:
         data = await websocket.receive_text()
         page_title, depth = data.split(",")
+        print(f"Received request for {page_title} with depth {depth}")
         relationships = await fetch_relationships(page_title, int(depth))
         await websocket.send_json(relationships)
