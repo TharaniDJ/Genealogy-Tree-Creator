@@ -1,7 +1,7 @@
 from fastapi import APIRouter, WebSocket
 from typing import List
-from app.services.wikipedia_service import fetch_relationships
-from app.models.genealogy import Relationship
+from app.services.wikipedia_service import fetch_relationships,getPersonalDetails
+from app.models.genealogy import Relationship,personalInfo
 
 router = APIRouter()
 
@@ -10,6 +10,12 @@ async def get_relationships(page_title: str, depth: int):
     print(page_title,depth)
     relationships = await fetch_relationships(page_title, depth)
     return relationships
+
+@router.get('/info/{page_title}',response_model=personalInfo)
+async def get_personal_details(page_title:str):
+    personal_info= await getPersonalDetails(page_title=page_title)
+    return personal_info
+    
 
 @router.websocket("/ws/relationships")
 async def websocket_relationships(websocket: WebSocket):
