@@ -11,6 +11,11 @@ class GenealogyData(BaseModel):
     total_relationships: int
     depth: int
     page_title: str
+    
+class personalInfo(BaseModel):
+    birth_year:str
+    death_year:str
+    image_url:str
 
 class UserInput(BaseModel):
     page_title: str
