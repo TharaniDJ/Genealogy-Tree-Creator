@@ -1,17 +1,55 @@
-from typing import List, Dict
+from typing import List, Dict, Optional
 import requests
 import asyncio
+import aiohttp
+import json
+from app.core.websocket_manager import WebSocketManager
 
 WIKIPEDIA_API = "https://en.wikipedia.org/w/api.php"
 WIKIDATA_API = "https://www.wikidata.org/wiki/Special:EntityData/{}.json"
+SPARQL_API='https://query.wikidata.org/sparql'
 
-async def fetch_relationships(page_title: str, depth: int) -> List[Dict[str, str]]:
+async def getPersonalDetails(page_title:str):
+    qid = get_qid(page_title)
+    if not qid:
+        return None
+    query = f"""
+    SELECT ?birthDate ?deathDate ?image WHERE {{
+      wd:{qid} wdt:P569 ?birthDate.
+      OPTIONAL {{ wd:{qid} wdt:P570 ?deathDate. }}
+      OPTIONAL {{ wd:{qid} wdt:P18 ?image. }}
+    }}
+    """
+    headers = {
+        "Accept": "application/sparql-results+json"
+    }
+    async with aiohttp.ClientSession() as session:
+        async with session.get(SPARQL_API, params={"query": query}, headers=headers) as resp:
+            data = await resp.json()
+            results = data["results"]["bindings"]
+
+            if not results:
+                return None
+
+            result = results[0]
+            birth_date = result.get("birthDate", {}).get("value")
+            death_date = result.get("deathDate", {}).get("value")
+            image = result.get("image", {}).get("value")
+
+            return {
+                "birth_year": birth_date[:4] if birth_date else None,
+                "death_year": death_date[:4] if death_date else None,
+                "image_url": image if image else None
+            }
+ 
+
+async def fetch_relationships(page_title: str, depth: int, websocket_manager: Optional[WebSocketManager] = None) -> List[Dict[str, str]]:
     """
     Fetch genealogical relationships for a given Wikipedia page title and depth.
     Returns relationships in the format [{"entity1": str, "relationship": str, "entity2": str}].
     """
     qid = get_qid(page_title)
-    return collect_bidirectional_relationships(qid, depth)
+    return await collect_bidirectional_relationships(qid, depth, websocket_manager)
 
 def get_qid(page_title: str) -> str:
     """Return the Wikidata Q-identifier for a Wikipedia page title."""
@@ -51,7 +89,18 @@ def get_labels(qids: set) -> Dict[str, str]:
         if "labels" in data["entities"][qid] and "en" in data["entities"][qid]["labels"]
     }
 
-def collect_relationships(qid: str, depth: int, direction: str, relationships: List[Dict[str, str]], visited: set, all_qids: set):
+def get_parents(qid: str) -> List[str]:
+    """Return a list of parent QIDs for a given QID."""
+    entity = fetch_entity(qid)
+    claims = entity.get("claims", {})
+    parents = []
+    for snak in claims.get("P22", []):  # Father
+        parents.append(snak["mainsnak"]["datavalue"]["value"]["id"])
+    for snak in claims.get("P25", []):  # Mother
+        parents.append(snak["mainsnak"]["datavalue"]["value"]["id"])
+    return parents
+
+async def collect_relationships(qid: str, depth: int, direction: str, relationships: List[Dict[str, str]], visited: set, all_qids: set, websocket_manager: Optional[WebSocketManager] = None):
     """
     Recursively collect family relationships in {"entity1": str, "relationship": str, "entity2": str} format.
     direction: 'up' (ancestors) or 'down' (descendants)
@@ -66,21 +115,68 @@ def collect_relationships(qid: str, depth: int, direction: str, relationships: L
     if direction == "up":  # Ancestors via P22 (father) and P25 (mother)
         for snak in claims.get("P22", []):  # Father relationships
             father_qid = snak["mainsnak"]["datavalue"]["value"]["id"]
-            relationships.append({"entity1": qid, "relationship": "child of", "entity2": father_qid})
+            relationship = {"entity1": qid, "relationship": "child of", "entity2": father_qid}
+            relationships.append(relationship)
             all_qids.update([qid, father_qid])
-            collect_relationships(father_qid, depth - 1, direction, relationships, visited, all_qids)
+            
+            # Send relationship immediately via WebSocket
+            if websocket_manager:
+                # Get labels for this specific relationship
+                labels = get_labels({qid, father_qid})
+                named_relationship = {
+                    "entity1": labels.get(qid, qid),
+                    "relationship": "child of",
+                    "entity2": labels.get(father_qid, father_qid)
+                }
+                await websocket_manager.send_message(json.dumps({
+                    "type": "relationship",
+                    "data": named_relationship
+                }))
+            
+            await collect_relationships(father_qid, depth - 1, direction, relationships, visited, all_qids, websocket_manager)
 
         for snak in claims.get("P25", []):  # Mother relationships
             mother_qid = snak["mainsnak"]["datavalue"]["value"]["id"]
-            relationships.append({"entity1": qid, "relationship": "child of", "entity2": mother_qid})
+            relationship = {"entity1": qid, "relationship": "child of", "entity2": mother_qid}
+            relationships.append(relationship)
             all_qids.update([qid, mother_qid])
-            collect_relationships(mother_qid, depth - 1, direction, relationships, visited, all_qids)
+            
+            # Send relationship immediately via WebSocket
+            if websocket_manager:
+                # Get labels for this specific relationship
+                labels = get_labels({qid, mother_qid})
+                named_relationship = {
+                    "entity1": labels.get(qid, qid),
+                    "relationship": "child of",
+                    "entity2": labels.get(mother_qid, mother_qid)
+                }
+                await websocket_manager.send_message(json.dumps({
+                    "type": "relationship",
+                    "data": named_relationship
+                }))
+            
+            await collect_relationships(mother_qid, depth - 1, direction, relationships, visited, all_qids, websocket_manager)
 
     elif direction == "down":  # Descendants via P40 (child)
         for snak in claims.get("P40", []):  # Child relationships
             child_qid = snak["mainsnak"]["datavalue"]["value"]["id"]
-            relationships.append({"entity1": child_qid, "relationship": "child of", "entity2": qid})
+            relationship = {"entity1": child_qid, "relationship": "child of", "entity2": qid}
+            relationships.append(relationship)
             all_qids.update([child_qid, qid])
+
+            # Send relationship immediately via WebSocket
+            if websocket_manager:
+                # Get labels for this specific relationship
+                labels = get_labels({child_qid, qid})
+                named_relationship = {
+                    "entity1": labels.get(child_qid, child_qid),
+                    "relationship": "child of",
+                    "entity2": labels.get(qid, qid)
+                }
+                await websocket_manager.send_message(json.dumps({
+                    "type": "relationship",
+                    "data": named_relationship
+                }))
 
             # Check if spouse is also a parent of this child
             child_entity = fetch_entity(child_qid)
@@ -94,27 +190,78 @@ def collect_relationships(qid: str, depth: int, direction: str, relationships: L
             for spouse_snak in claims.get("P26", []):  # Spouse relationships
                 spouse_qid = spouse_snak["mainsnak"]["datavalue"]["value"]["id"]
                 if spouse_qid in child_parents:
-                    relationships.append({"entity1": child_qid, "relationship": "child of", "entity2": spouse_qid})
+                    spouse_relationship = {"entity1": child_qid, "relationship": "child of", "entity2": spouse_qid}
+                    relationships.append(spouse_relationship)
                     all_qids.add(spouse_qid)
+                    
+                    # Send spouse relationship immediately via WebSocket
+                    if websocket_manager:
+                        # Get labels for this specific relationship
+                        labels = get_labels({child_qid, spouse_qid})
+                        named_relationship = {
+                            "entity1": labels.get(child_qid, child_qid),
+                            "relationship": "child of",
+                            "entity2": labels.get(spouse_qid, spouse_qid)
+                        }
+                        await websocket_manager.send_message(json.dumps({
+                            "type": "relationship",
+                            "data": named_relationship
+                        }))
 
-            collect_relationships(child_qid, depth - 1, direction, relationships, visited, all_qids)
+            await collect_relationships(child_qid, depth - 1, direction, relationships, visited, all_qids, websocket_manager)
 
     # Collect spouse relationships (P26) regardless of direction
     for snak in claims.get("P26", []):
         spouse_qid = snak["mainsnak"]["datavalue"]["value"]["id"]
-        relationships.append({"entity1": qid, "relationship": "spouse of", "entity2": spouse_qid})
+        relationship = {"entity1": qid, "relationship": "spouse of", "entity2": spouse_qid}
+        relationships.append(relationship)
         all_qids.update([qid, spouse_qid])
+        
+        # Send spouse relationship immediately via WebSocket
+        if websocket_manager:
+            # Get labels for this specific relationship
+            labels = get_labels({qid, spouse_qid})
+            named_relationship = {
+                "entity1": labels.get(qid, qid),
+                "relationship": "spouse of",
+                "entity2": labels.get(spouse_qid, spouse_qid)
+            }
+            await websocket_manager.send_message(json.dumps({
+                "type": "relationship",
+                "data": named_relationship
+            }))
 
-def collect_bidirectional_relationships(qid: str, depth: int) -> List[Dict[str, str]]:
+async def collect_bidirectional_relationships(qid: str, depth: int, websocket_manager: Optional[WebSocketManager] = None) -> List[Dict[str, str]]:
     """Collect relationships in both directions and return formatted list."""
     relationships = []
     all_qids = set([qid])
 
+    # Send initial status via WebSocket
+    if websocket_manager:
+        await websocket_manager.send_message(json.dumps({
+            "type": "status",
+            "data": {"message": "Starting relationship collection...", "progress": 0}
+        }))
+
     # Collect ancestors (upward)
-    collect_relationships(qid, depth, "up", relationships, set(), all_qids)
+    await collect_relationships(qid, depth, "up", relationships, set(), all_qids, websocket_manager)
+
+    # Send progress update
+    if websocket_manager:
+        await websocket_manager.send_message(json.dumps({
+            "type": "status",
+            "data": {"message": "Ancestors collected, now collecting descendants...", "progress": 50}
+        }))
 
     # Collect descendants (downward)
-    collect_relationships(qid, depth, "down", relationships, set(), all_qids)
+    await collect_relationships(qid, depth, "down", relationships, set(), all_qids, websocket_manager)
+
+    # Send completion status
+    if websocket_manager:
+        await websocket_manager.send_message(json.dumps({
+            "type": "status",
+            "data": {"message": "Collection complete!", "progress": 100}
+        }))
 
     # Fetch labels for all entities
     labels = get_labels(all_qids)

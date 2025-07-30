@@ -32,7 +32,8 @@ genealogy-fastapi-backend
 │   ├── __init__.py
 │   ├── test_genealogy_service.py
 │   └── test_websocket.py
-├── requirements.txt
+├── pyproject.toml
+├── uv.lock
 ├── .env
 └── README.md
 ```
@@ -45,16 +46,12 @@ genealogy-fastapi-backend
    cd genealogy-fastapi-backend
    ```
 
-2. Create a virtual environment:
+2. Install dependencies using uv:
    ```
-   python -m venv venv
-   source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+   uv sync
    ```
 
-3. Install the required dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
+   This will automatically create a virtual environment and install all dependencies defined in `pyproject.toml`.
 
 ## Usage
 
@@ -62,7 +59,12 @@ genealogy-fastapi-backend
 
 2. Run the FastAPI application:
    ```
-   uvicorn app.main:app --reload
+   uv run uvicorn app.main:app --reload
+   ```
+
+   Or activate the virtual environment and run directly:
+   ```
+   uv run fastapi dev app/main.py
    ```
 
 3. Access the API documentation at `http://127.0.0.1:8000/docs`.
@@ -75,7 +77,7 @@ The application supports real-time communication with the frontend through WebSo
 
 To run the tests, use:
 ```
-pytest
+uv run pytest
 ```
 
 ## Contributing
