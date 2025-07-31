@@ -13,10 +13,6 @@ async def getPersonalDetails(page_title:str):
     qid = get_qid(page_title)
     if not qid:
         return None
-    return await getPersonalDetailsByQid(qid)
-
-async def getPersonalDetailsByQid(qid: str):
-    """Get personal details directly using QID"""
     query = f"""
     SELECT ?birthDate ?deathDate ?image WHERE {{
       wd:{qid} wdt:P569 ?birthDate.
@@ -104,7 +100,7 @@ def get_parents(qid: str) -> List[str]:
         parents.append(snak["mainsnak"]["datavalue"]["value"]["id"])
     return parents
 
-async def collect_relationships(qid: str, depth: int, direction: str, relationships: List[Dict[str, str]], visited: set, all_qids: set, websocket_manager: Optional[WebSocketManager] = None, sent_entities: Optional[set] = None):
+async def collect_relationships(qid: str, depth: int, direction: str, relationships: List[Dict[str, str]], visited: set, all_qids: set, websocket_manager: Optional[WebSocketManager] = None):
     """
     Recursively collect family relationships in {"entity1": str, "relationship": str, "entity2": str} format.
     direction: 'up' (ancestors) or 'down' (descendants)
@@ -112,10 +108,6 @@ async def collect_relationships(qid: str, depth: int, direction: str, relationsh
     if depth == 0 or qid in visited:
         return
     visited.add(qid)
-    
-    # Initialize sent_entities if not provided
-    if sent_entities is None:
-        sent_entities = set()
 
     entity = fetch_entity(qid)
     claims = entity.get("claims", {})
@@ -140,22 +132,8 @@ async def collect_relationships(qid: str, depth: int, direction: str, relationsh
                     "type": "relationship",
                     "data": named_relationship
                 }))
-                
-                # Send personal details for father if not already sent
-                if father_qid not in sent_entities:
-                    father_details = await getPersonalDetailsByQid(father_qid)
-                    if father_details:
-                        await websocket_manager.send_message(json.dumps({
-                            "type": "personal_details",
-                            "data": {
-                                "entity": labels.get(father_qid, father_qid),
-                                "qid": father_qid,
-                                **father_details
-                            }
-                        }))
-                        sent_entities.add(father_qid)
             
-            await collect_relationships(father_qid, depth - 1, direction, relationships, visited, all_qids, websocket_manager, sent_entities)
+            await collect_relationships(father_qid, depth - 1, direction, relationships, visited, all_qids, websocket_manager)
 
         for snak in claims.get("P25", []):  # Mother relationships
             mother_qid = snak["mainsnak"]["datavalue"]["value"]["id"]
@@ -176,22 +154,8 @@ async def collect_relationships(qid: str, depth: int, direction: str, relationsh
                     "type": "relationship",
                     "data": named_relationship
                 }))
-                
-                # Send personal details for mother if not already sent
-                if mother_qid not in sent_entities:
-                    mother_details = await getPersonalDetailsByQid(mother_qid)
-                    if mother_details:
-                        await websocket_manager.send_message(json.dumps({
-                            "type": "personal_details",
-                            "data": {
-                                "entity": labels.get(mother_qid, mother_qid),
-                                "qid": mother_qid,
-                                **mother_details
-                            }
-                        }))
-                        sent_entities.add(mother_qid)
             
-            await collect_relationships(mother_qid, depth - 1, direction, relationships, visited, all_qids, websocket_manager, sent_entities)
+            await collect_relationships(mother_qid, depth - 1, direction, relationships, visited, all_qids, websocket_manager)
 
     elif direction == "down":  # Descendants via P40 (child)
         for snak in claims.get("P40", []):  # Child relationships
@@ -213,20 +177,6 @@ async def collect_relationships(qid: str, depth: int, direction: str, relationsh
                     "type": "relationship",
                     "data": named_relationship
                 }))
-                
-                # Send personal details for child if not already sent
-                if child_qid not in sent_entities:
-                    child_details = await getPersonalDetailsByQid(child_qid)
-                    if child_details:
-                        await websocket_manager.send_message(json.dumps({
-                            "type": "personal_details",
-                            "data": {
-                                "entity": labels.get(child_qid, child_qid),
-                                "qid": child_qid,
-                                **child_details
-                            }
-                        }))
-                        sent_entities.add(child_qid)
 
             # Check if spouse is also a parent of this child
             child_entity = fetch_entity(child_qid)
@@ -257,22 +207,8 @@ async def collect_relationships(qid: str, depth: int, direction: str, relationsh
                             "type": "relationship",
                             "data": named_relationship
                         }))
-                        
-                        # Send personal details for spouse if not already sent
-                        if spouse_qid not in sent_entities:
-                            spouse_details = await getPersonalDetailsByQid(spouse_qid)
-                            if spouse_details:
-                                await websocket_manager.send_message(json.dumps({
-                                    "type": "personal_details",
-                                    "data": {
-                                        "entity": labels.get(spouse_qid, spouse_qid),
-                                        "qid": spouse_qid,
-                                        **spouse_details
-                                    }
-                                }))
-                                sent_entities.add(spouse_qid)
 
-            await collect_relationships(child_qid, depth - 1, direction, relationships, visited, all_qids, websocket_manager, sent_entities)
+            await collect_relationships(child_qid, depth - 1, direction, relationships, visited, all_qids, websocket_manager)
 
     # Collect spouse relationships (P26) regardless of direction
     for snak in claims.get("P26", []):
@@ -294,26 +230,11 @@ async def collect_relationships(qid: str, depth: int, direction: str, relationsh
                 "type": "relationship",
                 "data": named_relationship
             }))
-            
-            # Send personal details for spouse if not already sent
-            if spouse_qid not in sent_entities:
-                spouse_details = await getPersonalDetailsByQid(spouse_qid)
-                if spouse_details:
-                    await websocket_manager.send_message(json.dumps({
-                        "type": "personal_details",
-                        "data": {
-                            "entity": labels.get(spouse_qid, spouse_qid),
-                            "qid": spouse_qid,
-                            **spouse_details
-                        }
-                    }))
-                    sent_entities.add(spouse_qid)
 
 async def collect_bidirectional_relationships(qid: str, depth: int, websocket_manager: Optional[WebSocketManager] = None) -> List[Dict[str, str]]:
     """Collect relationships in both directions and return formatted list."""
     relationships = []
     all_qids = set([qid])
-    sent_entities = set()  # Track entities whose personal details have been sent
 
     # Send initial status via WebSocket
     if websocket_manager:
@@ -321,24 +242,9 @@ async def collect_bidirectional_relationships(qid: str, depth: int, websocket_ma
             "type": "status",
             "data": {"message": "Starting relationship collection...", "progress": 0}
         }))
-        
-        # Get initial entity details and send them
-        initial_labels = get_labels({qid})
-        initial_entity_name = initial_labels.get(qid, qid)
-        initial_details = await getPersonalDetailsByQid(qid)
-        if initial_details:
-            await websocket_manager.send_message(json.dumps({
-                "type": "personal_details",
-                "data": {
-                    "entity": initial_entity_name,
-                    "qid": qid,
-                    **initial_details
-                }
-            }))
-            sent_entities.add(qid)  # Mark initial entity as sent
 
     # Collect ancestors (upward)
-    await collect_relationships(qid, depth, "up", relationships, set(), all_qids, websocket_manager, sent_entities)
+    await collect_relationships(qid, depth, "up", relationships, set(), all_qids, websocket_manager)
 
     # Send progress update
     if websocket_manager:
@@ -348,7 +254,7 @@ async def collect_bidirectional_relationships(qid: str, depth: int, websocket_ma
         }))
 
     # Collect descendants (downward)
-    await collect_relationships(qid, depth, "down", relationships, set(), all_qids, websocket_manager, sent_entities)
+    await collect_relationships(qid, depth, "down", relationships, set(), all_qids, websocket_manager)
 
     # Send completion status
     if websocket_manager:
