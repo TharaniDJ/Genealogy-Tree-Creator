@@ -97,3 +97,37 @@
 input::placeholder {
   color: #888;
 }
+
+/* React Flow Styles */
+.react-flow__node {
+  cursor: pointer;
+}
+
+.react-flow__node.selected {
+  box-shadow: 0 0 0 2px #3b82f6;
+}
+
+.person-node {
+  transition: transform 0.2s ease-in-out;
+}
+
+.person-node:hover {
+  transform: scale(1.05);
+}
+
+.react-flow__edge-path {
+  transition: stroke 0.2s ease-in-out;
+}
+
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: #3b82f6;
+  stroke-width: 3px;
+}
+
+/* Utility classes for line clamping */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

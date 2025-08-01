@@ -1,370 +1,190 @@
 'use client';
-import React, { useState, useCallback, useEffect, useRef } from 'react';
-import ReactFlow, {
-  Node,
-  Edge,
-  useNodesState,
-  useEdgesState,
-  Background,
-  MarkerType,
-  BackgroundVariant,
-} from 'reactflow';
-import 'reactflow/dist/style.css';
-import { NodeData, GenerationInfo, Marriage, PersonData, GraphNode, GraphEdge } from '@/lib/types';
-import EntityNode from '@/components/entity-node';
-import ConnectionNode from '@/components/connection-node';
 
-import { connectWebSocket } from './_utils/ws-con';
-import { processRelationships } from './_utils/people';
-import { useGenericGraph } from '@/hooks/use-generic-graph';
+import React, { useState, useEffect } from 'react';
+import GenealogyTree from '@/components/GenealogyTree';
+import { useWebSocket } from '@/hooks/useWebSocket';
 
-
-const nodeTypes = {
-  entity: EntityNode,
-  connection: ConnectionNode,
-};
-
-export default function KnowledgeGraph() {
-  
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-  const [hoveredEdge, setHoveredEdge] = useState<string | null>(null);
-  const [wsStatus, setWsStatus] = useState<'disconnected' | 'connected' | 'loading'>('disconnected');
-  const [isSearching, setIsSearching] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('Albert Einstein');
-  const [relationships, setRelationships] = useState<any[]>([]);
-  const [personalDetails, setPersonalDetails] = useState<Record<string, PersonData>>({});
-  const wsRef = useRef<WebSocket | null>(null);
-  
-  // Use the new generic graph builder
+export default function Home() {
+  // WebSocket connection for real-time data
   const { 
-    buildGraphFromBackend, 
-    addEntityNode, 
-    addConnectionNode, 
-    addEdge, 
-    updateEdgesForHover 
-  } = useGenericGraph();
-  
-  // Legacy tracking for backward compatibility with existing family logic
-  const generationData = useRef<Record<string, GenerationInfo>>({});
-  const generationCounts = useRef<Record<number, number>>({});
-  const nodeConnections = useRef<Record<string, number>>({});
-  const marriages = useRef<Record<string, Marriage>>({});
+    messages: websocketData, 
+    connectionStatus, 
+    connect, 
+    disconnect, 
+    clearMessages,
+    sendMessage 
+  } = useWebSocket('ws://localhost:8000/ws');
 
-  // Helper function to get person data by name
-  const getPersonData = useCallback((name: string): PersonData | undefined => {
-    if (personalDetails[name]) {
-      return personalDetails[name];
-    }   
-    return undefined;
-  }, [personalDetails]);
+  const [searchQuery, setSearchQuery] = useState('Albert Einstein');
+  const [searchDepth, setSearchDepth] = useState(2);
 
-  // Update edges when hover state changes
-  useEffect(() => {
-    const updatedEdges = updateEdgesForHover(edges, hoveredEdge);
-    if (JSON.stringify(updatedEdges) !== JSON.stringify(edges)) {
-      setEdges(updatedEdges);
-    }
-  }, [hoveredEdge, updateEdgesForHover, edges, setEdges]);
-
-  // Function to add family members using the generic graph builder
-  const addFamilyMember = useCallback((
-    personId: string, 
-    personData: PersonData, 
-    generation: number
-  ) => {
-    const entityNode = addEntityNode(
-      personId,
-      personData.name,
-      'person',
-      {
-        entityType: 'person',
-        name: personData.name,
-        birthYear: personData.birthYear,
-        deathYear: personData.deathYear,
-        image: personData.image,
-        description: `Born: ${personData.birthYear}${personData.deathYear ? `, Died: ${personData.deathYear}` : ''}`,
-        generation
-      },
-      generation
-    );
-    
-    setNodes(prevNodes => {
-      const exists = prevNodes.find(n => n.id === personId);
-      if (!exists) {
-        return [...prevNodes, entityNode];
-      }
-      return prevNodes;
-    });
-    
-    return entityNode;
-  }, [addEntityNode, setNodes]);
-
-  // Function to add marriage connection
-  const addMarriageConnection = useCallback((
-    marriageId: string,
-    parentA: string,
-    parentB: string | undefined,
-    generation: number
-  ) => {
-    const marriageNode = addConnectionNode(
-      marriageId,
-      'marriage',
-      generation,
-      'Marriage',
-      { type: 'marriage' }
-    );
-    
-    setNodes(prevNodes => {
-      const exists = prevNodes.find(n => n.id === marriageId);
-      if (!exists) {
-        return [...prevNodes, marriageNode];
-      }
-      return prevNodes;
-    });
-
-    // Add edges from parents to marriage
-    const newEdges: Edge[] = [];
-    
-    const edgeA = addEdge(parentA, marriageId, 'marriage', '', { gender: 'parent' });
-    newEdges.push(edgeA);
-    
-    if (parentB) {
-      const edgeB = addEdge(parentB, marriageId, 'marriage', '', { gender: 'parent' });
-      newEdges.push(edgeB);
-    }
-    
-    setEdges(prevEdges => {
-      const existingIds = new Set(prevEdges.map(e => e.id));
-      const filteredNewEdges = newEdges.filter(e => !existingIds.has(e.id));
-      return [...prevEdges, ...filteredNewEdges];
-    });
-    
-    return marriageNode;
-  }, [addConnectionNode, addEdge, setNodes, setEdges]);
-
-  // Function to add parent-child relationship
-  const addParentChildRelation = useCallback((
-    marriageId: string,
-    childId: string
-  ) => {
-    const edge = addEdge(marriageId, childId, 'parent-child', 'Child');
-    
-    setEdges(prevEdges => {
-      const exists = prevEdges.find(e => e.id === edge.id);
-      if (!exists) {
-        return [...prevEdges, edge];
-      }
-      return prevEdges;
-    });
-  }, [addEdge, setEdges]);
-
-  // Wrapper function for backward compatibility with existing family logic
-  const addFamilyRelationWrapper = useCallback((
-    parent: string, 
-    parentGender: 'father' | 'mother', 
-    child: string, 
-    parentGen: number, 
-    childGen: number, 
-    spouse?: string
-  ) => {
-    const marriageId = spouse ? `${parent}-${spouse}-marriage` : `${parent}-single-marriage`;
-    
-    // Add parent
-    const parentData = getPersonData(parent);
-    if (parentData) {
-      addFamilyMember(parent, parentData, parentGen);
-    }
-    
-    // Add spouse if exists
-    if (spouse) {
-      const spouseData = getPersonData(spouse);
-      if (spouseData) {
-        addFamilyMember(spouse, spouseData, parentGen);
-      }
-    }
-    
-    // Add child
-    const childData = getPersonData(child);
-    if (childData) {
-      addFamilyMember(child, childData, childGen);
-    }
-    
-    // Add marriage connection
-    addMarriageConnection(marriageId, parent, spouse, parentGen + 0.5);
-    
-    // Add parent-child relationship
-    addParentChildRelation(marriageId, child);
-    
-    // Update legacy tracking for backward compatibility
-    if (!marriages.current[marriageId]) {
-      marriages.current[marriageId] = {
-        id: marriageId,
-        father: parentGender === 'father' ? parent : (spouse || ''),
-        mother: parentGender === 'mother' ? parent : (spouse || ''),
-        children: [child],
-        generation: parentGen
-      };
-    } else {
-      if (!marriages.current[marriageId].children.includes(child)) {
-        marriages.current[marriageId].children.push(child);
-      }
-    }
-  }, [getPersonData, addFamilyMember, addMarriageConnection, addParentChildRelation]);
-
-  // WebSocket connection setup
-  useEffect(() => {
-    const cleanup = connectWebSocket({
-      setWsStatus,
-      wsRef,
-      setRelationships,
-      setPersonalDetails,
-      setIsSearching
-    });
-
-    return cleanup;
-  }, []);
-
-  // Function to start fetching relationships
-  const fetchRelationships = () => {
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      setIsSearching(true);
-      setRelationships([]);
-      setPersonalDetails({}); // Clear previous personal details
-      generationData.current = {};
-      generationCounts.current = {};
-      nodeConnections.current = {};
-      marriages.current = {};
-      setNodes([]);
-      setEdges([]);
+  // Function to start genealogy search
+  const startGenealogySearch = () => {
+    if (connectionStatus === 'connected' && searchQuery.trim()) {
+      // Convert search query to Wikipedia page title format (replace spaces with underscores)
+      const pageTitle = searchQuery.trim().replace(/\s+/g, '_');
       
-      const message = {
-        action: 'fetch_relationships',
-        page_title: searchQuery,
-        depth: 2
-      };
-      
-      wsRef.current.send(JSON.stringify(message));
+      // Send search request to backend in the required format
+      sendMessage({
+        action: "fetch_relationships",
+        page_title: pageTitle,
+        depth: searchDepth
+      });
     }
   };
 
-  // Process relationships data to build family tree
+  // Auto-connect on component mount
   useEffect(() => {
-    if (relationships.length === 0) return;
-    
-    const handleProcessRelationships = () => {
-      const result = processRelationships({
-        relationships,
-        personalDetails,
-        searchQuery,
-        addFamilyRelationWrapper,
-      });
-      
-      // If processing was not successful (missing personal details), don't continue
-      if (!result) {
-        return;
-      }
+    connect();
+    return () => {
+      disconnect();
     };
-    
-    // Small delay to ensure UI is ready
-    const timer = setTimeout(handleProcessRelationships, 500);
-    return () => clearTimeout(timer);
-  }, [relationships, personalDetails, addFamilyRelationWrapper, searchQuery]); // Added personalDetails dependency
+  }, [connect, disconnect]);
 
-  // Initialize with WebSocket data loading
-  useEffect(() => {
-    // Auto-fetch relationships when component mounts and WebSocket is connected
-    const timer = setTimeout(() => {
-      if (wsStatus === 'connected') {
-        fetchRelationships();
-      }
-    }, 1000);
-    
-    return () => clearTimeout(timer);
-  }, [wsStatus]);
+  const getConnectionStatusColor = () => {
+    switch (connectionStatus) {
+      case 'connected': return 'text-green-600';
+      case 'connecting': return 'text-yellow-600';
+      case 'error': return 'text-red-600';
+      default: return 'text-gray-600';
+    }
+  };
+
+  const getConnectionStatusText = () => {
+    switch (connectionStatus) {
+      case 'connected': return 'Connected';
+      case 'connecting': return 'Connecting...';
+      case 'error': return 'Connection Error';
+      default: return 'Disconnected';
+    }
+  };
 
   return (
-  <div className="w-screen h-screen bg-gradient-to-br from-indigo-500 to-purple-700 relative">
-    {/* Search Controls */}
-    <div className="absolute top-4 left-4 z-10 bg-white/10 backdrop-blur-md rounded-lg p-4 min-w-[300px]">
-      <div className="flex flex-col gap-2">
-        <label className="text-white text-sm font-medium">Search Person:</label>
-        <div className="flex gap-2">
+    <main className="min-h-screen bg-gray-50">
+      <div className="absolute top-4 right-4 z-20 bg-white p-4 rounded-lg shadow-md max-w-sm">
+        <h1 className="text-xl font-bold mb-4">Genealogy Tree Creator</h1>
+        
+        {/* Connection Status */}
+        <div className="mb-4 p-2 bg-gray-50 rounded">
+          <div className="flex items-center justify-between text-sm">
+            <span>WebSocket Status:</span>
+            <span className={getConnectionStatusColor()}>
+              {getConnectionStatusText()}
+            </span>
+          </div>
+        </div>
+
+        {/* Search Input */}
+        <div className="mb-4">
+          <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">
+            Search Person
+          </label>
           <input
+            id="search"
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Enter person name..."
-            className="flex-1 px-3 py-2 rounded bg-white/20 text-white placeholder-white/70 border border-white/30 focus:outline-none focus:border-white/60"
-            disabled={isSearching}
+            placeholder="Enter person's name (e.g., Albert Einstein)"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            onKeyPress={(e) => {
+              if (e.key === 'Enter') {
+                startGenealogySearch();
+              }
+            }}
           />
+        </div>
+
+        {/* Depth Control */}
+        <div className="mb-4">
+          <label htmlFor="depth" className="block text-sm font-medium text-gray-700 mb-2">
+            Search Depth: {searchDepth}
+          </label>
+          <input
+            id="depth"
+            type="range"
+            min="1"
+            max="4"
+            value={searchDepth}
+            onChange={(e) => setSearchDepth(parseInt(e.target.value))}
+            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+          />
+          <div className="flex justify-between text-xs text-gray-500 mt-1">
+            <span>1 (Close)</span>
+            <span>4 (Extended)</span>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="space-y-2">
           <button
-            onClick={fetchRelationships}
-            disabled={wsStatus !== 'connected' || isSearching}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-500 disabled:cursor-not-allowed transition-colors"
+            onClick={startGenealogySearch}
+            disabled={connectionStatus !== 'connected' || !searchQuery.trim()}
+            className="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isSearching ? 'Searching...' : 'Search'}
+            Search Genealogy Tree
+          </button>
+
+          <button
+            onClick={() => {
+              if (connectionStatus === 'connected') {
+                sendMessage({
+                  action: "fetch_relationships",
+                  page_title: "Albert_Einstein",
+                  depth: 2
+                });
+              }
+            }}
+            disabled={connectionStatus !== 'connected'}
+            className="w-full px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Test Albert Einstein
+          </button>
+          
+          <button
+            onClick={connect}
+            disabled={connectionStatus === 'connected' || connectionStatus === 'connecting'}
+            className="w-full px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Connect to Server
+          </button>
+          
+          <button
+            onClick={disconnect}
+            disabled={connectionStatus === 'disconnected'}
+            className="w-full px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Disconnect
+          </button>
+          
+          <button
+            onClick={clearMessages}
+            className="w-full px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+          >
+            Clear Tree Data
           </button>
         </div>
-      </div>
-    </div>
 
-    {/* WebSocket Status Indicator */}
-    <div className="absolute top-4 right-4 z-10">
-      <div className={`px-3 py-2 rounded-full text-sm font-medium ${
-        wsStatus === 'connected' ? 'bg-green-500 text-white' :
-        wsStatus === 'loading' ? 'bg-yellow-500 text-black' :
-        'bg-red-500 text-white'
-      }`}>
-        {wsStatus === 'connected' ? '🟢 Connected' :
-         wsStatus === 'loading' ? '🟡 Connecting...' :
-         '🔴 Disconnected'}
-      </div>
-    </div>
+        {/* Data Statistics */}
+        <div className="mt-4 text-sm text-gray-600 bg-gray-50 p-2 rounded">
+          <p>Messages received: {websocketData.length}</p>
+          <p>People: {websocketData.filter(m => m.type === 'personal_details').length}</p>
+          <p>Relationships: {websocketData.filter(m => m.type === 'relationship').length}</p>
+        </div>
 
-    {/* Searching Indicator - Bottom Left Corner */}
-    {isSearching && (
-      <div className="absolute bottom-4 left-4 z-10 bg-blue-600/90 backdrop-blur-md rounded-lg p-3 flex items-center gap-3">
-        <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
-        <span className="text-white font-medium">Fetching relationships...</span>
+        {/* Recent Messages (Debug) */}
+        {websocketData.length > 0 && (
+          <div className="mt-4 text-xs text-gray-600 bg-gray-50 p-2 rounded max-h-32 overflow-y-auto">
+            <p className="font-semibold mb-1">Recent Messages:</p>
+            {websocketData.slice(-3).map((msg, index) => (
+              <div key={index} className="mb-1 p-1 bg-white rounded text-xs">
+                <span className="font-medium">{msg.type}:</span> {JSON.stringify(msg.data).slice(0, 50)}...
+              </div>
+            ))}
+          </div>
+        )}
       </div>
-    )}
-
-  
-    <ReactFlow
-    nodes={nodes}
-    edges={edges}
-    onNodesChange={onNodesChange}
-    onEdgesChange={onEdgesChange}
-    onEdgeMouseEnter={(event, edge) => setHoveredEdge(edge.id)}
-    onEdgeMouseLeave={() => setHoveredEdge(null)}
-    nodeTypes={nodeTypes}
-    fitView
-    fitViewOptions={{
-      padding: 0.2,
-      minZoom: 0.1,
-      maxZoom: 1.5,
-    }}
-    attributionPosition="bottom-left"
-    defaultEdgeOptions={{
-      type: 'smoothstep',
-      markerEnd: { type: MarkerType.ArrowClosed },
-      style: { 
-      strokeWidth: 3,
-      strokeOpacity: 0.7,
-      strokeDasharray: '5,5'
-      },
-      animated: true,
-    }}
-    snapToGrid={false}
-    snapGrid={[20, 20]}
-    nodesDraggable={true}
-    nodesConnectable={true}
-    elementsSelectable={true}
-    >
-    <Background color="#ffffff" gap={20} size={1} variant={BackgroundVariant.Dots} />
-  
-    </ReactFlow>
-  </div>
+      
+      <GenealogyTree websocketData={websocketData} />
+    </main>
   );
 }
