@@ -47,20 +47,53 @@ A comprehensive tree visualization platform that explores relationships across d
 
 ### Option 1: Docker Compose (Recommended)
 
+#### Development Mode (Hot Reload)
 ```bash
 # Clone the repository
 git clone https://github.com/TharaniDJ/Genealogy-Tree-Creator.git
 cd Genealogy-Tree-Creator
 
-# Start all services
-docker-compose up --build
+# Start in development mode with hot reload
+docker-compose -f docker-compose.dev.yml up --build
+# OR use the convenience script:
+# Windows: start-dev.bat
+# Linux/Mac: ./start-dev.sh
 
 # Access the application
-# Frontend: http://localhost:3000
+# Frontend: http://localhost:3000 (with hot reload)
+# Family API: http://localhost:8000 (with auto-reload)
+# Language API: http://localhost:8001 (with auto-reload)
+# Species API: http://localhost:8002 (with auto-reload)
+```
+
+#### Production Mode (Optimized Build)
+```bash
+# Start in production mode
+docker-compose -f docker-compose.prod.yml up --build
+# OR use the default compose file:
+docker-compose up --build
+# OR use the convenience script:
+# Windows: start-prod.bat
+# Linux/Mac: ./start-prod.sh
+
+# Access the application
+# Frontend: http://localhost:3000 (optimized build)
 # Family API: http://localhost:8000
 # Language API: http://localhost:8001
 # Species API: http://localhost:8002
 ```
+
+### Docker Modes Comparison
+
+| Feature | Development Mode | Production Mode |
+|---------|------------------|-----------------|
+| **Hot Reload** | ✅ Enabled | ❌ Disabled |
+| **Code Changes** | 🔄 Live updates | 🔄 Requires rebuild |
+| **Volume Mounts** | ✅ Source code mounted | ❌ Code copied to image |
+| **Build Time** | ⚡ Faster (dev dependencies) | 🐌 Slower (optimized build) |
+| **Image Size** | 📦 Larger (includes dev tools) | 📦 Smaller (production only) |
+| **Performance** | 🐌 Good (debug mode) | ⚡ Optimized |
+| **Debugging** | 🔍 Full debug capabilities | 🔍 Limited debugging |
 
 ### Option 2: Manual Setup
 

@@ -1,4 +1,4 @@
-# Multi-stage build for Next.js frontend
+# Multi-stage build for Next.js frontend with development and production modes
 FROM node:18-alpine AS base
 
 # Install dependencies only when needed
@@ -10,6 +10,20 @@ WORKDIR /app
 # Install dependencies based on the preferred package manager
 COPY package.json pnpm-lock.yaml* ./
 RUN corepack enable pnpm && pnpm i --frozen-lockfile
+
+# Development stage
+FROM base AS development
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+ENV NODE_ENV development
+EXPOSE 3000
+ENV PORT 3000
+ENV HOSTNAME "0.0.0.0"
+
+# Run development server with hot reload
+CMD ["sh", "-c", "corepack enable pnpm && pnpm run dev"]
 
 # Rebuild the source code only when needed
 FROM base AS builder
@@ -25,7 +39,7 @@ COPY . .
 RUN corepack enable pnpm && pnpm run build
 
 # Production image, copy all the files and run next
-FROM base AS runner
+FROM base AS production
 WORKDIR /app
 
 ENV NODE_ENV production
@@ -56,4 +70,4 @@ ENV HOSTNAME "0.0.0.0"
 
 # server.js is created by next build from the standalone output
 # https://nextjs.org/docs/pages/api-reference/next-config-js/output
-CMD ["node", "server.js"]
+CMD ["nodemon", "server.js"]

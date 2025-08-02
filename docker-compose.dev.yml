@@ -1,0 +1,77 @@
+services:
+  # Family Tree Service (Genealogy) - Development Mode
+  family-tree-service:
+    build:
+      context: ./backend/family-tree-service
+      target: development
+    ports:
+      - "8000:8000"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - RELOAD=true
+      - LOG_LEVEL=debug
+      - NODE_ENV=development
+    volumes:
+      - ./backend/family-tree-service/app:/app/app
+    restart: unless-stopped
+
+  # Language Tree Service - Development Mode
+  language-tree-service:
+    build:
+      context: ./backend/language-tree-service
+      target: development
+    ports:
+      - "8001:8001"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8001
+      - RELOAD=true
+      - LOG_LEVEL=debug
+      - NODE_ENV=development
+    volumes:
+      - ./backend/language-tree-service/app:/app/app
+    restart: unless-stopped
+
+  # Species Tree Service (Animals/Plants) - Development Mode
+  species-tree-service:
+    build:
+      context: ./backend/species-tree-service
+      target: development
+    ports:
+      - "8002:8002"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8002
+      - RELOAD=true
+      - LOG_LEVEL=debug
+      - NODE_ENV=development
+    volumes:
+      - ./backend/species-tree-service/app:/app/app
+    restart: unless-stopped
+
+  # Frontend (Next.js) - Development Mode
+  frontend:
+    build:
+      context: ./frontend
+      target: development
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_FAMILY_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_LANGUAGE_API_URL=http://localhost:8001
+      - NEXT_PUBLIC_SPECIES_API_URL=http://localhost:8002
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - family-tree-service
+      - language-tree-service
+      - species-tree-service
+    restart: unless-stopped
+
+networks:
+  default:
+    name: genealogy-tree-network-dev

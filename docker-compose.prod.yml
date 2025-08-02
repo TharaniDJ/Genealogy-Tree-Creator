@@ -1,7 +1,9 @@
 services:
-  # Family Tree Service (Genealogy)
+  # Family Tree Service (Genealogy) - Production Mode
   family-tree-service:
-    build: ./backend/family-tree-service
+    build:
+      context: ./backend/family-tree-service
+      target: production
     ports:
       - "8000:8000"
     environment:
@@ -17,9 +19,11 @@ services:
       retries: 3
       start_period: 40s
 
-  # Language Tree Service
+  # Language Tree Service - Production Mode
   language-tree-service:
-    build: ./backend/language-tree-service
+    build:
+      context: ./backend/language-tree-service
+      target: production
     ports:
       - "8001:8001"
     environment:
@@ -35,9 +39,11 @@ services:
       retries: 3
       start_period: 40s
 
-  # Species Tree Service (Animals/Plants)
+  # Species Tree Service (Animals/Plants) - Production Mode
   species-tree-service:
-    build: ./backend/species-tree-service
+    build:
+      context: ./backend/species-tree-service
+      target: production
     ports:
       - "8002:8002"
     environment:
@@ -53,9 +59,11 @@ services:
       retries: 3
       start_period: 40s
 
-  # Frontend (Next.js)
+  # Frontend (Next.js) - Production Mode
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      target: production
     ports:
       - "3000:3000"
     environment:
