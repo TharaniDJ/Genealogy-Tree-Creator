@@ -30,22 +30,3 @@ EXPOSE 8002
 
 # Run with auto-reload for development
 CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8002", "--reload"]
-
-# Production stage
-FROM base AS production
-
-# Install only production dependencies
-RUN uv sync --frozen --no-dev
-
-# Copy application code
-COPY app/ ./app/
-
-# Expose port
-EXPOSE 8002
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8002/health || exit 1
-
-# Run the application
-CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8002"]
