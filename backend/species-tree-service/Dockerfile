@@ -1,5 +1,5 @@
-# Multi-stage Dockerfile for development and production modes
-FROM python:3.11-slim AS base
+# Single-stage Dockerfile for development mode
+FROM python:3.11-slim
 
 # Set working directory
 WORKDIR /app
@@ -15,9 +15,6 @@ RUN pip install uv
 # Copy project files
 COPY pyproject.toml ./
 COPY uv.lock ./
-
-# Development stage
-FROM base AS development
 
 # Install all dependencies (including dev dependencies)
 RUN uv sync --frozen --all-extras

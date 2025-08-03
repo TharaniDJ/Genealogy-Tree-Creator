@@ -3,7 +3,6 @@ services:
   family-tree-service:
     build:
       context: ./backend/family-tree-service
-      target: development
     ports:
       - "8000:8000"
     environment:
@@ -20,7 +19,6 @@ services:
   language-tree-service:
     build:
       context: ./backend/language-tree-service
-      target: development
     ports:
       - "8001:8001"
     environment:
@@ -37,7 +35,6 @@ services:
   species-tree-service:
     build:
       context: ./backend/species-tree-service
-      target: development
     ports:
       - "8002:8002"
     environment:
@@ -54,7 +51,6 @@ services:
   frontend:
     build:
       context: ./frontend
-      target: development
     ports:
       - "3000:3000"
     environment:
