@@ -3,6 +3,10 @@ echo ===============================================
 echo    Genealogy Tree Creator - Full Stack Startup
 echo ===============================================
 echo.
+echo NOTE: This script starts in PRODUCTION mode by default
+echo Use start-dev.bat for development mode with hot reload
+echo Use start-prod.bat for explicit production mode
+echo.
 
 echo Checking Docker installation...
 docker --version >nul 2>&1

@@ -91,7 +91,15 @@ export default function GenealogyTree({ websocketData = [] }: GenealogyTreeProps
 
     const newNodes: Node[] = [];
     const newEdges: Edge[] = [];
-    const nodePositions = new Map<string, { x: number; y: number }>();
+    
+    // Constants for layout
+    const PERSON_WIDTH = 200;
+    const PERSON_HEIGHT = 120;
+    const MARRIAGE_WIDTH = 60;
+    const MARRIAGE_HEIGHT = 60;
+    const HORIZONTAL_SPACING = 300;
+    const VERTICAL_SPACING = 350;
+    const MARRIAGE_OFFSET_Y = 220;
     
     // Separate relationships by type
     const marriageRelationships = relationships.filter(rel => 
@@ -183,17 +191,16 @@ export default function GenealogyTree({ websocketData = [] }: GenealogyTreeProps
       }
     });
 
-    // Layout by generations - create person nodes first
-    const generationPersons = new Map<number, string[]>();
-    const generationMarriages = new Map<number, string[]>();
+    // Group elements by generation
+    const generationGroups = new Map<number, { 
+      marriages: string[], 
+      singles: string[] 
+    }>();
 
-    // Group people by generation (only those with details)
-    Array.from(personDetails.keys()).forEach(person => {
-      const generation = generations.get(person) || 0;
-      if (!generationPersons.has(generation)) {
-        generationPersons.set(generation, []);
-      }
-      generationPersons.get(generation)!.push(person);
+    // Initialize generation groups
+    const allGenerations = new Set(Array.from(generations.values()));
+    allGenerations.forEach(gen => {
+      generationGroups.set(gen, { marriages: [], singles: [] });
     });
 
     // Group marriages by generation
@@ -202,55 +209,135 @@ export default function GenealogyTree({ websocketData = [] }: GenealogyTreeProps
       const gen2 = generations.get(marriage.spouse2) || 0;
       const generation = Math.min(gen1, gen2);
       
-      if (!generationMarriages.has(generation)) {
-        generationMarriages.set(generation, []);
+      const group = generationGroups.get(generation);
+      if (group) {
+        group.marriages.push(marriageId);
       }
-      generationMarriages.get(generation)!.push(marriageId);
     });
 
-    // Create nodes with proper positioning
-    Array.from(generationPersons.entries()).forEach(([generation, people]) => {
-      const marriagesInGen = generationMarriages.get(generation) || [];
-      const marriedPeople = new Set<string>();
-      
-      // Track which people are in marriages in this generation
-      marriagesInGen.forEach(marriageId => {
-        const marriage = marriages.get(marriageId)!;
-        marriedPeople.add(marriage.spouse1);
-        marriedPeople.add(marriage.spouse2);
-      });
+    // Group single people by generation
+    const marriedPeople = new Set<string>();
+    Array.from(marriages.values()).forEach(marriage => {
+      marriedPeople.add(marriage.spouse1);
+      marriedPeople.add(marriage.spouse2);
+    });
 
-      let xOffset = 100;
-      
-      // Position marriages and their participants
-      marriagesInGen.forEach(marriageId => {
-        const marriage = marriages.get(marriageId)!;
+    Array.from(personDetails.keys()).forEach(person => {
+      if (!marriedPeople.has(person)) {
+        const generation = generations.get(person) || 0;
+        const group = generationGroups.get(generation);
+        if (group) {
+          group.singles.push(person);
+        }
+      }
+    });
+
+    // Create nodes with improved positioning
+    const nodePositions = new Map<string, { x: number; y: number }>();
+    
+    Array.from(generationGroups.entries())
+      .sort(([a], [b]) => a - b) // Sort by generation
+      .forEach(([generation, group]) => {
+        const y = generation * VERTICAL_SPACING + 300;
         
-        // Only create marriage node if both spouses have details
-        const spouse1Details = personDetails.get(marriage.spouse1);
-        const spouse2Details = personDetails.get(marriage.spouse2);
-        if (!spouse1Details || !spouse2Details) return;
+        // Calculate total width needed for this generation
+        const marriageWidth = group.marriages.length * (HORIZONTAL_SPACING * 2 + MARRIAGE_WIDTH);
+        const singleWidth = group.singles.length * HORIZONTAL_SPACING;
+        const totalWidth = marriageWidth + singleWidth;
         
-        const y = generation * 200 + 300;
+        // Start from center and work outward
+        let currentX = -totalWidth / 2;
         
-        // Position spouses
-        const spouse1X = xOffset;
-        const spouse2X = xOffset + 280;
-        const marriageX = xOffset + 140;
-        
-        nodePositions.set(marriage.spouse1, { x: spouse1X, y });
-        nodePositions.set(marriage.spouse2, { x: spouse2X, y });
-        nodePositions.set(marriageId, { x: marriageX, y });
-        
-        // Create spouse nodes
-        const spouseDetails = [spouse1Details, spouse2Details];
-        [marriage.spouse1, marriage.spouse2].forEach((person, index) => {
-          const details = spouseDetails[index];
+        // Position marriages first
+        group.marriages.forEach(marriageId => {
+          const marriage = marriages.get(marriageId)!;
+          
+          // Check if both spouses have details
+          const spouse1Details = personDetails.get(marriage.spouse1);
+          const spouse2Details = personDetails.get(marriage.spouse2);
+          if (!spouse1Details || !spouse2Details) return;
+          
+          // Calculate positions for the marriage group
+          const marriageGroupWidth = HORIZONTAL_SPACING * 2 + MARRIAGE_WIDTH;
+          const groupCenterX = currentX + marriageGroupWidth / 2;
+          
+          // Position spouses symmetrically around center
+          const spouse1X = groupCenterX - HORIZONTAL_SPACING / 2 - PERSON_WIDTH / 2;
+          const spouse2X = groupCenterX + HORIZONTAL_SPACING / 2 - PERSON_WIDTH / 2;
+          const marriageX = groupCenterX - MARRIAGE_WIDTH / 2;
+          const marriageY = y + MARRIAGE_OFFSET_Y;
+          
+          // Store positions
+          nodePositions.set(marriage.spouse1, { x: spouse1X, y });
+          nodePositions.set(marriage.spouse2, { x: spouse2X, y });
+          nodePositions.set(marriageId, { x: marriageX, y: marriageY });
+          
+          // Create spouse nodes
+          [marriage.spouse1, marriage.spouse2].forEach((person, index) => {
+            const details = index === 0 ? spouse1Details : spouse2Details;
+            const x = index === 0 ? spouse1X : spouse2X;
+            
+            newNodes.push({
+              id: person,
+              type: 'person',
+              position: { x, y },
+              data: {
+                label: details.entity,
+                entity: details.entity,
+                qid: details.qid,
+                birth_year: details.birth_year,
+                death_year: details.death_year,
+                image_url: details.image_url,
+                nodeType: 'entity' as const,
+              },
+            });
+          });
+
+          // Create marriage node
+          newNodes.push({
+            id: marriageId,
+            type: 'marriage',
+            position: { x: marriageX, y: marriageY },
+            data: {
+              label: '♥',
+              spouse1: marriage.spouse1,
+              spouse2: marriage.spouse2,
+              nodeType: 'marriage' as const,
+            },
+          });
+
+          // Connect spouses to marriage node
+          newEdges.push({
+            id: `${marriage.spouse1}-${marriageId}`,
+            source: marriage.spouse1,
+            target: marriageId,
+            type: 'straight',
+            style: { stroke: '#ec4899', strokeWidth: 2 },
+          });
+
+          newEdges.push({
+            id: `${marriage.spouse2}-${marriageId}`,
+            source: marriage.spouse2,
+            target: marriageId,
+            type: 'straight',
+            style: { stroke: '#ec4899', strokeWidth: 2 },
+          });
+
+          currentX += marriageGroupWidth;
+        });
+
+        // Position single people
+        group.singles.forEach(person => {
+          const details = personDetails.get(person);
+          if (!details) return;
+          
+          const x = currentX;
+          nodePositions.set(person, { x, y });
           
           newNodes.push({
             id: person,
             type: 'person',
-            position: { x: index === 0 ? spouse1X : spouse2X, y },
+            position: { x, y },
             data: {
               label: details.entity,
               entity: details.entity,
@@ -261,72 +348,12 @@ export default function GenealogyTree({ websocketData = [] }: GenealogyTreeProps
               nodeType: 'entity' as const,
             },
           });
-        });
 
-        // Create marriage node
-        newNodes.push({
-          id: marriageId,
-          type: 'marriage',
-          position: { x: marriageX, y },
-          data: {
-            label: '♥',
-            spouse1: marriage.spouse1,
-            spouse2: marriage.spouse2,
-            nodeType: 'marriage' as const,
-          },
+          currentX += HORIZONTAL_SPACING;
         });
-
-        // Connect spouses to marriage node
-        newEdges.push({
-          id: `${marriage.spouse1}-${marriageId}`,
-          source: marriage.spouse1,
-          target: marriageId,
-          type: 'straight',
-          style: { stroke: '#ec4899', strokeWidth: 2 },
-        });
-
-        newEdges.push({
-          id: `${marriage.spouse2}-${marriageId}`,
-          source: marriage.spouse2,
-          target: marriageId,
-          type: 'straight',
-          style: { stroke: '#ec4899', strokeWidth: 2 },
-        });
-
-        xOffset += 350;
       });
 
-      // Position unmarried people
-      const unmarriedPeople = people.filter(person => !marriedPeople.has(person));
-      unmarriedPeople.forEach(person => {
-        const details = personDetails.get(person);
-        if (!details) return; // Skip if no details available
-        
-        const y = generation * 200 + 300;
-        const x = xOffset;
-        
-        nodePositions.set(person, { x, y });
-        
-        newNodes.push({
-          id: person,
-          type: 'person',
-          position: { x, y },
-          data: {
-            label: details.entity,
-            entity: details.entity,
-            qid: details.qid,
-            birth_year: details.birth_year,
-            death_year: details.death_year,
-            image_url: details.image_url,
-            nodeType: 'entity' as const,
-          },
-        });
-
-        xOffset += 320;
-      });
-    });
-
-    // Create parent-child relationships
+    // Create parent-child relationships with improved positioning
     parentChildRelationships.forEach((rel, index) => {
       const parent = rel.entity2;
       const child = rel.entity1;
