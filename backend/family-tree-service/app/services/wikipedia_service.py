@@ -9,6 +9,79 @@ WIKIPEDIA_API = "https://en.wikipedia.org/w/api.php"
 WIKIDATA_API = "https://www.wikidata.org/wiki/Special:EntityData/{}.json"
 SPARQL_API='https://query.wikidata.org/sparql'
 
+import requests
+import re
+
+def fetch_family_tree_templates(page_title: str):
+    """Fetch wikitext and extract family tree templates (e.g., ahnentafel)."""
+    params = {
+        "action": "parse",
+        "page": page_title,
+        "prop": "wikitext",
+        "format": "json",
+    }
+    response = requests.get("https://en.wikipedia.org/w/api.php", params=params).json()
+
+    if "parse" not in response or "wikitext" not in response["parse"]:
+        return None
+
+    wikitext = response["parse"]["wikitext"]["*"]
+
+    match = re.findall(r"\{\{ahnentafel[\s\S]+?\n\}\}", wikitext, re.IGNORECASE)
+    return match[0] if match else None
+
+
+def extract_ahnentafel_relationships(template_text):
+    """Extract [child, 'child of', parent] from ahnentafel."""
+    raw_entries = re.findall(r"\|\s*(\d+)\s*=\s*(?:\d+\.\s*)?(?:\[{2})?([^\|\]\n]+)", template_text)
+    entries = {num: re.sub(r"^\s*\d+\.\s*", "", name.strip()) for num, name in raw_entries}
+
+    relationships = []
+
+    for num_str, child_name in entries.items():
+        num = int(num_str)
+        father_num = 2 * num
+        mother_num = 2 * num + 1
+
+        if str(father_num) in entries:
+            relationships.append({
+                "from": entries[str(father_num)],
+                "to": child_name,
+                "relation": "parent"
+            })
+
+        if str(mother_num) in entries:
+            relationships.append({
+                "from": entries[str(mother_num)],
+                "to": child_name,
+                "relation": "parent"
+            })
+
+    return relationships
+
+
+def extract_spouse_relationships(template_text):
+    """Extract [A, spouse of, B] entries if they exist."""
+    spouses = re.findall(r"\|\s*spouse\d*\s*=\s*\[{2}([^\|\]]+)", template_text)
+    main = re.search(r'\|\s*1\s*=\s*\[{2}([^\|\]]+)', template_text)
+    if not main:
+        return []
+
+    main_person = main.group(1).strip()
+    return [{"from": main_person, "to": spouse.strip(), "relation": "spouse"} for spouse in spouses]
+
+
+def fetch_relationships_from_tree(page_title: str):
+    """Fetch relationships from wikitext-based family tree template."""
+    template = fetch_family_tree_templates(page_title)
+    if not template:
+        return []
+
+    child_rels = extract_ahnentafel_relationships(template)
+    spouse_rels = extract_spouse_relationships(template)
+
+    return child_rels + spouse_rels
+
 async def getPersonalDetails(page_title:str):
     qid = get_qid(page_title)
     if not qid:
@@ -416,3 +489,13 @@ async def check_wikipedia_tree(page_title: str) -> bool:
     except:
         pass
     return False
+def fetch_relationships_from_tree(page_title: str) -> list:
+    # Fetch templates
+    templates = fetch_family_tree_templates(page_title)
+
+    all_relationships = []
+    for template in templates:
+        parsed = parse_family_tree_template(template)
+        all_relationships.extend(parsed)
+
+    return all_relationships
