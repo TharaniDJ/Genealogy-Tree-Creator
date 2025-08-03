@@ -1,5 +1,5 @@
-# Multi-stage Dockerfile for development and production modes
-FROM python:3.11-slim AS base
+# Single-stage Dockerfile for development mode
+FROM python:3.11-slim
 
 # Set working directory
 WORKDIR /app
