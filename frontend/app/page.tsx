@@ -64,6 +64,22 @@ export default function Home() {
       <div className="absolute top-4 right-4 z-20 bg-white p-4 rounded-lg shadow-md max-w-sm">
         <h1 className="text-xl font-bold mb-4">Genealogy Tree Creator</h1>
         
+        {/* Navigation Links */}
+        <div className="mb-4 flex space-x-2">
+          <a 
+            href="/" 
+            className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-sm font-medium"
+          >
+            People
+          </a>
+          <a 
+            href="/languages" 
+            className="px-3 py-1 bg-purple-100 text-purple-700 rounded text-sm font-medium hover:bg-purple-200"
+          >
+            Languages
+          </a>
+        </div>
+        
         {/* Connection Status */}
         <div className="mb-4 p-2 bg-gray-50 rounded">
           <div className="flex items-center justify-between text-sm">

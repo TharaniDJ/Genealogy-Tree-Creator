@@ -27,14 +27,16 @@ async def websocket_language_relationships(websocket: WebSocket):
             print(f"Received WebSocket request: {data}")
             
             try:
+                request_data = json.loads(data)
+                # Validate required fields
+                if "language" not in request_data or "depth" not in request_data:
+                    raise ValueError("Request must include 'language' and 'depth' fields")
+                language_name = request_data["language"]
+                depth = int(request_data["depth"])
                 # Parse the request
-                if "," in data:
-                    language_name, depth_str = data.split(",", 1)
-                    depth = int(depth_str.strip())
-                else:
-                    raise ValueError("Invalid format. Expected 'language_name,depth'")
                 
-                if depth < 1 or depth > 5:
+                
+                if depth < 1:
                     raise ValueError("Depth must be between 1 and 5")
                 
                 print(f"Processing request for {language_name} with depth {depth}")
