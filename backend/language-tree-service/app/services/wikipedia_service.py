@@ -254,7 +254,7 @@ def get_language_siblings(qid: str, family_qid: str) -> List[str]:
           ?sibling wdt:P31/wdt:P279* wd:Q34770 .
         }}
         """
-        response = requests.get(settings.SPARQL_API, params=params, headers=headers, params={"query": query})
+        response = requests.get(settings.SPARQL_API, headers=headers, params={"query": query})
         if response.status_code == 200:
             data = response.json()
             for result in data["results"]["bindings"]:
