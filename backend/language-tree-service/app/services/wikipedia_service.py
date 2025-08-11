@@ -84,7 +84,7 @@ def get_language_qid(language_name: str) -> Optional[str]:
             "action": "query",
             "titles": f"{language_name} language",
             "prop": "pageprops",
-            "ppprop": "wikibase_item",
+            "pprop": "wikibase_item",
             "format": "json",
         }
         data = requests.get(settings.WIKIPEDIA_API, params=params).json()
@@ -109,7 +109,7 @@ def get_language_qid(language_name: str) -> Optional[str]:
                 "action": "query",
                 "titles": page_title,
                 "prop": "pageprops",
-                "ppprop": "wikibase_item",
+                "pprop": "wikibase_item",
                 "format": "json",
             }
             data = requests.get(settings.WIKIPEDIA_API, params=params).json()
@@ -177,7 +177,6 @@ def get_language_family(qid: str) -> List[str]:
 
 def get_language_descendants(qid: str) -> List[str]:
     """Return a list of descendant language QIDs for a given QID."""
-    # This requires a SPARQL query since we need to find languages that have this one as ancestor
     query = f"""
     SELECT DISTINCT ?descendant WHERE {{
       ?descendant wdt:P279+ wd:{qid} .
@@ -203,8 +202,71 @@ def get_language_descendants(qid: str) -> List[str]:
     
     return []
 
+def get_language_dialects(qid: str) -> List[str]:
+    """Return a list of dialect QIDs for a given language QID."""
+    query = f"""
+    SELECT DISTINCT ?dialect WHERE {{
+      ?dialect wdt:P4913 wd:{qid} .
+    }}
+    """
+    try:
+        headers = {
+            "Accept": "application/sparql-results+json",
+            "User-Agent": "LanguageTreeService/1.0"
+        }
+        params = {"query": query}
+        response = requests.get(settings.SPARQL_API, params=params, headers=headers)
+        if response.status_code == 200:
+            data = response.json()
+            results = data["results"]["bindings"]
+            return [result["dialect"]["value"].split("/")[-1] for result in results]
+    except Exception as e:
+        print(f"Error getting dialects for {qid}: {e}")
+    return []
+
+def get_language_siblings(qid: str, family_qid: str) -> List[str]:
+    """Return a list of sibling language QIDs that share the same family."""
+    siblings = set()
+    try:
+        # Find siblings via P279 (subclass of family)
+        query = f"""
+        SELECT DISTINCT ?sibling WHERE {{
+          ?sibling wdt:P279 wd:{family_qid} .
+          ?sibling wdt:P31/wdt:P279* wd:Q34770 .
+        }}
+        """
+        headers = {
+            "Accept": "application/sparql-results+json",
+            "User-Agent": "LanguageTreeService/1.0"
+        }
+        params = {"query": query}
+        response = requests.get(settings.SPARQL_API, params=params, headers=headers)
+        if response.status_code == 200:
+            data = response.json()
+            for result in data["results"]["bindings"]:
+                sib = result["sibling"]["value"].split("/")[-1]
+                if sib != qid:
+                    siblings.add(sib)
+        # Also check P361 (part of family)
+        query = f"""
+        SELECT DISTINCT ?sibling WHERE {{
+          ?sibling wdt:P361 wd:{family_qid} .
+          ?sibling wdt:P31/wdt:P279* wd:Q34770 .
+        }}
+        """
+        response = requests.get(settings.SPARQL_API, params=params, headers=headers, params={"query": query})
+        if response.status_code == 200:
+            data = response.json()
+            for result in data["results"]["bindings"]:
+                sib = result["sibling"]["value"].split("/")[-1]
+                if sib != qid:
+                    siblings.add(sib)
+    except Exception as e:
+        print(f"Error getting siblings for family {family_qid}: {e}")
+    return list(siblings)
+
 async def collect_language_relationships(qid: str, depth: int, websocket_manager: Optional[WebSocketManager] = None) -> List[Dict[str, str]]:
-    """Collect language family relationships in both directions and return formatted list."""
+    """Collect language family and genealogical relationships and return formatted list."""
     relationships = []
     all_qids = set([qid])
     sent_entities = set()
@@ -227,6 +289,32 @@ async def collect_language_relationships(qid: str, depth: int, websocket_manager
                 }
             })
             sent_entities.add(qid)
+
+    # Add timeline (evolution) relationships
+    entity = fetch_language_entity(qid)
+    timeline_parents = []
+    for prop in ["P54", "P42"]:  # replaces, follows
+        for snak in entity.get("claims", {}).get(prop, []):
+            if "datavalue" in snak["mainsnak"] and "value" in snak["mainsnak"]["datavalue"]:
+                parent_qid = snak["mainsnak"]["datavalue"]["value"]["id"]
+                timeline_parents.append(parent_qid)
+                relationships.append({"entity1": qid, "relationship": "evolved from", "entity2": parent_qid})
+                all_qids.update([qid, parent_qid])
+                if websocket_manager:
+                    labels = get_language_labels({qid, parent_qid})
+                    named_rel = {"entity1": labels.get(qid, qid), "relationship": "evolved from", "entity2": labels.get(parent_qid, parent_qid)}
+                    await websocket_manager.send_json({"type": "relationship", "data": named_rel})
+                    if parent_qid not in sent_entities:
+                        parent_details = await get_language_details_by_qid(parent_qid)
+                        if parent_details:
+                            await websocket_manager.send_json({
+                                "type": "language_details",
+                                "data": {"entity": labels.get(parent_qid, parent_qid), "qid": parent_qid, **parent_details}
+                            })
+                            sent_entities.add(parent_qid)
+    # Recursively collect relationships for timeline parents (upwards)
+    for parent_qid in timeline_parents:
+        await collect_language_relationships(parent_qid, depth-1, websocket_manager)
 
     # Collect language family relationships (upward)
     await collect_relationships_recursive(qid, depth, "up", relationships, set(), all_qids, websocket_manager, sent_entities)
@@ -262,8 +350,7 @@ async def collect_relationships_recursive(qid: str, depth: int, direction: str, 
                                         visited: set, all_qids: set, websocket_manager: Optional[WebSocketManager] = None, 
                                         sent_entities: Optional[set] = None):
     """
-    Recursively collect language relationships in {"entity1": str, "relationship": str, "entity2": str} format.
-    direction: 'up' (language families) or 'down' (descendant languages)
+    Recursively collect language relationships: family (up) or descendants/dialects (down).
     """
     if depth == 0 or qid in visited:
         return
@@ -272,14 +359,14 @@ async def collect_relationships_recursive(qid: str, depth: int, direction: str, 
     if sent_entities is None:
         sent_entities = set()
 
-    if direction == "up":  # Language families
+    if direction == "up":  # Language families (parent groups)
         families = get_language_family(qid)
         for family_qid in families:
+            # Member of relationship
             relationship = {"entity1": qid, "relationship": "member of", "entity2": family_qid}
             relationships.append(relationship)
             all_qids.update([qid, family_qid])
             
-            # Send relationship immediately via WebSocket
             if websocket_manager:
                 labels = get_language_labels({qid, family_qid})
                 named_relationship = {
@@ -287,12 +374,8 @@ async def collect_relationships_recursive(qid: str, depth: int, direction: str, 
                     "relationship": "member of",
                     "entity2": labels.get(family_qid, family_qid)
                 }
-                await websocket_manager.send_json({
-                    "type": "relationship",
-                    "data": named_relationship
-                })
+                await websocket_manager.send_json({"type": "relationship", "data": named_relationship})
                 
-                # Send language details if not already sent
                 if family_qid not in sent_entities:
                     family_details = await get_language_details_by_qid(family_qid)
                     if family_details:
@@ -305,30 +388,52 @@ async def collect_relationships_recursive(qid: str, depth: int, direction: str, 
                             }
                         })
                         sent_entities.add(family_qid)
+            # Sibling languages (share same family)
+            if websocket_manager:
+                siblings = get_language_siblings(qid, family_qid)
+                for sibling_qid in siblings:
+                    if sibling_qid == qid:
+                        continue
+                    relationships.append({"entity1": sibling_qid, "relationship": "sibling of", "entity2": qid})
+                    all_qids.update([sibling_qid, qid])
+                    labels = get_language_labels({sibling_qid, qid})
+                    named_sibling_rel = {
+                        "entity1": labels.get(sibling_qid, sibling_qid),
+                        "relationship": "sibling of",
+                        "entity2": labels.get(qid, qid)
+                    }
+                    await websocket_manager.send_json({"type": "relationship", "data": named_sibling_rel})
+                    if sibling_qid not in sent_entities:
+                        sibling_details = await get_language_details_by_qid(sibling_qid)
+                        if sibling_details:
+                            await websocket_manager.send_json({
+                                "type": "language_details",
+                                "data": {
+                                    "entity": labels.get(sibling_qid, sibling_qid),
+                                    "qid": sibling_qid,
+                                    **sibling_details
+                                }
+                            })
+                            sent_entities.add(sibling_qid)
             
             await collect_relationships_recursive(family_qid, depth - 1, direction, relationships, visited, all_qids, websocket_manager, sent_entities)
 
-    elif direction == "down":  # Descendant languages
+    elif direction == "down":  # Descendant languages and dialects
         descendants = get_language_descendants(qid)
-        for descendant_qid in descendants[:20]:  # Limit to avoid too many results
-            relationship = {"entity1": descendant_qid, "relationship": "member of", "entity2": qid}
+        for descendant_qid in descendants[:20]:  # Limit to avoid too many
+            relationship = {"entity1": descendant_qid, "relationship": "descendant of", "entity2": qid}
             relationships.append(relationship)
             all_qids.update([descendant_qid, qid])
 
-            # Send relationship immediately via WebSocket
             if websocket_manager:
                 labels = get_language_labels({descendant_qid, qid})
                 named_relationship = {
                     "entity1": labels.get(descendant_qid, descendant_qid),
-                    "relationship": "member of",
+                    "relationship": "descendant of",
                     "entity2": labels.get(qid, qid)
                 }
-                await websocket_manager.send_json({
-                    "type": "relationship",
-                    "data": named_relationship
-                })
+                await websocket_manager.send_json({"type": "relationship", "data": named_relationship})
                 
-                # Send language details if not already sent
                 if descendant_qid not in sent_entities:
                     descendant_details = await get_language_details_by_qid(descendant_qid)
                     if descendant_details:
@@ -341,8 +446,37 @@ async def collect_relationships_recursive(qid: str, depth: int, direction: str, 
                             }
                         })
                         sent_entities.add(descendant_qid)
-
             await collect_relationships_recursive(descendant_qid, depth - 1, direction, relationships, visited, all_qids, websocket_manager, sent_entities)
+        
+        # Also include dialects (language varieties)
+        dialects = get_language_dialects(qid)
+        for dialect_qid in dialects:
+            relationship = {"entity1": dialect_qid, "relationship": "dialect of", "entity2": qid}
+            relationships.append(relationship)
+            all_qids.update([dialect_qid, qid])
+
+            if websocket_manager:
+                labels = get_language_labels({dialect_qid, qid})
+                named_relationship = {
+                    "entity1": labels.get(dialect_qid, dialect_qid),
+                    "relationship": "dialect of",
+                    "entity2": labels.get(qid, qid)
+                }
+                await websocket_manager.send_json({"type": "relationship", "data": named_relationship})
+                
+                if dialect_qid not in sent_entities:
+                    dialect_details = await get_language_details_by_qid(dialect_qid)
+                    if dialect_details:
+                        await websocket_manager.send_json({
+                            "type": "language_details",
+                            "data": {
+                                "entity": labels.get(dialect_qid, dialect_qid),
+                                "qid": dialect_qid,
+                                **dialect_details
+                            }
+                        })
+                        sent_entities.add(dialect_qid)
+            await collect_relationships_recursive(dialect_qid, depth - 1, direction, relationships, visited, all_qids, websocket_manager, sent_entities)
 
 async def check_language_validity(language_name: str) -> bool:
     """Check if the language name corresponds to a valid language in Wikidata."""
