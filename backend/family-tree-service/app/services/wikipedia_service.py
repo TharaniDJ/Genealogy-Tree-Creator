@@ -139,7 +139,7 @@ def get_labels(qids: Set[str]) -> Dict[str, str]:
 
     params = {
         "action": "wbgetentities",
-        "ids": ",".join(qids),  # comma-separated list
+        "ids": "|".join(qids),  # pipe-separated list (not comma)
         "props": "labels",
         "languages": "en",
         "format": "json",
@@ -151,17 +151,32 @@ def get_labels(qids: Set[str]) -> Dict[str, str]:
 
     response = requests.get(WIKIDATA_API, params=params, headers=headers)
     if response.status_code != 200:
-        raise RuntimeError(f"Failed to fetch labels: {response.status_code}")
+        print(f"Failed to fetch labels: {response.status_code}")
+        print(f"Response text: {response.text}")
+        return {}  # Return empty dict instead of raising error
 
     data = response.json()
+    
+    # Check for errors in response
+    if "error" in data:
+        print(f"Wikidata API error: {data['error']}")
+        return {}
+        
     entities = data.get("entities", {})
 
     # Build dict of qid -> label
     labels = {}
     for qid, entity in entities.items():
+        # Check if entity exists (not missing)
+        if entity.get("missing"):
+            print(f"Entity {qid} is missing from Wikidata")
+            continue
+            
         label_info = entity.get("labels", {}).get("en")
         if label_info and "value" in label_info:
             labels[qid] = label_info["value"]
+        else:
+            print(f"No English label found for {qid}")
 
     return labels
 
@@ -207,7 +222,7 @@ async def collect_relationships(qid: str, depth: int, direction: str, relationsh
                 labels = get_labels({qid, father_qid})
 
                 print(f"labels for {qid} and {father_qid}: {labels}")
-                
+
                 named_relationship = {
                     "entity1": labels.get(qid, qid),
                     "relationship": "child of",
