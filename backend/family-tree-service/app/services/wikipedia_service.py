@@ -16,7 +16,7 @@ async def getPersonalDetails(page_title:str):
     return await getPersonalDetailsByQid(qid)
 
 async def getPersonalDetailsByQid(qid: str):
-    """Get personal details directly using QID"""
+    """Get personal details directly using Wikidata QID."""
     query = f"""
     SELECT ?birthDate ?deathDate ?image WHERE {{
       wd:{qid} wdt:P569 ?birthDate.
@@ -24,13 +24,21 @@ async def getPersonalDetailsByQid(qid: str):
       OPTIONAL {{ wd:{qid} wdt:P18 ?image. }}
     }}
     """
+
     headers = {
-        "Accept": "application/sparql-results+json"
+        "Accept": "application/sparql-results+json",
+        "User-Agent": "MyWikipediaTool/1.0 (https://example.com/contact)"
     }
+
     async with aiohttp.ClientSession() as session:
         async with session.get(SPARQL_API, params={"query": query}, headers=headers) as resp:
-            data = await resp.json()
-            results = data["results"]["bindings"]
+            if resp.status != 200:
+                text = await resp.text()
+                raise RuntimeError(f"SPARQL query failed ({resp.status}): {text}")
+
+            # Allow aiohttp to parse JSON even if content-type is not strictly application/json
+            data = await resp.json(content_type=None)
+            results = data.get("results", {}).get("bindings", [])
 
             if not results:
                 return None
@@ -43,9 +51,8 @@ async def getPersonalDetailsByQid(qid: str):
             return {
                 "birth_year": birth_date[:4] if birth_date else None,
                 "death_year": death_date[:4] if death_date else None,
-                "image_url": image if image else None
+                "image_url": image
             }
- 
 
 async def fetch_relationships(page_title: str, depth: int, websocket_manager: Optional[WebSocketManager] = None) -> List[Dict[str, str]]:
     """
@@ -53,6 +60,7 @@ async def fetch_relationships(page_title: str, depth: int, websocket_manager: Op
     Returns relationships in the format [{"entity1": str, "relationship": str, "entity2": str}].
     """
     qid = get_qid(page_title)
+    print(f"Fetched QID for '{page_title}': {qid}")  # Debug print
     return await collect_bidirectional_relationships(qid, depth, websocket_manager)
 
 def get_qid(page_title: str) -> str:
@@ -64,34 +72,100 @@ def get_qid(page_title: str) -> str:
         "ppprop": "wikibase_item",
         "format": "json",
     }
-    data = requests.get(WIKIPEDIA_API, params=params).json()
-    for page in data["query"]["pages"].values():
-        if "pageprops" in page and "wikibase_item" in page["pageprops"]:
-            return page["pageprops"]["wikibase_item"]
+
+    headers = {
+        "User-Agent": "MyWikipediaTool/1.0 (https://example.com/contact)"
+    }
+
+    response = requests.get(WIKIPEDIA_API, params=params, headers=headers)
+
+    print(f"Status code: {response.status_code}")
+    if response.status_code != 200:
+        raise RuntimeError(f"Failed to fetch data: {response.status_code}")
+
+    data = response.json()
+    print(f"Wikipedia API response for '{page_title}': {data}")  # Debug print
+
+    # Navigate through the JSON structure safely
+    pages = data.get("query", {}).get("pages", {})
+    for page in pages.values():
+        qid = page.get("pageprops", {}).get("wikibase_item")
+        if qid:
+            return qid
+
     raise ValueError(f"Q-id not found for page: {page_title}")
 
-def fetch_entity(qid: str) -> dict:
-    """Return the full JSON entity document for a given QID."""
-    url = WIKIDATA_API.format(qid)
-    return requests.get(url).json()["entities"][qid]
+import requests
 
-def get_labels(qids: set) -> Dict[str, str]:
-    """Batch-fetch labels for a set of Q-ids (returns dict)."""
-    if not qids:
-        return {}
+WIKIDATA_API = "https://www.wikidata.org/w/api.php"
+
+def fetch_entity(qid: str) -> dict:
+    """Return the full JSON entity document for a given Wikidata QID."""
     params = {
         "action": "wbgetentities",
-        "ids": "|".join(qids),
+        "ids": qid,
+        "format": "json"
+    }
+
+    headers = {
+        "User-Agent": "MyWikipediaTool/1.0 (https://example.com/contact)"
+    }
+
+    response = requests.get(WIKIDATA_API, params=params, headers=headers)
+    if response.status_code != 200:
+        raise RuntimeError(f"Failed to fetch entity {qid}: {response.status_code}")
+
+    data = response.json()
+    entities = data.get("entities", {})
+    if qid not in entities:
+        raise ValueError(f"Entity {qid} not found in response")
+
+    return entities[qid]
+
+import requests
+from typing import Dict, Set
+
+WIKIDATA_API = "https://www.wikidata.org/w/api.php"
+import requests
+from typing import Dict, Set
+
+WIKIDATA_API = "https://www.wikidata.org/w/api.php"
+
+
+def get_labels(qids: Set[str]) -> Dict[str, str]:
+    """Batch-fetch English labels for a set of Q-ids (returns dict)."""
+    if not qids:
+        return {}
+
+    params = {
+        "action": "wbgetentities",
+        "ids": ",".join(qids),  # comma-separated list
         "props": "labels",
         "languages": "en",
         "format": "json",
     }
-    data = requests.get("https://www.wikidata.org/w/api.php", params=params).json()
-    return {
-        qid: data["entities"][qid]["labels"]["en"]["value"]
-        for qid in data["entities"]
-        if "labels" in data["entities"][qid] and "en" in data["entities"][qid]["labels"]
+
+    headers = {
+        "User-Agent": "MyWikipediaTool/1.0 (https://example.com/contact)"
     }
+
+    response = requests.get(WIKIDATA_API, params=params, headers=headers)
+    if response.status_code != 200:
+        raise RuntimeError(f"Failed to fetch labels: {response.status_code}")
+
+    data = response.json()
+    entities = data.get("entities", {})
+
+    # Build dict of qid -> label
+    labels = {}
+    for qid, entity in entities.items():
+        label_info = entity.get("labels", {}).get("en")
+        if label_info and "value" in label_info:
+            labels[qid] = label_info["value"]
+
+    return labels
+
+
 
 def get_parents(qid: str) -> List[str]:
     """Return a list of parent QIDs for a given QID."""
@@ -131,6 +205,9 @@ async def collect_relationships(qid: str, depth: int, direction: str, relationsh
             if websocket_manager:
                 # Get labels for this specific relationship
                 labels = get_labels({qid, father_qid})
+
+                print(f"labels for {qid} and {father_qid}: {labels}")
+                
                 named_relationship = {
                     "entity1": labels.get(qid, qid),
                     "relationship": "child of",
@@ -340,7 +417,6 @@ async def collect_bidirectional_relationships(qid: str, depth: int, websocket_ma
     relationships = []
     all_qids = set([qid])
     sent_entities = set()  # Track entities whose personal details have been sent
-
     # Send initial status via WebSocket
     if websocket_manager:
         await websocket_manager.send_message(json.dumps({
@@ -350,8 +426,11 @@ async def collect_bidirectional_relationships(qid: str, depth: int, websocket_ma
         
         # Get initial entity details and send them
         initial_labels = get_labels({qid})
+        print(f"Fetched labels for '{qid}': {initial_labels}")  # Debug print
         initial_entity_name = initial_labels.get(qid, qid)
+        print(f"Initial entity name for '{qid}': {initial_entity_name}")  # Debug print
         initial_details = await getPersonalDetailsByQid(qid)
+        print(f"Initial personal details for '{qid}': {initial_details}")  # Debug print
         if initial_details:
             await websocket_manager.send_message(json.dumps({
                 "type": "personal_details",
