@@ -9,10 +9,10 @@ router = APIRouter()
 # Create a global WebSocket manager instance
 websocket_manager = WebSocketManager()
 
-@router.websocket("/ws/relationships")
+@router.websocket("/ws")
 async def websocket_language_relationships(websocket: WebSocket):
     """
-    WebSocket endpoint for real-time language relationship exploration.
+    WebSocket endpoint for real-time language  relationship exploration.
     
     Send: "language_name,depth" (e.g., "English,2")
     Receive: Real-time updates with relationships and language details

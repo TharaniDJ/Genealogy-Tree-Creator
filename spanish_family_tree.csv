@@ -1,0 +1,42 @@
+Language1,Relationship,Language2
+Old Latin,descended_from,Vulgar Latin
+Italic,belongs_to,Indo-European
+Vulgar Latin,descended_from,Proto-Romance
+Latinic,belongs_to,Latino-Faliscan
+Italo-Western,belongs_to,Romance
+Italo-Western,descended_from,Old Latin
+Old Spanish,belongs_to,Castilian
+Early Modern Spanish,belongs_to,Castilian
+Proto-Indo-European,descended_from,Proto-Italic
+Iberian Romance,belongs_to,Western Romance
+Spanish,belongs_to,Castilian
+Vulgar Latin,descended_from,Old Spanish
+Old Spanish,descended_from,Old Latin
+Latino-Faliscan,belongs_to,Italic
+Italo-Celtic?,belongs_to,Indo-European
+Western Romance,descended_from,Old Latin
+Proto-Romance,descended_from,Proto-Italo-Western Romance
+Vulgar Latin,belongs_to,Latin
+Proto-Italic,descended_from,Proto-Latino-Faliscan
+Proto-Romance,descended_from,Old Spanish
+West Iberian,belongs_to,Iberian Romance
+Romance,belongs_to,Latinic
+Ibero-Romance,belongs_to,Western Romance
+Proto-Italo-Western Romance,descended_from,Proto-Western Romance
+Italic,belongs_to,Italo-Celtic?
+Indo-European,belongs_to,Indo-European
+Proto-Italic,descended_from,Old Latin
+Castilian,belongs_to,West Iberian
+West Iberian,belongs_to,Ibero-Romance
+Latin,belongs_to,Latino-Faliscan
+Ibero-Romance,belongs_to,Gallo-Iberian
+Romance,belongs_to,Latin
+Romance,descended_from,Old Latin
+Latin,descended_from,Old Latin
+Proto-Latino-Faliscan,descended_from,Old Latin
+Western Romance,belongs_to,Italo-Western
+Old Spanish,descended_from,Early Modern Spanish
+Gallo-Iberian,belongs_to,Western Romance
+Early Modern Spanish,descended_from,Proto-Indo-European
+Vulgar Latin,descended_from,Proto-Indo-European
+Spanish,descended_from,Vulgar Latin

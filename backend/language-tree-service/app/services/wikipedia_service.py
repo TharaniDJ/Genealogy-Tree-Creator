@@ -1,350 +1,243 @@
-from typing import List, Dict, Optional
+
+# --- Enhanced Wikipedia Infobox-based Language Family Extractor ---
 import requests
-import asyncio
-import aiohttp
-import json
+import re
+from collections import deque
+from typing import List, Dict, Optional, Tuple, Set
 from app.core.websocket_manager import WebSocketManager
-from app.core.config import settings
 
-async def get_language_details(language_name: str) -> Optional[Dict]:
-    """Get detailed information about a language"""
-    qid = get_language_qid(language_name)
-    if not qid:
-        return None
-    return await get_language_details_by_qid(qid)
+class LanguageFamilyTreeExtractor:
+    def __init__(self, user_agent: str = "LanguageTreeBot/1.0 (research purposes)"):
+        self.base_url = "https://en.wikipedia.org/w/api.php"
+        self.session = requests.Session()
+        self.session.headers.update({'User-Agent': user_agent})
+        self.page_cache = {}
 
-async def get_language_details_by_qid(qid: str) -> Optional[Dict]:
-    """Get language details directly using QID"""
-    query = f"""
-    SELECT ?name ?familyLabel ?speakerCount ?writingSystemLabel ?isoCode ?regionLabel ?statusLabel ?image WHERE {{
-      wd:{qid} rdfs:label ?name .
-      FILTER(LANG(?name) = "en")
-      
-      OPTIONAL {{ wd:{qid} wdt:P31 ?status . }}
-      OPTIONAL {{ wd:{qid} wdt:P220 ?isoCode . }}
-      OPTIONAL {{ wd:{qid} wdt:P1098 ?speakerCount . }}
-      OPTIONAL {{ wd:{qid} wdt:P282 ?writingSystem . }}
-      OPTIONAL {{ wd:{qid} wdt:P17 ?region . }}
-      OPTIONAL {{ wd:{qid} wdt:P279 ?family . }}
-      OPTIONAL {{ wd:{qid} wdt:P18 ?image . }}
-      
-      OPTIONAL {{ ?status rdfs:label ?statusLabel . FILTER(LANG(?statusLabel) = "en") }}
-      OPTIONAL {{ ?writingSystem rdfs:label ?writingSystemLabel . FILTER(LANG(?writingSystemLabel) = "en") }}
-      OPTIONAL {{ ?region rdfs:label ?regionLabel . FILTER(LANG(?regionLabel) = "en") }}
-      OPTIONAL {{ ?family rdfs:label ?familyLabel . FILTER(LANG(?familyLabel) = "en") }}
-    }}
-    LIMIT 1
-    """
-    headers = {
-        "Accept": "application/sparql-results+json",
-        "User-Agent": "LanguageTreeService/1.0"
-    }
-    
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(settings.SPARQL_API, params={"query": query}, headers=headers) as resp:
-                if resp.status != 200:
-                    return None
-                data = await resp.json()
-                results = data["results"]["bindings"]
+    def get_page_content(self, title: str) -> str:
+        if title in self.page_cache:
+            return self.page_cache[title]
+        params = {
+            'action': 'query',
+            'format': 'json',
+            'titles': title,
+            'prop': 'revisions',
+            'rvprop': 'content',
+            'rvslots': 'main'
+        }
+        try:
+            response = self.session.get(self.base_url, params=params, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+            pages = data.get('query', {}).get('pages', {})
+            page_data = next(iter(pages.values()))
+            if 'revisions' in page_data:
+                content = page_data['revisions'][0]['slots']['main']['*']
+                self.page_cache[title] = content
+                return content
+            else:
+                return ""
+        except Exception as e:
+            print(f"Error fetching page {title}: {e}")
+            return ""
 
-                if not results:
-                    return None
+    def clean_wiki_value(self, value: str) -> str:
+        if not value:
+            return ""
+        value = re.sub(r'\[\[([^|\]]*)\|([^\]]*)\]\]', r'\2', value)
+        value = re.sub(r'\[\[([^\]]*)\]\]', r'\1', value)
+        while True:
+            old_value = value
+            value = re.sub(r'\{\{[^{}]*\}\}', '', value)
+            if value == old_value:
+                break
+        value = re.sub(r'<ref[^>]*>.*?</ref>', '', value, flags=re.DOTALL)
+        value = re.sub(r'<ref[^>]*/?>', '', value)
+        value = re.sub(r'<[^>]*>', '', value)
+        value = re.sub(r'\s+', ' ', value).strip()
+        return value
 
-                result = results[0]
-                return {
-                    "name": result.get("name", {}).get("value"),
-                    "language_family": result.get("familyLabel", {}).get("value"),
-                    "speakers": result.get("speakerCount", {}).get("value"),
-                    "writing_system": result.get("writingSystemLabel", {}).get("value"),
-                    "iso_code": result.get("isoCode", {}).get("value"),
-                    "region": result.get("regionLabel", {}).get("value"),
-                    "status": result.get("statusLabel", {}).get("value"),
-                    "image_url": result.get("image", {}).get("value")
-                }
-    except Exception as e:
-        print(f"Error fetching language details: {e}")
-        return None
+    def find_wiki_links(self, text: str) -> List[str]:
+        links = []
+        for match in re.finditer(r'\[\[([^|]+)(?:\|[^]]*)?\]\]', text):
+            link = match.group(1).strip()
+            if link:
+                links.append(link)
+        return links
 
+    def extract_infobox(self, wikitext: str) -> Tuple[Dict[str, str], Dict[str, str]]:
+        infobox_clean = {}
+        infobox_raw = {}
+        infobox_start = wikitext.find("{{Infobox language")
+        if infobox_start == -1:
+            infobox_start = wikitext.find("{{Infobox language family")
+        if infobox_start == -1:
+            match = re.search(r'\{\{infobox\s+(language|language family)', wikitext, re.IGNORECASE)
+            if match:
+                infobox_start = match.start()
+            else:
+                return infobox_clean, infobox_raw
+        brace_count = 1
+        pos = infobox_start + 2
+        infobox_end = -1
+        while pos < len(wikitext):
+            if wikitext[pos:pos+2] == '{{':
+                brace_count += 1
+                pos += 2
+            elif wikitext[pos:pos+2] == '}}':
+                brace_count -= 1
+                pos += 2
+                if brace_count == 0:
+                    infobox_end = pos
+                    break
+            else:
+                pos += 1
+        if infobox_end == -1:
+            return infobox_clean, infobox_raw
+        infobox_content = wikitext[infobox_start:infobox_end]
+        lines = infobox_content.split('\n')
+        current_key = None
+        current_value = []
+        for line in lines:
+            line = line.strip()
+            if line.startswith('{{Infobox language') or line.startswith('{{infobox language'):
+                continue
+            if line.startswith('|') and '=' in line:
+                if current_key and current_value:
+                    raw_text = '\n'.join(current_value)
+                    cleaned_value = self.clean_wiki_value(raw_text)
+                    infobox_raw[current_key] = raw_text
+                    if cleaned_value:
+                        infobox_clean[current_key] = cleaned_value
+                parts = line[1:].split('=', 1)
+                if len(parts) == 2:
+                    current_key = parts[0].strip()
+                    current_value = [parts[1].strip()]
+            elif line.startswith('|') and current_key:
+                current_value.append(line[1:].strip())
+            elif current_key and not line.startswith('|'):
+                current_value.append(line)
+        if current_key and current_value:
+            raw_text = '\n'.join(current_value)
+            cleaned_value = self.clean_wiki_value(raw_text)
+            infobox_raw[current_key] = raw_text
+            if cleaned_value:
+                infobox_clean[current_key] = cleaned_value
+        return infobox_clean, infobox_raw
+
+    def get_language_family_hierarchy(self, language_name: str) -> List[Tuple[str, str, str]]:
+        relationships = []
+        page_variations = [
+            f"{language_name} language",
+            language_name,
+            f"{language_name} Language",
+            f"{language_name} languages",
+            f"{language_name} language family"
+        ]
+        content = ""
+        for page_title in page_variations:
+            content = self.get_page_content(page_title)
+            if content and ("{{Infobox language" in content or "{{Infobox language family" in content):
+                break
+        if not content:
+            return relationships
+        infobox_clean, infobox_raw = self.extract_infobox(content)
+        if not infobox_clean:
+            return relationships
+        family_chain = []
+        if 'familycolor' in infobox_clean:
+            family_chain.append(infobox_clean['familycolor'])
+        for i in range(1, 16):
+            fam_key = f'fam{i}'
+            if fam_key in infobox_clean:
+                family_chain.append(infobox_clean[fam_key])
+        if family_chain:
+            if len(family_chain) > 0:
+                relationships.append((language_name, "belongs_to", family_chain[-1]))
+            for i in range(len(family_chain) - 1, 0, -1):
+                relationships.append((family_chain[i], "belongs_to", family_chain[i-1]))
+        ancestors = []
+        for i in range(1, 9):
+            ancestor_key = f'ancestor{i}' if i > 1 else 'ancestor'
+            if ancestor_key in infobox_clean:
+                ancestors.append(infobox_clean[ancestor_key])
+        if 'protoname' in infobox_clean:
+            ancestors.append(infobox_clean['protoname'])
+        if 'earlyforms' in infobox_raw:
+            early_links = self.find_wiki_links(infobox_raw['earlyforms'])
+            early_links.reverse()
+            ancestors.extend(early_links)
+        current_descendant = language_name
+        for ancestor in ancestors:
+            relationships.append((current_descendant, "descended_from", ancestor))
+            current_descendant = ancestor
+        for i in range(1, 41):
+            dialect_key = f'dia{i}'
+            if dialect_key in infobox_raw:
+                dialects = self.find_wiki_links(infobox_raw[dialect_key])
+                for dialect in dialects:
+                    relationships.append((dialect, "dialect_of", language_name))
+        if 'dialects' in infobox_clean:
+            cleaned = infobox_clean['dialects']
+            if 'list' not in cleaned.lower() and 'see' not in cleaned.lower():
+                dialects = self.find_wiki_links(infobox_raw['dialects'])
+                for dialect in dialects:
+                    relationships.append((dialect, "dialect_of", language_name))
+        for i in range(1, 51):
+            child_key = f'child{i}'
+            if child_key in infobox_raw:
+                children = self.find_wiki_links(infobox_raw[child_key])
+                for child in children:
+                    relationships.append((child, "belongs_to", language_name))
+        return relationships
+
+# --- Async wrapper for extractor with websocket updates ---
 async def fetch_language_relationships(language_name: str, depth: int, websocket_manager: Optional[WebSocketManager] = None) -> List[Dict[str, str]]:
     """
-    Fetch language family relationships for a given language and depth.
+    Fetch language family relationships for a given language and depth using Wikipedia infoboxes.
     Returns relationships in the format [{"entity1": str, "relationship": str, "entity2": str}].
+    Sends websocket updates after each relationship is found.
     """
-    qid = get_language_qid(language_name)
-    if not qid:
-        return []
-    return await collect_language_relationships(qid, depth, websocket_manager)
-
-def get_language_qid(language_name: str) -> Optional[str]:
-    """Return the Wikidata Q-identifier for a language name."""
-    try:
-        # First try direct page lookup
-        params = {
-            "action": "query",
-            "titles": f"{language_name} language",
-            "prop": "pageprops",
-            "ppprop": "wikibase_item",
-            "format": "json",
-        }
-        data = requests.get(settings.WIKIPEDIA_API, params=params).json()
-        
-        for page in data["query"]["pages"].values():
-            if "pageprops" in page and "wikibase_item" in page["pageprops"]:
-                return page["pageprops"]["wikibase_item"]
-        
-        # If direct lookup fails, try search
-        params = {
-            "action": "query",
-            "list": "search",
-            "srsearch": f"{language_name} language",
-            "srlimit": 1,
-            "format": "json",
-        }
-        data = requests.get(settings.WIKIPEDIA_API, params=params).json()
-        
-        if data["query"]["search"]:
-            page_title = data["query"]["search"][0]["title"]
-            params = {
-                "action": "query",
-                "titles": page_title,
-                "prop": "pageprops",
-                "ppprop": "wikibase_item",
-                "format": "json",
-            }
-            data = requests.get(settings.WIKIPEDIA_API, params=params).json()
-            
-            for page in data["query"]["pages"].values():
-                if "pageprops" in page and "wikibase_item" in page["pageprops"]:
-                    return page["pageprops"]["wikibase_item"]
-                    
-    except Exception as e:
-        print(f"Error getting QID for {language_name}: {e}")
-    
-    return None
-
-def fetch_language_entity(qid: str) -> dict:
-    """Return the full JSON entity document for a given QID."""
-    try:
-        url = settings.WIKIDATA_API.format(qid)
-        response = requests.get(url)
-        if response.status_code == 200:
-            return response.json()["entities"][qid]
-    except Exception as e:
-        print(f"Error fetching entity {qid}: {e}")
-    return {}
-
-def get_language_labels(qids: set) -> Dict[str, str]:
-    """Batch-fetch labels for a set of Q-ids (returns dict)."""
-    if not qids:
-        return {}
-    
-    try:
-        params = {
-            "action": "wbgetentities",
-            "ids": "|".join(qids),
-            "props": "labels",
-            "languages": "en",
-            "format": "json",
-        }
-        data = requests.get(settings.WIKIDATA_QUERY_API, params=params).json()
-        return {
-            qid: data["entities"][qid]["labels"]["en"]["value"]
-            for qid in data["entities"]
-            if "labels" in data["entities"][qid] and "en" in data["entities"][qid]["labels"]
-        }
-    except Exception as e:
-        print(f"Error getting labels: {e}")
-        return {}
-
-def get_language_family(qid: str) -> List[str]:
-    """Return a list of parent language family QIDs for a given QID."""
-    entity = fetch_language_entity(qid)
-    claims = entity.get("claims", {})
-    families = []
-    
-    # P279: subclass of (language family relationships)
-    for snak in claims.get("P279", []):
-        if "datavalue" in snak["mainsnak"] and "value" in snak["mainsnak"]["datavalue"]:
-            families.append(snak["mainsnak"]["datavalue"]["value"]["id"])
-    
-    # P361: part of (language group membership)
-    for snak in claims.get("P361", []):
-        if "datavalue" in snak["mainsnak"] and "value" in snak["mainsnak"]["datavalue"]:
-            families.append(snak["mainsnak"]["datavalue"]["value"]["id"])
-            
-    return families
-
-def get_language_descendants(qid: str) -> List[str]:
-    """Return a list of descendant language QIDs for a given QID."""
-    # This requires a SPARQL query since we need to find languages that have this one as ancestor
-    query = f"""
-    SELECT DISTINCT ?descendant WHERE {{
-      ?descendant wdt:P279+ wd:{qid} .
-      ?descendant wdt:P31/wdt:P279* wd:Q34770 .  # Instance of language
-    }}
-    LIMIT 100
-    """
-    
-    try:
-        headers = {
-            "Accept": "application/sparql-results+json",
-            "User-Agent": "LanguageTreeService/1.0"
-        }
-        params = {"query": query}
-        response = requests.get(settings.SPARQL_API, params=params, headers=headers)
-        
-        if response.status_code == 200:
-            data = response.json()
-            results = data["results"]["bindings"]
-            return [result["descendant"]["value"].split("/")[-1] for result in results]
-    except Exception as e:
-        print(f"Error getting descendants for {qid}: {e}")
-    
-    return []
-
-async def collect_language_relationships(qid: str, depth: int, websocket_manager: Optional[WebSocketManager] = None) -> List[Dict[str, str]]:
-    """Collect language family relationships in both directions and return formatted list."""
-    relationships = []
-    all_qids = set([qid])
-    sent_entities = set()
-
-    # Send initial status via WebSocket
+    extractor = LanguageFamilyTreeExtractor()
+    all_relationships = []
+    processed_languages: Set[str] = set()
+    languages_to_process = deque([(language_name, 0)])
+    total_found = 0
     if websocket_manager:
-        await websocket_manager.send_status("Starting language relationship collection...", 0)
-        
-        # Get initial entity details and send them
-        initial_labels = get_language_labels({qid})
-        initial_language_name = initial_labels.get(qid, qid)
-        initial_details = await get_language_details_by_qid(qid)
-        if initial_details:
-            await websocket_manager.send_json({
-                "type": "language_details",
-                "data": {
-                    "entity": initial_language_name,
-                    "qid": qid,
-                    **initial_details
-                }
-            })
-            sent_entities.add(qid)
-
-    # Collect language family relationships (upward)
-    await collect_relationships_recursive(qid, depth, "up", relationships, set(), all_qids, websocket_manager, sent_entities)
-
-    # Send progress update
+        await websocket_manager.send_status(f"Starting language relationship collection for '{language_name}'...", 0)
+    while languages_to_process:
+        current_lang, current_depth = languages_to_process.popleft()
+        if current_depth > depth or current_lang in processed_languages:
+            continue
+        processed_languages.add(current_lang)
+        lang_relationships = extractor.get_language_family_hierarchy(current_lang)
+        if lang_relationships:
+            for lang1, rel, lang2 in lang_relationships:
+                rel_dict = {"entity1": lang1, "relationship": rel, "entity2": lang2}
+                all_relationships.append(rel_dict)
+                total_found += 1
+                # Send websocket update after each relationship
+                if websocket_manager:
+                    await websocket_manager.send_json({
+                        "type": "relationship",
+                        "data": rel_dict
+                    })
+            # Add related languages for further exploration
+            if current_depth < depth:
+                for lang1, rel, lang2 in lang_relationships:
+                    if lang1 not in processed_languages:
+                        languages_to_process.append((lang1, current_depth + 1))
+                    if lang2 not in processed_languages:
+                        languages_to_process.append((lang2, current_depth + 1))
+        # Optionally send progress update every 10 relationships
+        if websocket_manager and total_found % 10 == 0:
+            percent = min(100, int(100 * len(processed_languages) / (depth * 10 + 1)))
+            await websocket_manager.send_status(f"Processed {len(processed_languages)} languages, {total_found} relationships found...", percent)
     if websocket_manager:
-        await websocket_manager.send_status("Language families collected, now collecting descendants...", 50)
-
-    # Collect language descendants (downward)
-    await collect_relationships_recursive(qid, depth, "down", relationships, set(), all_qids, websocket_manager, sent_entities)
-
-    # Send completion status
-    if websocket_manager:
-        await websocket_manager.send_status("Collection complete!", 100)
-
-    # Fetch labels for all entities
-    labels = get_language_labels(all_qids)
-
-    # Replace QIDs with names in relationships
-    named_relationships = []
-    for rel in relationships:
-        entity1_name = labels.get(rel["entity1"], rel["entity1"])
-        entity2_name = labels.get(rel["entity2"], rel["entity2"])
-        named_relationships.append({
-            "entity1": entity1_name,
-            "relationship": rel["relationship"],
-            "entity2": entity2_name
-        })
-
-    return named_relationships
-
-async def collect_relationships_recursive(qid: str, depth: int, direction: str, relationships: List[Dict[str, str]], 
-                                        visited: set, all_qids: set, websocket_manager: Optional[WebSocketManager] = None, 
-                                        sent_entities: Optional[set] = None):
-    """
-    Recursively collect language relationships in {"entity1": str, "relationship": str, "entity2": str} format.
-    direction: 'up' (language families) or 'down' (descendant languages)
-    """
-    if depth == 0 or qid in visited:
-        return
-    visited.add(qid)
-    
-    if sent_entities is None:
-        sent_entities = set()
-
-    if direction == "up":  # Language families
-        families = get_language_family(qid)
-        for family_qid in families:
-            relationship = {"entity1": qid, "relationship": "member of", "entity2": family_qid}
-            relationships.append(relationship)
-            all_qids.update([qid, family_qid])
-            
-            # Send relationship immediately via WebSocket
-            if websocket_manager:
-                labels = get_language_labels({qid, family_qid})
-                named_relationship = {
-                    "entity1": labels.get(qid, qid),
-                    "relationship": "member of",
-                    "entity2": labels.get(family_qid, family_qid)
-                }
-                await websocket_manager.send_json({
-                    "type": "relationship",
-                    "data": named_relationship
-                })
-                
-                # Send language details if not already sent
-                if family_qid not in sent_entities:
-                    family_details = await get_language_details_by_qid(family_qid)
-                    if family_details:
-                        await websocket_manager.send_json({
-                            "type": "language_details",
-                            "data": {
-                                "entity": labels.get(family_qid, family_qid),
-                                "qid": family_qid,
-                                **family_details
-                            }
-                        })
-                        sent_entities.add(family_qid)
-            
-            await collect_relationships_recursive(family_qid, depth - 1, direction, relationships, visited, all_qids, websocket_manager, sent_entities)
-
-    elif direction == "down":  # Descendant languages
-        descendants = get_language_descendants(qid)
-        for descendant_qid in descendants[:20]:  # Limit to avoid too many results
-            relationship = {"entity1": descendant_qid, "relationship": "member of", "entity2": qid}
-            relationships.append(relationship)
-            all_qids.update([descendant_qid, qid])
-
-            # Send relationship immediately via WebSocket
-            if websocket_manager:
-                labels = get_language_labels({descendant_qid, qid})
-                named_relationship = {
-                    "entity1": labels.get(descendant_qid, descendant_qid),
-                    "relationship": "member of",
-                    "entity2": labels.get(qid, qid)
-                }
-                await websocket_manager.send_json({
-                    "type": "relationship",
-                    "data": named_relationship
-                })
-                
-                # Send language details if not already sent
-                if descendant_qid not in sent_entities:
-                    descendant_details = await get_language_details_by_qid(descendant_qid)
-                    if descendant_details:
-                        await websocket_manager.send_json({
-                            "type": "language_details",
-                            "data": {
-                                "entity": labels.get(descendant_qid, descendant_qid),
-                                "qid": descendant_qid,
-                                **descendant_details
-                            }
-                        })
-                        sent_entities.add(descendant_qid)
-
-            await collect_relationships_recursive(descendant_qid, depth - 1, direction, relationships, visited, all_qids, websocket_manager, sent_entities)
+        await websocket_manager.send_status(f"Collection complete! {total_found} relationships found.", 100)
+    return all_relationships
 
 async def check_language_validity(language_name: str) -> bool:
-    """Check if the language name corresponds to a valid language in Wikidata."""
-    qid = get_language_qid(language_name)
-    return qid is not None
+    """Check if the language name corresponds to a valid Wikipedia page with an infobox."""
+    extractor = LanguageFamilyTreeExtractor()
+    rels = extractor.get_language_family_hierarchy(language_name)
+    return bool(rels)

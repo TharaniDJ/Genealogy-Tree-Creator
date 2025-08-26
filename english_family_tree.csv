@@ -1,0 +1,116 @@
+Language1,Relationship,Language2
+Hittite language,belongs_to,Anatolian languages
+Anglic languages,belongs_to,Anglo-Frisian
+Dacian language,belongs_to,Indo-European
+Philistine language,belongs_to,North
+Paeonian language,belongs_to,(unclassified)
+Liburnian language,belongs_to,Indo-European
+Sabellic languages,belongs_to,Italic languages
+Thracian language,belongs_to,Daco-Thracian (?)
+Gothic language,belongs_to,East Germanic languages
+Ligurian language (ancient),belongs_to,Unclassified
+Afroasiatic,belongs_to,Afro-Asiatic
+Lydian language,belongs_to,Anatolian languages
+Italic languages,belongs_to,Indo-European
+West Semitic,belongs_to,Semitic
+Low German,descended_from,Old Saxon
+Sciri#Language,belongs_to,East Germanic languages
+Italo-Celtic?,belongs_to,Indo-European
+Indo-Iranian languages,belongs_to,Indo-European
+Heruli#Language,belongs_to,East Germanic languages
+North Germanic languages,descended_from,Proto-Norse
+Indo-European,descended_from,Proto-Indo-European
+Dardani#language,belongs_to,Indo-European
+Graeco-Phrygian?,belongs_to,Indo-European
+Northwest Semitic,belongs_to,Central Semitic
+Canaanite,belongs_to,Northwest Semitic
+Hellenic languages,belongs_to,Indo-European
+Phrygian language,belongs_to,Graeco-Phrygian?
+North Sea Germanic,belongs_to,West Germanic
+Old Saxon,belongs_to,West Germanic languages
+Anatolian languages,descended_from,Proto-Anatolian
+Thracian language,belongs_to,Indo-European
+Luwic,belongs_to,Anatolian languages
+Italic languages,belongs_to,Italo-Celtic?
+Anglic,belongs_to,North Sea Germanic
+Indo-European,belongs_to,indo-european
+West Germanic,belongs_to,Germanic
+Ancient Macedonian language,belongs_to,Hellenic languages
+Semitic,belongs_to,Afroasiatic
+Indo-Aryan languages,belongs_to,Indo-Iranian languages
+North Germanic languages,belongs_to,Germanic languages
+Elbe Germanic]] – <small>[[High German,belongs_to,West Germanic
+Germanic languages,belongs_to,Indo-European
+Anatolian/Italic,belongs_to,Indo-European
+Venetic language,belongs_to,Italic languages
+East Low German,dialect_of,Low German
+Hellenic languages,descended_from,Proto-Greek
+North Sea Germanic]] – <small>[[Anglo-Frisian languages,belongs_to,West Germanic
+(unclassified),belongs_to,Indo-European
+Germanic,descended_from,Proto-Germanic
+Latino-Faliscan languages,belongs_to,Italic languages
+Indo-European,belongs_to,Indo-European
+East Germanic languages,belongs_to,Germanic
+Low Saxon,dialect_of,Low German
+Lusitanian language,belongs_to,Italic(?) or Celtic(?) orpara-Celtic (?)
+Weser–Rhine Germanic]] – <small>[[Low Franconian,belongs_to,West Germanic
+Philistine language,belongs_to,Indo-European
+Anatolian languages,belongs_to,Indo-European
+Venetic language,belongs_to,Indo-European
+Old Saxon,descended_from,Middle Low German
+Germanic,belongs_to,Indo-European
+Nuristani languages,belongs_to,Indo-Iranian languages
+Extinct language,belongs_to,Germanic
+Badeshi,belongs_to,Indo-Iranian languages
+Venetic language,belongs_to,Italic (?) orpara-Celtic (?)
+Palaic,belongs_to,Anatolian languages
+Dardani#language,belongs_to,(?) Albanoid
+Ligurian language (ancient),belongs_to,Indo-European
+Hellenic languages,belongs_to,Graeco-Phrygian?
+Central Semitic,belongs_to,West Semitic
+Italic languages,descended_from,Proto-Italic
+Low German,belongs_to,North Sea Germanic
+Greek language,belongs_to,Hellenic languages
+Daco-Thracian (?),belongs_to,Indo-European
+West Germanic languages,belongs_to,Germanic
+Elbe Germanic]] – <small>[[High German,belongs_to,West Germanic languages
+North Germanic languages,belongs_to,Northwest Germanic
+Vandalic language,belongs_to,East Germanic languages
+Old Saxon,belongs_to,North Sea Germanic
+Dardic languages,belongs_to,Indo-Iranian languages
+English,belongs_to,Anglic
+Italic (?) orpara-Celtic (?),belongs_to,Indo-European
+Frisian languages,belongs_to,Anglo-Frisian
+Italic(?) or Celtic(?) orpara-Celtic (?),belongs_to,Indo-European
+Elymian language,belongs_to,Anatolian/Italic
+Lusitanian language,belongs_to,Italic languages
+Balto-Slavic]]{{indent,belongs_to,Indo-European
+Albanoid]]{{indent,belongs_to,Indo-European
+Belgic language,belongs_to,Italic languages
+Weser–Rhine Germanic]] – <small>[[Low Franconian,belongs_to,West Germanic languages
+Germanic languages,descended_from,Proto-Germanic
+Tocharian languages,belongs_to,Indo-European
+West Germanic languages,belongs_to,Germanic languages
+Northwest Germanic,belongs_to,Germanic
+Burgundians#Language,belongs_to,East Germanic languages
+North,belongs_to,Canaanite
+Indo-Iranian languages,descended_from,Proto-Indo-Iranian
+Tocharian B,belongs_to,Tocharian languages
+Lusitanian language,belongs_to,Indo-European
+East Germanic languages,belongs_to,Germanic languages
+Iranian languages,belongs_to,Indo-Iranian languages
+Dacian language,belongs_to,Daco-Thracian (?)
+Siculian,belongs_to,Italic languages
+(?) Albanoid,belongs_to,Indo-European
+Mysian language,dialect_of,Phrygian language
+North Germanic languages,belongs_to,Germanic
+Phrygian language,belongs_to,Indo-European
+Romance languages,belongs_to,Italic languages
+Paeonian language,belongs_to,Indo-European
+Extinct language,belongs_to,Germanic languages
+Old Saxon,belongs_to,West Germanic
+North Sea Germanic]] – <small>[[Anglo-Frisian languages,belongs_to,West Germanic languages
+Elymian language,belongs_to,Indo-European
+Tocharian languages,descended_from,Proto-Tocharian
+Tocharian A,belongs_to,Tocharian languages
+Anglo-Frisian,belongs_to,North Sea Germanic

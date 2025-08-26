@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from typing import List
-from app.services.wikipedia_service import fetch_language_relationships, get_language_details
+from app.services.wikipedia_service import fetch_language_relationships
 from app.models.language import LanguageRelationship, LanguageInfo
 
 router = APIRouter()
@@ -33,7 +33,7 @@ async def get_language_info(language_name: str):
     """
     print(f"Fetching info for {language_name}")
     try:
-        language_info = await get_language_details(language_name)
+        language_info = 1
         if not language_info:
             raise HTTPException(status_code=404, detail=f"Language '{language_name}' not found")
         return language_info
