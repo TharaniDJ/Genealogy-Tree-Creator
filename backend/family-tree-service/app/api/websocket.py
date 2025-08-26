@@ -64,7 +64,7 @@
 #         manager.disconnect(websocket)
 #         await manager.send_status("A client has disconnected.")
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+""" from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 import json
 from app.core.websocket_manager import WebSocketManager
 from app.services.wikipedia_service import fetch_relationships
@@ -161,6 +161,116 @@ async def websocket_endpoint(websocket: WebSocket):
                             "data": {
                                 "title": page_title,
                                 "relationships": relationships
+                            }
+                        }))
+                        await manager.send_status("Family tree extraction complete!", 100)
+                    else:
+                        await manager.send_message(json.dumps({
+                            "type": "error",
+                            "data": {"message": "page_title is required"}
+                        }))
+
+                # ❌ Unknown action
+                else:
+                    await manager.send_message(json.dumps({
+                        "type": "error",
+                        "data": {"message": f"Unknown action: {action}"}
+                    }))
+
+            except json.JSONDecodeError:
+                await manager.send_message(json.dumps({
+                    "type": "error",
+                    "data": {"message": "Invalid JSON format"}
+                }))
+
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+        await manager.send_status("A client has disconnected.")
+ """
+
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+import json
+from app.core.websocket_manager import WebSocketManager
+from app.services.wikipedia_service import fetch_relationships
+from app.services.template_tree_extractor import extract_relationships_from_page, extract_relationships_from_page_streaming
+
+router = APIRouter()
+manager = WebSocketManager()
+
+@router.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            data = await websocket.receive_text()
+
+            try:
+                message = json.loads(data)
+                action = message.get("action")
+
+                # 1️⃣ Basic SPARQL relationship fetch (streams one by one)
+                if action == "fetch_relationships":
+                    page_title = message.get("page_title")
+                    depth = message.get("depth", 2)
+
+                    if page_title:
+                        await manager.send_status("Starting to fetch relationships...", 0)
+                        # This already streams individual relationships
+                        relationships = await fetch_relationships(page_title, depth, manager)
+                        await manager.send_status("All relationships fetched!", 100)
+                    else:
+                        await manager.send_message(json.dumps({
+                            "type": "error",
+                            "data": {"message": "page_title is required"}
+                        }))
+
+                # 2️⃣ Try existing family tree first, then SPARQL if needed (both streaming)
+                elif action == "fetch_relationships_with_tree":
+                    page_title = message.get("page_title")
+                    depth = message.get("depth", 2)
+
+                    if page_title:
+                        await manager.send_status("Checking for existing family tree...", 0)
+
+                        # Step 1: Try extracting from Wikipedia's existing ahnentafel tree (STREAMING)
+                        tree_relationships = await extract_relationships_from_page_streaming(page_title, manager)
+
+                        if tree_relationships:
+                            await manager.send_status(
+                                f"Found {len(tree_relationships)} relationships from existing tree",
+                                50
+                            )
+
+                        # Step 2: If depth requirement not met, fetch more via SPARQL (also streaming)
+                        if not tree_relationships or len(tree_relationships) < depth:
+                            await manager.send_status("Fetching more relationships via SPARQL...", 60)
+                            sparql_relationships = await fetch_relationships(page_title, depth, manager)
+
+                            await manager.send_status("All relationships fetched!", 100)
+                        else:
+                            await manager.send_status("Depth requirement satisfied with existing tree", 100)
+                    else:
+                        await manager.send_message(json.dumps({
+                            "type": "error",
+                            "data": {"message": "page_title is required"}
+                        }))
+
+                # 3️⃣ Only fetch the existing family tree (STREAMING - one relationship at a time)
+                elif action == "fetch_existing_tree":
+                    page_title = message.get("page_title")
+                    if page_title:
+                        await manager.send_status("Extracting existing family tree...", 0)
+                        
+                        # Use the STREAMING version instead of the batch version
+                        relationships = await extract_relationships_from_page_streaming(page_title, manager)
+                        
+                        # Send completion message
+                        await manager.send_message(json.dumps({
+                            "type": "extraction_complete",
+                            "data": {
+                                "title": page_title,
+                                "total_relationships": len(relationships),
+                                "message": "Family tree extraction complete!"
                             }
                         }))
                         await manager.send_status("Family tree extraction complete!", 100)
