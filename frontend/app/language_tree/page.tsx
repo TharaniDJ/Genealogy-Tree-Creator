@@ -1,70 +1,165 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import ReactFlow, {
-  Background,
-  Controls,
-  MiniMap,
   Node,
   Edge,
-  MarkerType,
-  Position,
+  useNodesState,
+  useEdgesState,
+  Controls,
+  Background,
+  BackgroundVariant,
 } from "reactflow";
-import dagre from "dagre";
 import "reactflow/dist/style.css";
 
-type RelationshipMsg = {
-  type: string;
-  data: {
-    entity1: string;
-    relationship: string;
-    entity2: string;
-  };
-};
+interface Relationship {
+  entity1: string;
+  relationship: string;
+  entity2: string;
+}
 
-const relationshipColors: Record<string, string> = {
-  belongs_to: "#2563eb", // blue
-  descended_from: "#16a34a", // green
-  dialect_of: "#dc2626", // red
-  default: "#6b7280", // gray
-};
+interface LanguageDetails {
+  entity: string;
+}
 
-// Dagre graph setup
-const dagreGraph = new dagre.graphlib.Graph().setDefaultEdgeLabel(() => ({}));
-const nodeWidth = 180;
-const nodeHeight = 40;
+interface LanguageTreeProps {
+  websocketData?: { type: string; data: any }[];
+  rootLanguage: string;
+}
 
-function applyLayout(nodes: Node[], edges: Edge[]) {
-  dagreGraph.setGraph({ rankdir: "TB" }); // Top -> Bottom layout
+function LanguageTree({ websocketData = [], rootLanguage }: LanguageTreeProps) {
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [languageDetails, setLanguageDetails] = useState<Map<string, LanguageDetails>>(new Map());
+  const [relationships, setRelationships] = useState<Relationship[]>([]);
 
-  nodes.forEach((node) => {
-    dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight });
-  });
+  // Process websocket data
+  useEffect(() => {
+    if (websocketData.length === 0) return;
 
-  edges.forEach((edge) => {
-    dagreGraph.setEdge(edge.source, edge.target);
-  });
+    const details = new Map(languageDetails);
+    const rels = [...relationships];
 
-  dagre.layout(dagreGraph);
+    websocketData.forEach((msg) => {
+      if (msg.type === "relationship") {
+        rels.push(msg.data as Relationship);
+      } else if (msg.type === "language_details") {
+        details.set(msg.data.entity, msg.data);
+      }
+    });
 
-  return nodes.map((node) => {
-    const pos = dagreGraph.node(node.id);
-    return {
-      ...node,
-      position: { x: pos.x - nodeWidth / 2, y: pos.y - nodeHeight / 2 },
-      targetPosition: Position.Top,
-      sourcePosition: Position.Bottom,
-    };
-  });
+    setLanguageDetails(details);
+    setRelationships(rels);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [websocketData]);
+
+  // Generate graph when relationships or details update
+  useEffect(() => {
+    if (relationships.length === 0) return;
+
+    const newNodes: Node[] = [];
+    const newEdges: Edge[] = [];
+
+    const VERTICAL_SPACING = 200;
+    const HORIZONTAL_SPACING = 220;
+
+    // BFS to assign depths
+    const depths = new Map<string, number>();
+    const visited = new Set<string>();
+    const queue: { lang: string; depth: number }[] = [{ lang: rootLanguage, depth: 0 }];
+    depths.set(rootLanguage, 0);
+
+    while (queue.length > 0) {
+      const { lang, depth } = queue.shift()!;
+      if (visited.has(lang)) continue;
+      visited.add(lang);
+
+      relationships.forEach((rel) => {
+        if (rel.entity1 === lang && !depths.has(rel.entity2)) {
+          depths.set(rel.entity2, depth + 1);
+          queue.push({ lang: rel.entity2, depth: depth + 1 });
+        }
+        if (rel.entity2 === lang && !depths.has(rel.entity1)) {
+          depths.set(rel.entity1, depth + 1);
+          queue.push({ lang: rel.entity1, depth: depth + 1 });
+        }
+      });
+    }
+
+    // Group languages by depth
+    const grouped: Record<number, string[]> = {} as Record<number, string[]>;
+    depths.forEach((depth, lang) => {
+      if (!grouped[depth]) grouped[depth] = [];
+      grouped[depth].push(lang);
+    });
+
+    // Position nodes in grid
+    Object.entries(grouped).forEach(([depthStr, langs]) => {
+      const depth = parseInt(depthStr);
+      langs.forEach((lang, i) => {
+        newNodes.push({
+          id: lang,
+          data: { label: lang },
+          position: {
+            x: i * HORIZONTAL_SPACING,
+            y: depth * VERTICAL_SPACING,
+          },
+          style: {
+            border: lang === rootLanguage ? "2px solid orange" : "1px solid #ccc",
+            padding: 8,
+            borderRadius: 6,
+            background: "#fff",
+          },
+        });
+      });
+    });
+
+    // Create edges
+    relationships.forEach((rel, i) => {
+      newEdges.push({
+        id: `edge-${i}`,
+        source: rel.entity1,
+        target: rel.entity2,
+        label: rel.relationship,
+        animated: true,
+        style: {
+          stroke:
+            rel.relationship === "belongs_to"
+              ? "#2563eb"
+              : rel.relationship === "descended_from"
+              ? "#16a34a"
+              : "#dc2626",
+          strokeDasharray: rel.relationship === "dialect_of" ? "5,5" : undefined,
+        },
+      });
+    });
+
+    setNodes(newNodes);
+    setEdges(newEdges);
+  }, [relationships, languageDetails, rootLanguage, setEdges, setNodes]);
+
+  return (
+    <div className="w-full h-full">
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        fitView
+        fitViewOptions={{ padding: 0.3 }}
+      >
+        <Controls />
+        <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
+      </ReactFlow>
+    </div>
+  );
 }
 
 export default function Page() {
-  const [language, setLanguage] = useState("English");
-  const [depth, setDepth] = useState(2);
-  const [nodes, setNodes] = useState<Node[]>([]);
-  const [edges, setEdges] = useState<Edge[]>([]);
+  const [rootLanguage, setRootLanguage] = useState("English");
+  const [depth, setDepth] = useState<number>(2);
+  const [websocketData, setWebsocketData] = useState<{ type: string; data: any }[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
-  const seenRelationships = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     return () => {
@@ -72,86 +167,24 @@ export default function Page() {
     };
   }, []);
 
-  const updateGraph = (entity1: string, rel: string, entity2: string) => {
-    const key = `${entity1}-${rel}-${entity2}`;
-    const reverseKey =
-      rel === "belongs_to"
-        ? `${entity2}-descended_from-${entity1}`
-        : rel === "descended_from"
-        ? `${entity2}-belongs_to-${entity1}`
-        : "";
-
-    if (
-      seenRelationships.current.has(key) ||
-      (reverseKey && seenRelationships.current.has(reverseKey))
-    ) {
-      return;
-    }
-
-    seenRelationships.current.add(key);
-
-    setNodes((prevNodes) => {
-      const exists = (id: string) => prevNodes.some((n) => n.id === id);
-      const newNodes = [...prevNodes];
-      if (!exists(entity1)) {
-        newNodes.push({
-          id: entity1,
-          data: { label: entity1 },
-          position: { x: 0, y: 0 }, // will be updated by dagre
-        });
-      }
-      if (!exists(entity2)) {
-        newNodes.push({
-          id: entity2,
-          data: { label: entity2 },
-          position: { x: 0, y: 0 }, // will be updated by dagre
-        });
-      }
-
-      const newEdges = [
-        ...edges,
-        {
-          id: key,
-          source: entity1,
-          target: entity2,
-          label: rel,
-          animated: true,
-          style: {
-            stroke: relationshipColors[rel] || relationshipColors.default,
-          },
-          markerEnd: {
-            type: MarkerType.ArrowClosed,
-            color: relationshipColors[rel] || relationshipColors.default,
-          },
-        },
-      ];
-
-      // Apply dagre layout
-      const laidOutNodes = applyLayout(newNodes, newEdges);
-      setEdges(newEdges);
-      return laidOutNodes;
-    });
-  };
-
   const connectWebSocket = () => {
-    setNodes([]);
-    setEdges([]);
-    seenRelationships.current.clear();
+    // reset data and close any existing socket
+    setWebsocketData([]);
+    wsRef.current?.close();
 
     const ws = new WebSocket("ws://localhost:8001/ws");
     wsRef.current = ws;
 
     ws.onopen = () => {
-      ws.send(`${language},${depth}`);
+      ws.send(`${rootLanguage},${depth}`);
     };
 
     ws.onmessage = (event) => {
-      const msg: RelationshipMsg = JSON.parse(event.data);
-      if (msg.type === "relationship") {
-        const { entity1, relationship, entity2 } = msg.data;
-        updateGraph(entity1, relationship, entity2);
-      } else if (msg.type === "complete") {
-        console.log("Tree exploration complete.");
+      try {
+        const msg = JSON.parse(event.data);
+        setWebsocketData((prev) => [...prev, msg]);
+      } catch (e) {
+        console.error("Invalid WS message", e);
       }
     };
 
@@ -160,7 +193,7 @@ export default function Page() {
     };
 
     ws.onclose = () => {
-      console.log("WebSocket closed");
+      // no-op
     };
   };
 
@@ -169,8 +202,8 @@ export default function Page() {
       <div className="p-4 flex gap-2 bg-gray-100 border-b">
         <input
           type="text"
-          value={language}
-          onChange={(e) => setLanguage(e.target.value)}
+          value={rootLanguage}
+          onChange={(e) => setRootLanguage(e.target.value)}
           placeholder="Enter language name"
           className="px-3 py-2 border rounded w-48"
         />
@@ -190,20 +223,7 @@ export default function Page() {
         </button>
       </div>
       <div className="flex-1">
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          fitView
-          attributionPosition="top-right"
-        >
-          <Background />
-          <Controls />
-          <MiniMap
-            nodeStrokeWidth={3}
-            nodeColor={(n) => "#1d4ed8"}
-            maskColor="rgba(0,0,0,0.1)"
-          />
-        </ReactFlow>
+        <LanguageTree websocketData={websocketData} rootLanguage={rootLanguage} />
       </div>
     </div>
   );
