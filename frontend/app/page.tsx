@@ -61,6 +61,8 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-gray-50">
+
+
       <div className="absolute top-4 right-4 z-20 bg-white p-4 rounded-lg shadow-md max-w-sm">
         <h1 className="text-xl font-bold mb-4">Genealogy Tree Creator</h1>
         
