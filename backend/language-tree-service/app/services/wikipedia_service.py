@@ -151,10 +151,11 @@ class LanguageFamilyTreeExtractor:
             if fam_key in infobox_clean:
                 family_chain.append(infobox_clean[fam_key])
         if family_chain:
+            # Instead of belongs_to → use descended_from consistently
             if len(family_chain) > 0:
-                relationships.append((language_name, "belongs_to", family_chain[-1]))
+                relationships.append((family_chain[-1], "descended_from", language_name))
             for i in range(len(family_chain) - 1, 0, -1):
-                relationships.append((family_chain[i], "belongs_to", family_chain[i-1]))
+                relationships.append((family_chain[i-1], "descended_from", family_chain[i]))
         ancestors = []
         for i in range(1, 9):
             ancestor_key = f'ancestor{i}' if i > 1 else 'ancestor'
@@ -187,7 +188,8 @@ class LanguageFamilyTreeExtractor:
             if child_key in infobox_raw:
                 children = self.find_wiki_links(infobox_raw[child_key])
                 for child in children:
-                    relationships.append((child, "belongs_to", language_name))
+                    # child belongs_to language → flip into descendant_of
+                    relationships.append((language_name, "descended_from", child))
         return relationships
 
 # --- Async wrapper for extractor with websocket updates ---
