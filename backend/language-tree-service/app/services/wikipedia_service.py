@@ -124,6 +124,54 @@ class LanguageFamilyTreeExtractor:
                 infobox_clean[current_key] = cleaned_value
         return infobox_clean, infobox_raw
 
+    def get_direct_relationships(self, language_name: str) -> List[Tuple[str, str, str]]:
+        relationships = []
+        page_variations = [
+            f"{language_name} language",
+            language_name,
+            f"{language_name} Language",
+            f"{language_name} languages",
+            f"{language_name} language family"
+        ]
+        content = ""
+        for page_title in page_variations:
+            content = self.get_page_content(page_title)
+            if content and ("{{Infobox language" in content or "{{Infobox language family" in content):
+                break
+        if not content:
+            return relationships
+
+        infobox_clean, infobox_raw = self.extract_infobox(content)
+        print("infobox")
+        print(infobox_clean)
+        print("infobox_raw")
+        print(infobox_raw)
+        if not infobox_clean:
+            return relationships
+
+        # --- only pick immediate parent/children/dialects ---
+        if 'fam1' in infobox_clean:  # direct family
+            relationships.append((language_name, "descended_from", infobox_clean['fam1']))
+
+        if 'ancestor' in infobox_clean:  # direct ancestor
+            relationships.append((language_name, "descended_from", infobox_clean['ancestor']))
+
+        if 'protoname' in infobox_clean:  # sometimes one step ancestor
+            relationships.append((language_name, "descended_from", infobox_clean['protoname']))
+
+        if 'child1' in infobox_raw:
+            children = self.find_wiki_links(infobox_raw['child1'])
+            for child in children:
+                relationships.append((child, "descended_from", language_name))
+
+        if 'dialects' in infobox_raw:
+            dialects = self.find_wiki_links(infobox_raw['dialects'])
+            for dialect in dialects:
+                relationships.append((dialect, "dialect_of", language_name))
+
+        return relationships
+
+    
     def get_language_family_hierarchy(self, language_name: str) -> List[Tuple[str, str, str]]:
         relationships = []
         page_variations = [
@@ -208,10 +256,12 @@ async def fetch_language_relationships(language_name: str, depth: int, websocket
         await websocket_manager.send_status(f"Starting language relationship collection for '{language_name}'...", 0)
     while languages_to_process:
         current_lang, current_depth = languages_to_process.popleft()
+        print(current_lang)
         if current_depth > depth or current_lang in processed_languages:
             continue
         processed_languages.add(current_lang)
-        lang_relationships = extractor.get_language_family_hierarchy(current_lang)
+        lang_relationships = extractor.get_direct_relationships(current_lang)
+        
         if lang_relationships:
             for lang1, rel, lang2 in lang_relationships:
                 rel_dict = {"entity1": lang1, "relationship": rel, "entity2": lang2}
