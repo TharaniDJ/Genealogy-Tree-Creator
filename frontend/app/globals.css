@@ -81,16 +81,33 @@
 }
 
 @layer base {
+  /* Ensure full height hierarchy */
+  html {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+  
   * {
     @apply border-border;
     box-sizing: border-box;
   }
+  
   body {
     @apply bg-background text-foreground;
     margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
     font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
     overflow: hidden;
+  }
+  
+  /* Next.js root container */
+  #__next {
+    height: 100%;
+    width: 100%;
   }
 }
 
@@ -122,6 +139,27 @@ input::placeholder {
 .react-flow__edge.selected .react-flow__edge-path {
   stroke: #3b82f6;
   stroke-width: 3px;
+}
+
+/* ReactFlow container improvements */
+.react-flow {
+  background: transparent !important;
+}
+
+.react-flow__viewport {
+  cursor: grab;
+}
+
+.react-flow__viewport:active {
+  cursor: grabbing;
+}
+
+.react-flow__controls {
+  button {
+    background: rgba(255, 255, 255, 0.9) !important;
+    border: 1px solid rgba(0, 0, 0, 0.1) !important;
+    backdrop-filter: blur(4px);
+  }
 }
 
 /* Utility classes for line clamping */
