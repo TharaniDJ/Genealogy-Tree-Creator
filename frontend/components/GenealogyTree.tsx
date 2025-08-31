@@ -827,12 +827,57 @@ function GenealogyTreeInternal({
     return nodes.find(node => node.id === nodeId);
   }, [nodes]);
 
-  // Enhanced expand node functionality
+  // Enhanced error handling and connection management
+  useEffect(() => {
+    if (websocketData.length === 0) return;
+
+    const latestMessage = websocketData[websocketData.length - 1];
+    
+    // Handle error messages
+    if (latestMessage.type === 'status') {
+      const message = latestMessage.data.message;
+      
+      // Check for error conditions
+      if (message.includes('Error') || message.includes('not found') || message.includes('Connection error')) {
+        // Stop the expanding state for failed expansions
+        if (expandingNode) {
+          setExpandingNode(null);
+        }
+        
+        // Show error in status but don't block UI
+        console.warn('Family tree expansion error:', message);
+        
+        // Auto-hide error messages after 5 seconds
+        setTimeout(() => {
+          setStatus('');
+          setProgress(0);
+        }, 5000);
+      }
+    }
+  }, [websocketData, expandingNode]);
+
+  // Enhanced expand node functionality with better error feedback
   const handleExpandNode = useCallback((nodeId: string) => {
     const node = getNodeById(nodeId);
     if (node && node.data.entity && onExpandNode) {
       const personName = node.data.entity.replace(/\s+/g, '_');
+      
+      // Check if this node has already been expanded recently (prevent spam)
+      if (expandingNode === nodeId) {
+        console.log('Node expansion already in progress');
+        return;
+      }
+      
       setExpandingNode(nodeId);
+      
+      // Set a timeout to reset expanding state in case of no response
+      setTimeout(() => {
+        if (expandingNode === nodeId) {
+          setExpandingNode(null);
+          setStatus(`Expansion timeout for ${node.data.entity}`);
+          setProgress(0);
+        }
+      }, 30000); // 30 second timeout
       
       // Call with configurable depth
       onExpandNode(personName, expandDepth);
@@ -841,7 +886,7 @@ function GenealogyTreeInternal({
       setExpandedNodes(prev => new Set([...prev, nodeId]));
     }
     setContextMenu(prev => ({ ...prev, show: false }));
-  }, [getNodeById, onExpandNode, expandDepth]);
+  }, [getNodeById, onExpandNode, expandDepth, expandingNode]);
 
   // Clear expanding state when new data arrives
   useEffect(() => {
@@ -998,12 +1043,14 @@ function GenealogyTreeInternal({
     setContextMenu(prev => ({ ...prev, show: false }));
   }, [getNodeById, nodes, edges, setNodes, setEdges]);
 
-  // Context menu component with better expand feedback
+  // Enhanced context menu with better status indicators
   const ContextMenuComponent = () => {
     if (!contextMenu.show) return null;
 
     const isExpanded = expandedNodes.has(contextMenu.nodeId);
     const isExpanding = expandingNode === contextMenu.nodeId;
+    const node = getNodeById(contextMenu.nodeId);
+    const hasWikipediaEntry = node?.data.qid && node.data.qid !== 'temp' && node.data.qid !== 'unknown';
 
     return (
       <div
@@ -1017,12 +1064,25 @@ function GenealogyTreeInternal({
         {contextMenu.nodeType === 'person' && (
           <>
             <button
-              className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center disabled:opacity-50"
+              className={`w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center ${
+                isExpanding ? 'opacity-50 cursor-not-allowed' : 
+                !hasWikipediaEntry ? 'opacity-75 text-gray-500' : ''
+              }`}
               onClick={() => handleExpandNode(contextMenu.nodeId)}
               disabled={isExpanding}
+              title={
+                !hasWikipediaEntry ? 
+                'This person may not have a Wikipedia entry' : 
+                isExpanding ? 'Expansion in progress...' : 
+                'Expand family tree'
+              }
             >
-              <span className="mr-2">🔍</span>
-              {isExpanding ? 'Expanding...' : isExpanded ? 'Expand More' : 'Expand Family Tree'}
+              <span className="mr-2">
+                {isExpanding ? '⏳' : hasWikipediaEntry ? '🔍' : '❓'}
+              </span>
+              {isExpanding ? 'Expanding...' : 
+               !hasWikipediaEntry ? 'Try Expand (Limited Info)' :
+               isExpanded ? 'Expand More' : 'Expand Family Tree'}
             </button>
             <button
               className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center"

@@ -59,12 +59,43 @@ async def fetch_relationships(page_title: str, depth: int, websocket_manager: Op
     Fetch genealogical relationships for a given Wikipedia page title and depth.
     Returns relationships in the format [{"entity1": str, "relationship": str, "entity2": str}].
     """
-    qid = get_qid(page_title)
-    print(f"Fetched QID for '{page_title}': {qid}")  # Debug print
-    return await collect_bidirectional_relationships(qid, depth, websocket_manager)
+    try:
+        qid = get_qid(page_title)
+        print(f"Fetched QID for '{page_title}': {qid}")  # Debug print
+        
+        if not qid:
+            # Send error message via WebSocket if available
+            if websocket_manager:
+                await websocket_manager.send_message(json.dumps({
+                    "type": "status",
+                    "data": {
+                        "message": f"No Wikipedia/Wikidata entry found for '{page_title}'. This person may not have sufficient notable information.",
+                        "progress": 100
+                    }
+                }))
+            print(f"No QID found for '{page_title}', returning empty relationships")
+            return []
+            
+        return await collect_bidirectional_relationships(qid, depth, websocket_manager)
+        
+    except Exception as e:
+        error_msg = f"Error fetching relationships for '{page_title}': {str(e)}"
+        print(error_msg)
+        
+        # Send error message via WebSocket if available
+        if websocket_manager:
+            await websocket_manager.send_message(json.dumps({
+                "type": "status",
+                "data": {
+                    "message": error_msg,
+                    "progress": 100
+                }
+            }))
+        
+        return []
 
-def get_qid(page_title: str) -> str:
-    """Return the Wikidata Q-identifier for a Wikipedia page title."""
+def get_qid(page_title: str) -> Optional[str]:
+    """Return the Wikidata Q-identifier for a Wikipedia page title, or None if not found."""
     params = {
         "action": "query",
         "titles": page_title,
@@ -77,25 +108,35 @@ def get_qid(page_title: str) -> str:
         "User-Agent": "MyWikipediaTool/1.0 (https://example.com/contact)"
     }
 
-    response = requests.get(WIKIPEDIA_API, params=params, headers=headers)
+    try:
+        response = requests.get(WIKIPEDIA_API, params=params, headers=headers)
 
-    print(f"Status code: {response.status_code}")
-    if response.status_code != 200:
-        raise RuntimeError(f"Failed to fetch data: {response.status_code}")
+        print(f"Status code: {response.status_code}")
+        if response.status_code != 200:
+            print(f"Failed to fetch data for {page_title}: {response.status_code}")
+            return None
 
-    data = response.json()
-    print(f"Wikipedia API response for '{page_title}': {data}")  # Debug print
+        data = response.json()
+        print(f"Wikipedia API response for '{page_title}': {data}")  # Debug print
 
-    # Navigate through the JSON structure safely
-    pages = data.get("query", {}).get("pages", {})
-    for page in pages.values():
-        qid = page.get("pageprops", {}).get("wikibase_item")
-        if qid:
-            return qid
+        # Navigate through the JSON structure safely
+        pages = data.get("query", {}).get("pages", {})
+        for page in pages.values():
+            # Check if page exists (not missing)
+            if "missing" in page:
+                print(f"Page '{page_title}' does not exist on Wikipedia")
+                return None
+                
+            qid = page.get("pageprops", {}).get("wikibase_item")
+            if qid:
+                return qid
 
-    raise ValueError(f"Q-id not found for page: {page_title}")
+        print(f"Q-id not found for page: {page_title}")
+        return None
 
-import requests
+    except Exception as e:
+        print(f"Error fetching QID for {page_title}: {e}")
+        return None
 
 WIKIDATA_API = "https://www.wikidata.org/w/api.php"
 
@@ -122,17 +163,7 @@ def fetch_entity(qid: str) -> dict:
 
     return entities[qid]
 
-import requests
-from typing import Dict, Set
-
-WIKIDATA_API = "https://www.wikidata.org/w/api.php"
-import requests
-from typing import Dict, Set
-
-WIKIDATA_API = "https://www.wikidata.org/w/api.php"
-
-
-def get_labels(qids: Set[str]) -> Dict[str, str]:
+def get_labels(qids: set) -> Dict[str, str]:
     """Batch-fetch English labels for a set of Q-ids (returns dict)."""
     if not qids:
         return {}
@@ -179,8 +210,6 @@ def get_labels(qids: Set[str]) -> Dict[str, str]:
             print(f"No English label found for {qid}")
 
     return labels
-
-
 
 def get_parents(qid: str) -> List[str]:
     """Return a list of parent QIDs for a given QID."""
