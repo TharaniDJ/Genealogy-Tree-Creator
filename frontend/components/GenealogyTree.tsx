@@ -1144,23 +1144,26 @@ function GenealogyTreeInternal({
     setContextMenu(prev => ({ ...prev, show: false }));
   }, [getNodeById, onExpandNode, expandDepth, expandingNode]);
 
-  // Enhanced delete node functionality
+  // Enhanced delete node functionality - CORRECTED VERSION
   const handleDeleteNode = useCallback((nodeId: string) => {
     // Find the node to delete
     const nodeToDelete = nodes.find(node => node.id === nodeId);
     if (!nodeToDelete) return;
 
+    let finalNodes = [...nodes];
+    let finalEdges = [...edges];
+
     // If deleting a person node
     if (nodeToDelete.type === 'person') {
       // Remove the person node
-      const newNodes = nodes.filter(node => node.id !== nodeId);
+      finalNodes = finalNodes.filter(node => node.id !== nodeId);
       
       // Remove all edges connected to this person
-      let newEdges = edges.filter(edge => 
+      finalEdges = finalEdges.filter(edge => 
         edge.source !== nodeId && edge.target !== nodeId
       );
 
-      // If this person was part of a marriage, handle marriage cleanup
+      // Find marriage nodes where this person is involved
       const marriageNodes = nodes.filter(node => 
         node.type === 'marriage' && 
         (node.data.spouse1 === nodeId || node.data.spouse2 === nodeId)
@@ -1168,52 +1171,65 @@ function GenealogyTreeInternal({
 
       marriageNodes.forEach(marriageNode => {
         // Remove the marriage node
-        const finalNodes = newNodes.filter(node => node.id !== marriageNode.id);
+        finalNodes = finalNodes.filter(node => node.id !== marriageNode.id);
         
         // Remove edges connected to the marriage node
-        newEdges = newEdges.filter(edge => 
+        finalEdges = finalEdges.filter(edge => 
           edge.source !== marriageNode.id && edge.target !== marriageNode.id
         );
 
-        // Connect children directly to remaining spouse if any
-        const remainingSpouse = marriageNode.data.spouse1 === nodeId ? 
+        // Find the remaining spouse
+        const remainingSpouseId = marriageNode.data.spouse1 === nodeId ? 
           marriageNode.data.spouse2 : marriageNode.data.spouse1;
         
-        if (remainingSpouse) {
-          // Find children of this marriage
+        // Check if remaining spouse still exists
+        const remainingSpouseExists = finalNodes.some(node => node.id === remainingSpouseId);
+        
+        if (remainingSpouseExists) {
+          // Find children that were connected to this marriage
           const childEdges = edges.filter(edge => edge.source === marriageNode.id);
+          
           childEdges.forEach(childEdge => {
-            // Create new edge from remaining spouse to child
-            newEdges.push({
-              id: `single-parent-${remainingSpouse}-${childEdge.target}`,
-              source: remainingSpouse,
-              target: childEdge.target,
-              type: 'smoothstep',
-              style: {
-                stroke: '#6b7280',
-                strokeWidth: 2,
-                strokeDasharray: '5,5', // Dashed for single parent
-              },
-            });
+            // Check if child still exists
+            const childExists = finalNodes.some(node => node.id === childEdge.target);
+            
+            if (childExists) {
+              // Create new edge from remaining spouse to child (dashed for single parent)
+              const newEdge = {
+                id: `single-parent-${remainingSpouseId}-${childEdge.target}`,
+                source: remainingSpouseId,
+                target: childEdge.target,
+                type: 'smoothstep',
+                style: {
+                  stroke: '#6b7280',
+                  strokeWidth: 2,
+                  strokeDasharray: '5,5', // Dashed for single parent
+                },
+                markerEnd: {
+                  type: MarkerType.ArrowClosed,
+                  color: '#6b7280',
+                },
+              };
+              finalEdges.push(newEdge);
+            }
           });
         }
-
-        setNodes(finalNodes);
       });
-
-      setNodes(newNodes);
-      setEdges(newEdges);
     } 
     // If deleting a marriage node
     else if (nodeToDelete.type === 'marriage') {
-      const newNodes = nodes.filter(node => node.id !== nodeId);
-      const newEdges = edges.filter(edge => 
+      // Remove the marriage node
+      finalNodes = finalNodes.filter(node => node.id !== nodeId);
+      
+      // Remove all edges connected to this marriage
+      finalEdges = finalEdges.filter(edge => 
         edge.source !== nodeId && edge.target !== nodeId
       );
-
-      setNodes(newNodes);
-      setEdges(newEdges);
     }
+
+    // Update states with final arrays
+    setNodes(finalNodes);
+    setEdges(finalEdges);
 
     // Clean up expanded nodes tracking
     setExpandedNodes(prev => {
@@ -1401,7 +1417,7 @@ function GenealogyTreeInternal({
     }
   }, [websocketData, expandingNode]);
 
-  // Enhanced context menu
+  // Enhanced context menu with honest labeling - CORRECTED VERSION
   const ContextMenuComponent = () => {
     if (!contextMenu.show) return null;
 
@@ -1410,6 +1426,9 @@ function GenealogyTreeInternal({
     const node = getNodeById(contextMenu.nodeId);
     const hasWikipediaEntry = node?.data.qid && node.data.qid !== 'temp' && node.data.qid !== 'unknown';
     const isUserAdded = node?.data.isUserAdded;
+
+    // Count how many user-added nodes exist
+    const userAddedCount = nodes.filter(n => n.data.isUserAdded).length;
 
     return (
       <div
@@ -1464,15 +1483,26 @@ function GenealogyTreeInternal({
           {contextMenu.nodeType === 'marriage' ? 'Add Child (Both Parents)' : 'Add Child'}
         </button>
 
-        <div className="border-t border-gray-200 my-1"></div>
-        
-        <button
-          className="w-full px-4 py-2 text-left hover:bg-red-100 text-red-600 flex items-center"
-          onClick={() => handleDeleteNode(contextMenu.nodeId)}
-        >
-          <span className="mr-2">🗑️</span>
-          Delete {contextMenu.nodeType === 'marriage' ? 'Marriage' : 'Person'}
-        </button>
+        {/* Only show delete option for user-added nodes with honest labeling */}
+        {isUserAdded && userAddedCount > 0 && (
+          <>
+            <div className="border-t border-gray-200 my-1"></div>
+            
+            <button
+              className="w-full px-4 py-2 text-left hover:bg-red-100 text-red-600 flex items-center"
+              onClick={() => handleDeleteNode(contextMenu.nodeId)}
+              title="This will remove all manually added people and marriages from the tree"
+            >
+              <span className="mr-2">🗑️</span>
+              <div className="text-left">
+                <div className="font-medium">Clear All Added Nodes</div>
+                <div className="text-xs text-red-500">
+                  ({userAddedCount} item{userAddedCount !== 1 ? 's' : ''})
+                </div>
+              </div>
+            </button>
+          </>
+        )}
       </div>
     );
   };
