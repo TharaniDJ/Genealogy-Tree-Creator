@@ -1144,33 +1144,102 @@ function GenealogyTreeInternal({
     setContextMenu(prev => ({ ...prev, show: false }));
   }, [getNodeById, onExpandNode, expandDepth, expandingNode]);
 
-  // Delete node functionality
+  // Enhanced delete node functionality
   const handleDeleteNode = useCallback((nodeId: string) => {
-    const newNodes = nodes.filter(node => node.id !== nodeId);
-    const newEdges = edges.filter(edge => 
-      edge.source !== nodeId && edge.target !== nodeId
-    );
-    
-    setNodes(newNodes);
-    setEdges(newEdges);
-    
+    // Find the node to delete
+    const nodeToDelete = nodes.find(node => node.id === nodeId);
+    if (!nodeToDelete) return;
+
+    // If deleting a person node
+    if (nodeToDelete.type === 'person') {
+      // Remove the person node
+      const newNodes = nodes.filter(node => node.id !== nodeId);
+      
+      // Remove all edges connected to this person
+      let newEdges = edges.filter(edge => 
+        edge.source !== nodeId && edge.target !== nodeId
+      );
+
+      // If this person was part of a marriage, handle marriage cleanup
+      const marriageNodes = nodes.filter(node => 
+        node.type === 'marriage' && 
+        (node.data.spouse1 === nodeId || node.data.spouse2 === nodeId)
+      );
+
+      marriageNodes.forEach(marriageNode => {
+        // Remove the marriage node
+        const finalNodes = newNodes.filter(node => node.id !== marriageNode.id);
+        
+        // Remove edges connected to the marriage node
+        newEdges = newEdges.filter(edge => 
+          edge.source !== marriageNode.id && edge.target !== marriageNode.id
+        );
+
+        // Connect children directly to remaining spouse if any
+        const remainingSpouse = marriageNode.data.spouse1 === nodeId ? 
+          marriageNode.data.spouse2 : marriageNode.data.spouse1;
+        
+        if (remainingSpouse) {
+          // Find children of this marriage
+          const childEdges = edges.filter(edge => edge.source === marriageNode.id);
+          childEdges.forEach(childEdge => {
+            // Create new edge from remaining spouse to child
+            newEdges.push({
+              id: `single-parent-${remainingSpouse}-${childEdge.target}`,
+              source: remainingSpouse,
+              target: childEdge.target,
+              type: 'smoothstep',
+              style: {
+                stroke: '#6b7280',
+                strokeWidth: 2,
+                strokeDasharray: '5,5', // Dashed for single parent
+              },
+            });
+          });
+        }
+
+        setNodes(finalNodes);
+      });
+
+      setNodes(newNodes);
+      setEdges(newEdges);
+    } 
+    // If deleting a marriage node
+    else if (nodeToDelete.type === 'marriage') {
+      const newNodes = nodes.filter(node => node.id !== nodeId);
+      const newEdges = edges.filter(edge => 
+        edge.source !== nodeId && edge.target !== nodeId
+      );
+
+      setNodes(newNodes);
+      setEdges(newEdges);
+    }
+
+    // Clean up expanded nodes tracking
     setExpandedNodes(prev => {
       const newSet = new Set(prev);
       newSet.delete(nodeId);
       return newSet;
     });
-    
+
     setContextMenu(prev => ({ ...prev, show: false }));
   }, [nodes, edges, setNodes, setEdges]);
 
-  // Add spouse functionality
+  // Enhanced add spouse functionality with name input
   const handleAddSpouse = useCallback((nodeId: string) => {
     const node = getNodeById(nodeId);
     if (!node || node.type !== 'person') return;
-    
+
+    // Create a modal/prompt for spouse name
+    const spouseName = prompt('Enter spouse name:', 'New Spouse');
+    if (!spouseName || spouseName.trim() === '') {
+      setContextMenu(prev => ({ ...prev, show: false }));
+      return;
+    }
+
     const spouseId = `${nodeId}-spouse-${Date.now()}`;
     const marriageId = `${nodeId}-${spouseId}-marriage`;
-    
+
     const spouseX = node.position.x + 350;
     const spouseY = node.position.y;
     const marriageX = node.position.x + 175;
@@ -1181,10 +1250,11 @@ function GenealogyTreeInternal({
       type: 'person',
       position: { x: spouseX, y: spouseY },
       data: {
-        label: 'New Spouse',
-        entity: 'New Spouse',
+        label: spouseName.trim(),
+        entity: spouseName.trim(),
         qid: 'temp',
         nodeType: 'entity' as const,
+        isUserAdded: true, // Mark as user-added
       },
     };
 
@@ -1197,6 +1267,7 @@ function GenealogyTreeInternal({
         spouse1: nodeId,
         spouse2: spouseId,
         nodeType: 'marriage' as const,
+        isUserAdded: true, // Mark as user-added
       },
     };
 
@@ -1222,28 +1293,69 @@ function GenealogyTreeInternal({
     setContextMenu(prev => ({ ...prev, show: false }));
   }, [getNodeById, nodes, edges, setNodes, setEdges]);
 
-  // Add child functionality
+  // Enhanced add child functionality with name input and smart parent logic
   const handleAddChild = useCallback((nodeId: string) => {
     const node = getNodeById(nodeId);
     if (!node) return;
-    
+
+    // Create a modal/prompt for child name
+    const childName = prompt('Enter child name:', 'New Child');
+    if (!childName || childName.trim() === '') {
+      setContextMenu(prev => ({ ...prev, show: false }));
+      return;
+    }
+
     const childId = `${nodeId}-child-${Date.now()}`;
-    
     let childX = node.position.x;
     let childY = node.position.y + 350;
     let sourceId = nodeId;
+    let edgeStyle = {
+      stroke: '#6b7280',
+      strokeWidth: 2,
+      strokeDasharray: '5,5', // Default to dashed (single parent)
+    };
 
+    // If right-clicked on a marriage node
     if (node.type === 'marriage') {
       childX = node.position.x - 25;
-    } else {
+      childY = node.position.y + 150;
+      sourceId = nodeId; // Connect from marriage node
+  edgeStyle.strokeDasharray = ''; // Solid line from marriage
+    } 
+    // If right-clicked on a person node
+    else if (node.type === 'person') {
+      // Check if this person has a marriage
       const marriageNode = nodes.find(n => 
         n.type === 'marriage' && 
         (n.data.spouse1 === nodeId || n.data.spouse2 === nodeId)
       );
+
       if (marriageNode) {
-        sourceId = marriageNode.id;
-        childX = marriageNode.position.x - 25;
-        childY = marriageNode.position.y + 150;
+        // Ask user if they want child from marriage or as single parent
+        const fromMarriage = confirm(
+          `Add child from marriage with ${marriageNode.data.spouse1 === nodeId ? 
+            marriageNode.data.spouse2 : marriageNode.data.spouse1}?\n\n` +
+          'Click OK for child from marriage, Cancel for single parent child.'
+        );
+
+        if (fromMarriage) {
+          sourceId = marriageNode.id;
+          childX = marriageNode.position.x - 25;
+          childY = marriageNode.position.y + 150;
+          edgeStyle.strokeDasharray = ''; // Solid line from marriage
+        } else {
+          // Direct child from this person only
+          sourceId = nodeId;
+          childX = node.position.x - 25;
+          childY = node.position.y + 350;
+          // Keep dashed line for single parent
+        }
+      } else {
+        // No marriage exists, direct child
+        sourceId = nodeId;
+        childX = node.position.x - 25;
+        childY = node.position.y + 350;
+        // Keep dashed line for single parent
       }
     }
 
@@ -1252,21 +1364,23 @@ function GenealogyTreeInternal({
       type: 'person',
       position: { x: childX, y: childY },
       data: {
-        label: 'New Child',
-        entity: 'New Child',
+        label: childName.trim(),
+        entity: childName.trim(),
         qid: 'temp',
         nodeType: 'entity' as const,
+        isUserAdded: true, // Mark as user-added
       },
     };
 
     const newEdge: Edge = {
-      id: `parent-child-${childId}`,
+      id: `parent-child-${sourceId}-${childId}`,
       source: sourceId,
       target: childId,
       type: 'smoothstep',
-      style: {
-        stroke: '#6b7280',
-        strokeWidth: 2,
+      style: edgeStyle,
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        color: edgeStyle.stroke,
       },
     };
 
@@ -1295,6 +1409,7 @@ function GenealogyTreeInternal({
     const isExpanding = expandingNode === contextMenu.nodeId;
     const node = getNodeById(contextMenu.nodeId);
     const hasWikipediaEntry = node?.data.qid && node.data.qid !== 'temp' && node.data.qid !== 'unknown';
+    const isUserAdded = node?.data.isUserAdded;
 
     return (
       <div
@@ -1307,27 +1422,30 @@ function GenealogyTreeInternal({
       >
         {contextMenu.nodeType === 'person' && (
           <>
-            <button
-              className={`w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center ${
-                isExpanding ? 'opacity-50 cursor-not-allowed' : 
-                !hasWikipediaEntry ? 'opacity-75 text-gray-500' : ''
-              }`}
-              onClick={() => handleExpandNode(contextMenu.nodeId)}
-              disabled={isExpanding}
-              title={
-                !hasWikipediaEntry ? 
-                'This person may not have a Wikipedia entry' : 
-                isExpanding ? 'Expansion in progress...' : 
-                'Expand family tree'
-              }
-            >
-              <span className="mr-2">
-                {isExpanding ? '⏳' : hasWikipediaEntry ? '🔍' : '❓'}
-              </span>
-              {isExpanding ? 'Expanding...' : 
-               !hasWikipediaEntry ? 'Try Expand (Limited Info)' :
-               isExpanded ? 'Expand More' : 'Expand Family Tree'}
-            </button>
+            {!isUserAdded && (
+              <button
+                className={`w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center ${
+                  isExpanding ? 'opacity-50 cursor-not-allowed' : 
+                  !hasWikipediaEntry ? 'opacity-75 text-gray-500' : ''
+                }`}
+                onClick={() => handleExpandNode(contextMenu.nodeId)}
+                disabled={isExpanding}
+                title={
+                  !hasWikipediaEntry ? 
+                  'This person may not have a Wikipedia entry' : 
+                  isExpanding ? 'Expansion in progress...' : 
+                  'Expand family tree'
+                }
+              >
+                <span className="mr-2">
+                  {isExpanding ? '⏳' : hasWikipediaEntry ? '🔍' : '❓'}
+                </span>
+                {isExpanding ? 'Expanding...' : 
+                 !hasWikipediaEntry ? 'Try Expand (Limited Info)' :
+                 isExpanded ? 'Expand More' : 'Expand Family Tree'}
+              </button>
+            )}
+            
             <button
               className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center"
               onClick={() => handleAddSpouse(contextMenu.nodeId)}
@@ -1337,20 +1455,23 @@ function GenealogyTreeInternal({
             </button>
           </>
         )}
+
         <button
           className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center"
           onClick={() => handleAddChild(contextMenu.nodeId)}
         >
           <span className="mr-2">👶</span>
-          Add Child
+          {contextMenu.nodeType === 'marriage' ? 'Add Child (Both Parents)' : 'Add Child'}
         </button>
+
         <div className="border-t border-gray-200 my-1"></div>
+        
         <button
           className="w-full px-4 py-2 text-left hover:bg-red-100 text-red-600 flex items-center"
           onClick={() => handleDeleteNode(contextMenu.nodeId)}
         >
           <span className="mr-2">🗑️</span>
-          Delete Node
+          Delete {contextMenu.nodeType === 'marriage' ? 'Marriage' : 'Person'}
         </button>
       </div>
     );
