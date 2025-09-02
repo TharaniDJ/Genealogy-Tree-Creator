@@ -1440,7 +1440,10 @@ function GenealogyTreeInternal({
       }
     });
 
-    // Add children to marriages
+
+    // Add children to marriages - IMPROVED VERSION
+    const marriageChildren = new Map<string, string[]>();
+
     parentChildRelationships.forEach(rel => {
       let parent, child;
       
@@ -1456,13 +1459,45 @@ function GenealogyTreeInternal({
         return;
       }
       
+      // Only add child to marriage if BOTH parents are in the marriage
       const parentMarriages = personToMarriages.get(parent) || [];
+      let childAssigned = false;
+      
       parentMarriages.forEach(marriageId => {
         const marriage = marriages.get(marriageId);
-        if (marriage && !marriage.children.includes(child)) {
-          marriage.children.push(child);
+        if (marriage) {
+          // Check if the child has a relationship with the other spouse too
+          const otherSpouse = marriage.spouse1 === parent ? marriage.spouse2 : marriage.spouse1;
+          
+          const hasRelationshipWithOtherSpouse = parentChildRelationships.some(otherRel => {
+            if (otherRel.relationship === 'child of') {
+              return otherRel.entity1 === child && otherRel.entity2 === otherSpouse;
+            } else if (otherRel.relationship === 'parent of' || 
+                       otherRel.relationship === 'father of' || 
+                       otherRel.relationship === 'mother of') {
+              return otherRel.entity1 === otherSpouse && otherRel.entity2 === child;
+            }
+            return false;
+          });
+          
+          // Only add to marriage if child has relationship with both spouses
+          if (hasRelationshipWithOtherSpouse && !marriage.children.includes(child)) {
+            marriage.children.push(child);
+            childAssigned = true;
+          }
         }
       });
+      
+      // If child wasn't assigned to any marriage, track them separately for single-parent relationships
+      if (!childAssigned) {
+        const singleParentKey = `single-parent-${parent}`;
+        if (!marriageChildren.has(singleParentKey)) {
+          marriageChildren.set(singleParentKey, []);
+        }
+        if (!marriageChildren.get(singleParentKey)!.includes(child)) {
+          marriageChildren.get(singleParentKey)!.push(child);
+        }
+      }
     });
 
     // Assign family colors
@@ -1733,12 +1768,14 @@ function GenealogyTreeInternal({
       
       // Check if parent is in a marriage with children
       let sourceId = parent;
+      let isFromMarriage = false;
       const parentMarriages = personToMarriages.get(parent) || [];
       
       for (const marriageId of parentMarriages) {
         const marriage = marriages.get(marriageId);
         if (marriage && marriage.children.includes(child)) {
           sourceId = marriageId;
+          isFromMarriage = true;
           break;
         }
       }
@@ -1746,20 +1783,31 @@ function GenealogyTreeInternal({
       // Get family color for this parent-child relationship
       const parentColor = familyColors.get(parent) || '#6b7280';
       
-      newEdges.push({
-        id: `parent-child-${parent}-${child}-${index}`,
-        source: sourceId,
-        target: child,
-        type: 'smoothstep',
-        style: {
-          stroke: parentColor, // Use family-specific color
-          strokeWidth: 3, // Slightly thicker for family lines
-          strokeDasharray: sourceId === parent ? '5,5' : undefined, // Dashed if direct parent, solid if from marriage
-        markerEnd: 'arrowclosed',
-        },
-        label: `${parent.split(' ')[0]}'s line`, // Optional: add family line label
-      });
+      // Only create edge if we haven't already created one for this parent-child pair
+      const existingEdge = newEdges.find(edge => 
+        edge.source === sourceId && edge.target === child && edge.id.includes('parent-child')
+      );
+      
+      if (!existingEdge) {
+        newEdges.push({
+          id: `parent-child-${parent}-${child}-${index}`,
+          source: sourceId,
+          target: child,
+          type: 'smoothstep',
+          style: {
+            stroke: parentColor,
+            strokeWidth: 3,
+            strokeDasharray: !isFromMarriage ? '5,5' : undefined, // Dashed if single parent, solid if from marriage
+          },
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            color: parentColor,
+          },
+          label: isFromMarriage ? undefined : `${parent.split(' ')[0]}'s child`, // Label for single-parent relationships
+        });
+      }
     });
+    
 
     console.log(`Generated tree: ${newNodes.length} nodes, ${newEdges.length} edges`);
     console.log(`Marriages found: ${marriages.size}`);
