@@ -52,10 +52,15 @@
 // interface GenealogyTreeProps {
 //   websocketData?: WebSocketMessage[];
 //   onExpandNode?: (personName: string, depth: number) => void;
+//   expandDepth?: number; // Allow configurable expansion depth
 // }
 
 // // Internal component that uses useReactFlow
-// function GenealogyTreeInternal({ websocketData = [], onExpandNode }: GenealogyTreeProps) {
+// function GenealogyTreeInternal({ 
+//   websocketData = [], 
+//   onExpandNode,
+//   expandDepth = 3 // Increased default depth
+// }: GenealogyTreeProps) {
 //   const [nodes, setNodes, onNodesChange] = useNodesState([]);
 //   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 //   const [personDetails, setPersonDetails] = useState<Map<string, PersonDetails>>(new Map());
@@ -70,6 +75,7 @@
 //     nodeType: 'person'
 //   });
 //   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
+//   const [expandingNode, setExpandingNode] = useState<string | null>(null);
 
 //   const onConnect = useCallback(
 //     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -100,16 +106,79 @@
 //     return nodes.find(node => node.id === nodeId);
 //   }, [nodes]);
 
-//   // Expand node functionality
+//   // Enhanced error handling and connection management
+//   useEffect(() => {
+//     if (websocketData.length === 0) return;
+
+//     const latestMessage = websocketData[websocketData.length - 1];
+    
+//     // Handle error messages
+//     if (latestMessage.type === 'status') {
+//       const message = latestMessage.data.message;
+      
+//       // Check for error conditions
+//       if (message.includes('Error') || message.includes('not found') || message.includes('Connection error')) {
+//         // Stop the expanding state for failed expansions
+//         if (expandingNode) {
+//           setExpandingNode(null);
+//         }
+        
+//         // Show error in status but don't block UI
+//         console.warn('Family tree expansion error:', message);
+        
+//         // Auto-hide error messages after 5 seconds
+//         setTimeout(() => {
+//           setStatus('');
+//           setProgress(0);
+//         }, 5000);
+//       }
+//     }
+//   }, [websocketData, expandingNode]);
+
+//   // Enhanced expand node functionality with better error feedback
 //   const handleExpandNode = useCallback((nodeId: string) => {
 //     const node = getNodeById(nodeId);
 //     if (node && node.data.entity && onExpandNode) {
 //       const personName = node.data.entity.replace(/\s+/g, '_');
-//       onExpandNode(personName, 2); // Default depth of 2
+      
+//       // Check if this node has already been expanded recently (prevent spam)
+//       if (expandingNode === nodeId) {
+//         console.log('Node expansion already in progress');
+//         return;
+//       }
+      
+//       setExpandingNode(nodeId);
+      
+//       // Set a timeout to reset expanding state in case of no response
+//       setTimeout(() => {
+//         if (expandingNode === nodeId) {
+//           setExpandingNode(null);
+//           setStatus(`Expansion timeout for ${node.data.entity}`);
+//           setProgress(0);
+//         }
+//       }, 30000); // 30 second timeout
+      
+//       // Call with configurable depth
+//       onExpandNode(personName, expandDepth);
+      
+//       // Mark as expanded immediately for UI feedback
 //       setExpandedNodes(prev => new Set([...prev, nodeId]));
 //     }
 //     setContextMenu(prev => ({ ...prev, show: false }));
-//   }, [getNodeById, onExpandNode]);
+//   }, [getNodeById, onExpandNode, expandDepth, expandingNode]);
+
+//   // Clear expanding state when new data arrives
+//   useEffect(() => {
+//     if (expandingNode && websocketData.length > 0) {
+//       // Check if we received new data after expansion
+//       const hasNewData = websocketData.some(msg => 
+//         msg.type === 'status' && msg.data.message.includes('Complete')
+//       );
+//       if (hasNewData) {
+//         setExpandingNode(null);
+//       }
+//     }
+//   }, [websocketData, expandingNode]);
 
 //   // Delete node functionality
 //   const handleDeleteNode = useCallback((nodeId: string) => {
@@ -253,11 +322,14 @@
 //     setContextMenu(prev => ({ ...prev, show: false }));
 //   }, [getNodeById, nodes, edges, setNodes, setEdges]);
 
-//   // Context menu component
+//   // Enhanced context menu with better status indicators
 //   const ContextMenuComponent = () => {
 //     if (!contextMenu.show) return null;
 
 //     const isExpanded = expandedNodes.has(contextMenu.nodeId);
+//     const isExpanding = expandingNode === contextMenu.nodeId;
+//     const node = getNodeById(contextMenu.nodeId);
+//     const hasWikipediaEntry = node?.data.qid && node.data.qid !== 'temp' && node.data.qid !== 'unknown';
 
 //     return (
 //       <div
@@ -271,12 +343,25 @@
 //         {contextMenu.nodeType === 'person' && (
 //           <>
 //             <button
-//               className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center"
+//               className={`w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center ${
+//                 isExpanding ? 'opacity-50 cursor-not-allowed' : 
+//                 !hasWikipediaEntry ? 'opacity-75 text-gray-500' : ''
+//               }`}
 //               onClick={() => handleExpandNode(contextMenu.nodeId)}
-//               disabled={isExpanded}
+//               disabled={isExpanding}
+//               title={
+//                 !hasWikipediaEntry ? 
+//                 'This person may not have a Wikipedia entry' : 
+//                 isExpanding ? 'Expansion in progress...' : 
+//                 'Expand family tree'
+//               }
 //             >
-//               <span className="mr-2">🔍</span>
-//               {isExpanded ? 'Already Expanded' : 'Expand Family Tree'}
+//               <span className="mr-2">
+//                 {isExpanding ? '⏳' : hasWikipediaEntry ? '🔍' : '❓'}
+//               </span>
+//               {isExpanding ? 'Expanding...' : 
+//                !hasWikipediaEntry ? 'Try Expand (Limited Info)' :
+//                isExpanded ? 'Expand More' : 'Expand Family Tree'}
 //             </button>
 //             <button
 //               className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center"
@@ -336,9 +421,9 @@
 //     setProgress(latestProgress);
 //   }, [websocketData]);
 
-//   // Generate graph from relationships and person details (existing logic with modifications)
+//   // Enhanced graph generation with better marriage handling
 //   useEffect(() => {
-//     if (personDetails.size === 0 || relationships.length === 0) return;
+//     if (personDetails.size === 0) return; // Allow graph creation even without relationships
 
 //     const newNodes: Node[] = [];
 //     const newEdges: Edge[] = [];
@@ -354,38 +439,60 @@
     
 //     // Separate relationships by type
 //     const marriageRelationships = relationships.filter(rel => 
-//       rel.relationship === 'spouse of' || rel.relationship === 'married to'
+//       rel.relationship === 'spouse of' || 
+//       rel.relationship === 'married to' ||
+//       rel.relationship === 'spouse' ||
+//       rel.relationship === 'husband of' ||
+//       rel.relationship === 'wife of'
 //     );
+    
 //     const parentChildRelationships = relationships.filter(rel => 
-//       rel.relationship === 'child of'
+//       rel.relationship === 'child of' ||
+//       rel.relationship === 'parent of' ||
+//       rel.relationship === 'father of' ||
+//       rel.relationship === 'mother of'
 //     );
 
-//     // Create marriage mappings
+//     // Create marriage mappings - FIXED to include all marriages
 //     const marriages = new Map<string, { spouse1: string; spouse2: string; children: string[] }>();
 //     const personToMarriages = new Map<string, string[]>();
 
-//     // Process marriages
+//     // Process ALL marriages, including those in top layer
 //     marriageRelationships.forEach(rel => {
-//       const marriageId = [rel.entity1, rel.entity2].sort().join('-marriage');
+//       const [person1, person2] = [rel.entity1, rel.entity2].sort();
+//       const marriageId = `${person1}-${person2}-marriage`;
+      
 //       if (!marriages.has(marriageId)) {
 //         marriages.set(marriageId, {
-//           spouse1: rel.entity1,
-//           spouse2: rel.entity2,
+//           spouse1: person1,
+//           spouse2: person2,
 //           children: []
 //         });
         
 //         // Track marriages for each person
-//         if (!personToMarriages.has(rel.entity1)) personToMarriages.set(rel.entity1, []);
-//         if (!personToMarriages.has(rel.entity2)) personToMarriages.set(rel.entity2, []);
-//         personToMarriages.get(rel.entity1)!.push(marriageId);
-//         personToMarriages.get(rel.entity2)!.push(marriageId);
+//         if (!personToMarriages.has(person1)) personToMarriages.set(person1, []);
+//         if (!personToMarriages.has(person2)) personToMarriages.set(person2, []);
+//         personToMarriages.get(person1)!.push(marriageId);
+//         personToMarriages.get(person2)!.push(marriageId);
 //       }
 //     });
 
-//     // Add children to marriages
+//     // Add children to marriages - ENHANCED logic
 //     parentChildRelationships.forEach(rel => {
-//       const parent = rel.entity2;
-//       const child = rel.entity1;
+//       let parent, child;
+      
+//       // Handle different relationship directions
+//       if (rel.relationship === 'child of') {
+//         parent = rel.entity2;
+//         child = rel.entity1;
+//       } else if (rel.relationship === 'parent of' || 
+//                  rel.relationship === 'father of' || 
+//                  rel.relationship === 'mother of') {
+//         parent = rel.entity1;
+//         child = rel.entity2;
+//       } else {
+//         return;
+//       }
       
 //       // Find marriages involving this parent
 //       const parentMarriages = personToMarriages.get(parent) || [];
@@ -397,21 +504,27 @@
 //       });
 //     });
 
-//     // Calculate generations for proper layout
+//     // ENHANCED generation calculation
 //     const generations = new Map<string, number>();
 //     const visited = new Set<string>();
     
-//     // Find root person (person with most connections or first person)
-//     const personConnections = new Map<string, number>();
-//     relationships.forEach(rel => {
-//       personConnections.set(rel.entity1, (personConnections.get(rel.entity1) || 0) + 1);
-//       personConnections.set(rel.entity2, (personConnections.get(rel.entity2) || 0) + 1);
+//     // Find root person - prefer someone with no parents
+//     const peopleWithParents = new Set<string>();
+//     parentChildRelationships.forEach(rel => {
+//       if (rel.relationship === 'child of') {
+//         peopleWithParents.add(rel.entity1);
+//       } else if (rel.relationship === 'parent of') {
+//         peopleWithParents.add(rel.entity2);
+//       }
 //     });
     
-//     const rootPerson = Array.from(personConnections.entries())
-//       .sort((a, b) => b[1] - a[1])[0]?.[0] || Array.from(personDetails.keys())[0];
+//     const rootCandidates = Array.from(personDetails.keys()).filter(person => 
+//       !peopleWithParents.has(person)
+//     );
     
-//     // BFS to assign generations
+//     const rootPerson = rootCandidates.length > 0 ? rootCandidates[0] : Array.from(personDetails.keys())[0];
+    
+//     // BFS to assign generations - IMPROVED algorithm
 //     const queue: { person: string; generation: number }[] = [{ person: rootPerson, generation: 0 }];
 //     generations.set(rootPerson, 0);
     
@@ -420,48 +533,71 @@
 //       if (visited.has(person)) continue;
 //       visited.add(person);
       
+//       // Process parent-child relationships
 //       parentChildRelationships.forEach(rel => {
-//         if (rel.entity2 === person && !generations.has(rel.entity1)) {
+//         if (rel.relationship === 'child of' && rel.entity2 === person && !generations.has(rel.entity1)) {
 //           generations.set(rel.entity1, generation + 1);
 //           queue.push({ person: rel.entity1, generation: generation + 1 });
-//         } else if (rel.entity1 === person && !generations.has(rel.entity2)) {
-//           generations.set(rel.entity2, generation - 1);
-//           queue.push({ person: rel.entity2, generation: generation - 1 });
+//         } else if (rel.relationship === 'child of' && rel.entity1 === person && !generations.has(rel.entity2)) {
+//           generations.set(rel.entity2, Math.max(generation - 1, 0));
+//           queue.push({ person: rel.entity2, generation: Math.max(generation - 1, 0) });
+//         } else if (rel.relationship === 'parent of' && rel.entity1 === person && !generations.has(rel.entity2)) {
+//           generations.set(rel.entity2, generation + 1);
+//           queue.push({ person: rel.entity2, generation: generation + 1 });
+//         } else if (rel.relationship === 'parent of' && rel.entity2 === person && !generations.has(rel.entity1)) {
+//           generations.set(rel.entity1, Math.max(generation - 1, 0));
+//           queue.push({ person: rel.entity1, generation: Math.max(generation - 1, 0) });
 //         }
 //       });
 //     }
 
-//     // Assign generations to spouses (same generation)
+//     // Assign same generation to spouses - ENHANCED
 //     marriageRelationships.forEach(rel => {
 //       const gen1 = generations.get(rel.entity1);
 //       const gen2 = generations.get(rel.entity2);
+      
 //       if (gen1 !== undefined && gen2 === undefined) {
 //         generations.set(rel.entity2, gen1);
 //       } else if (gen2 !== undefined && gen1 === undefined) {
 //         generations.set(rel.entity1, gen2);
+//       } else if (gen1 !== undefined && gen2 !== undefined && gen1 !== gen2) {
+//         // If spouses have different generations, use the higher one (older generation)
+//         const targetGen = Math.min(gen1, gen2);
+//         generations.set(rel.entity1, targetGen);
+//         generations.set(rel.entity2, targetGen);
 //       }
 //     });
 
-//     // Group elements by generation
+//     // Ensure all people have a generation assigned
+//     Array.from(personDetails.keys()).forEach(person => {
+//       if (!generations.has(person)) {
+//         generations.set(person, 0); // Default to root generation
+//       }
+//     });
+
+//     // Group elements by generation - ENHANCED
 //     const generationGroups = new Map<number, { 
 //       marriages: string[], 
 //       singles: string[] 
 //     }>();
 
-//     // Initialize generation groups
+//     // Initialize generation groups for all generations including negative ones
 //     const allGenerations = new Set(Array.from(generations.values()));
-//     allGenerations.forEach(gen => {
+//     const minGen = Math.min(...Array.from(allGenerations));
+//     const maxGen = Math.max(...Array.from(allGenerations));
+    
+//     for (let gen = minGen; gen <= maxGen; gen++) {
 //       generationGroups.set(gen, { marriages: [], singles: [] });
-//     });
+//     }
 
-//     // Group marriages by generation
+//     // Group marriages by generation - FIXED
 //     Array.from(marriages.entries()).forEach(([marriageId, marriage]) => {
 //       const gen1 = generations.get(marriage.spouse1) || 0;
 //       const gen2 = generations.get(marriage.spouse2) || 0;
 //       const generation = Math.min(gen1, gen2);
       
 //       const group = generationGroups.get(generation);
-//       if (group) {
+//       if (group && personDetails.has(marriage.spouse1) && personDetails.has(marriage.spouse2)) {
 //         group.marriages.push(marriageId);
 //       }
 //     });
@@ -483,30 +619,32 @@
 //       }
 //     });
 
-//     // Create nodes with improved positioning
+//     // Create nodes with improved positioning - FIXED
 //     const nodePositions = new Map<string, { x: number; y: number }>();
     
 //     Array.from(generationGroups.entries())
-//       .sort(([a], [b]) => a - b) // Sort by generation
+//       .sort(([a], [b]) => a - b) // Sort by generation (ancestors first)
 //       .forEach(([generation, group]) => {
 //         const y = generation * VERTICAL_SPACING + 300;
         
 //         // Calculate total width needed for this generation
 //         const marriageWidth = group.marriages.length * (HORIZONTAL_SPACING * 2 + MARRIAGE_WIDTH);
 //         const singleWidth = group.singles.length * HORIZONTAL_SPACING;
-//         const totalWidth = marriageWidth + singleWidth;
+//         const totalWidth = Math.max(marriageWidth + singleWidth, 400);
         
 //         // Start from center and work outward
 //         let currentX = -totalWidth / 2;
         
-//         // Position marriages first
+//         // Position marriages first - ENSURE ALL MARRIAGES ARE CREATED
 //         group.marriages.forEach(marriageId => {
 //           const marriage = marriages.get(marriageId)!;
           
-//           // Check if both spouses have details
+//           // Get spouse details
 //           const spouse1Details = personDetails.get(marriage.spouse1);
 //           const spouse2Details = personDetails.get(marriage.spouse2);
-//           if (!spouse1Details || !spouse2Details) return;
+          
+//           // Only skip if neither spouse has details
+//           if (!spouse1Details && !spouse2Details) return;
           
 //           // Calculate positions for the marriage group
 //           const marriageGroupWidth = HORIZONTAL_SPACING * 2 + MARRIAGE_WIDTH;
@@ -523,29 +661,30 @@
 //           nodePositions.set(marriage.spouse2, { x: spouse2X, y });
 //           nodePositions.set(marriageId, { x: marriageX, y: marriageY });
           
-//           // Create spouse nodes
+//           // Create spouse nodes - handle missing details gracefully
 //           [marriage.spouse1, marriage.spouse2].forEach((person, index) => {
 //             const details = index === 0 ? spouse1Details : spouse2Details;
 //             const x = index === 0 ? spouse1X : spouse2X;
             
+//             // Create node even if details are missing
 //             newNodes.push({
 //               id: person,
 //               type: 'person',
 //               position: { x, y },
 //               data: {
-//                 label: details.entity,
-//                 entity: details.entity,
-//                 qid: details.qid,
-//                 birth_year: details.birth_year,
-//                 death_year: details.death_year,
-//                 image_url: details.image_url,
+//                 label: details?.entity || person,
+//                 entity: details?.entity || person,
+//                 qid: details?.qid || 'unknown',
+//                 birth_year: details?.birth_year,
+//                 death_year: details?.death_year,
+//                 image_url: details?.image_url,
 //                 nodeType: 'entity' as const,
 //                 isExpanded: expandedNodes.has(person),
 //               },
 //             });
 //           });
 
-//           // Create marriage node
+//           // Create marriage node - ALWAYS CREATE FOR ALL MARRIAGES
 //           newNodes.push({
 //             id: marriageId,
 //             type: 'marriage',
@@ -606,13 +745,28 @@
 //         });
 //       });
 
-//     // Create parent-child relationships with improved positioning
+//     // Create parent-child relationships - ENHANCED
 //     parentChildRelationships.forEach((rel, index) => {
-//       const parent = rel.entity2;
-//       const child = rel.entity1;
+//       let parent, child;
       
-//       // Only create edges if both parent and child have details
-//       if (!personDetails.has(parent) || !personDetails.has(child)) return;
+//       // Handle different relationship directions
+//       if (rel.relationship === 'child of') {
+//         parent = rel.entity2;
+//         child = rel.entity1;
+//       } else if (rel.relationship === 'parent of' || 
+//                  rel.relationship === 'father of' || 
+//                  rel.relationship === 'mother of') {
+//         parent = rel.entity1;
+//         child = rel.entity2;
+//       } else {
+//         return;
+//       }
+      
+//       // Only create edges if both parent and child have details or nodes
+//       const hasParentNode = newNodes.some(n => n.id === parent);
+//       const hasChildNode = newNodes.some(n => n.id === child);
+      
+//       if (!hasParentNode || !hasChildNode) return;
       
 //       // Check if parent is in a marriage with children
 //       let sourceId = parent;
@@ -626,22 +780,26 @@
 //         }
 //       }
       
-//       const sourcePos = nodePositions.get(sourceId);
-//       const targetPos = nodePositions.get(child);
-      
-//       if (sourcePos && targetPos) {
-//         newEdges.push({
-//           id: `parent-child-${index}`,
-//           source: sourceId,
-//           target: child,
-//           type: 'smoothstep',
-//           style: {
-//             stroke: '#6b7280',
-//             strokeWidth: 2,
-//           },
-//         });
-//       }
+//       newEdges.push({
+//         id: `parent-child-${parent}-${child}-${index}`,
+//         source: sourceId,
+//         target: child,
+//         type: 'smoothstep',
+//         style: {
+//           stroke: '#6b7280',
+//           strokeWidth: 2,
+//         },
+//       });
 //     });
+
+//     console.log(`Generated tree: ${newNodes.length} nodes, ${newEdges.length} edges`);
+//     console.log(`Marriages found: ${marriages.size}`);
+//     console.log('Generation distribution:', 
+//       Array.from(generations.entries()).reduce((acc, [person, gen]) => {
+//         acc[gen] = (acc[gen] || 0) + 1;
+//         return acc;
+//       }, {} as Record<number, number>)
+//     );
 
 //     setNodes(newNodes);
 //     setEdges(newEdges);
@@ -649,10 +807,12 @@
 
 //   return (
 //     <div className="absolute inset-0 w-full h-full">
-//       {/* Status Panel - Only show when there's activity */}
-//       {(status || progress > 0) && (
+//       {/* Status Panel - Enhanced with expansion info */}
+//       {(status || progress > 0 || expandingNode) && (
 //         <div className="absolute top-4 left-4 z-10 bg-white p-4 rounded-lg shadow-md max-w-md">
-//           <h2 className="text-lg font-bold mb-2">Processing...</h2>
+//           <h2 className="text-lg font-bold mb-2">
+//             {expandingNode ? 'Expanding Family Tree...' : 'Processing...'}
+//           </h2>
 //           {status && (
 //             <div className="mb-2">
 //               <p className="text-sm text-gray-600">{status}</p>
@@ -667,16 +827,19 @@
 //           <div className="text-sm text-gray-500">
 //             <p>People: {personDetails.size}</p>
 //             <p>Relationships: {relationships.length}</p>
+//             <p>Expanded nodes: {expandedNodes.size}</p>
+//             <p>Expansion depth: {expandDepth}</p>
 //           </div>
 //         </div>
 //       )}
 
-//       {/* Instructions */}
+//       {/* Enhanced Instructions */}
 //       {nodes.length > 0 && (
 //         <div className="absolute bottom-4 left-4 z-10 bg-white p-3 rounded-lg shadow-md max-w-xs">
 //           <div className="text-xs text-gray-600 space-y-1">
 //             <p className="font-semibold mb-2">Instructions:</p>
 //             <p>• Right-click nodes for options</p>
+//             <p>• Expand depth: {expandDepth} generations</p>
 //             <p>• Drag to pan, scroll to zoom</p>
 //             <p>🔗 Gray lines: Parent-child</p>
 //             <p>💕 Pink lines: Marriage</p>
@@ -733,6 +896,7 @@ import ReactFlow, {
   Background,
   BackgroundVariant,
   ReactFlowProvider,
+  MarkerType,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import PersonNode from './PersonNode';
@@ -742,6 +906,18 @@ const nodeTypes = {
   person: PersonNode,
   marriage: MarriageNode,
 };
+
+// Family line colors for visual distinction
+const FAMILY_COLORS = [
+  '#3b82f6', // Blue
+  '#ef4444', // Red
+  '#10b981', // Green
+  '#f59e0b', // Amber
+  '#8b5cf6', // Purple
+  '#06b6d4', // Cyan
+  '#f97316', // Orange
+  '#84cc16', // Lime
+];
 
 interface WebSocketMessage {
   type: 'status' | 'personal_details' | 'relationship';
@@ -773,14 +949,13 @@ interface ContextMenu {
 interface GenealogyTreeProps {
   websocketData?: WebSocketMessage[];
   onExpandNode?: (personName: string, depth: number) => void;
-  expandDepth?: number; // Allow configurable expansion depth
+  expandDepth?: number;
 }
 
-// Internal component that uses useReactFlow
 function GenealogyTreeInternal({ 
   websocketData = [], 
   onExpandNode,
-  expandDepth = 3 // Increased default depth
+  expandDepth = 3
 }: GenealogyTreeProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -827,27 +1002,60 @@ function GenealogyTreeInternal({
     return nodes.find(node => node.id === nodeId);
   }, [nodes]);
 
+  // Assign family colors based on lineage
+  const assignFamilyColors = useCallback((marriages: Map<string, any>, parentChildRels: Relationship[]) => {
+    const familyColors = new Map<string, string>();
+    let colorIndex = 0;
+
+    // For each person in a marriage, assign them and their ancestors the same color
+    Array.from(marriages.values()).forEach(marriage => {
+      const spouse1Color = FAMILY_COLORS[colorIndex % FAMILY_COLORS.length];
+      const spouse2Color = FAMILY_COLORS[(colorIndex + 1) % FAMILY_COLORS.length];
+      
+      // Assign colors to each spouse's family line
+      const assignLineageColor = (person: string, color: string, visited: Set<string> = new Set()) => {
+        if (visited.has(person)) return;
+        visited.add(person);
+        
+        if (!familyColors.has(person)) {
+          familyColors.set(person, color);
+        }
+        
+        // Color all ancestors of this person
+        parentChildRels.forEach(rel => {
+          if (rel.relationship === 'child of' && rel.entity1 === person) {
+            assignLineageColor(rel.entity2, color, visited);
+          } else if (rel.relationship === 'parent of' && rel.entity2 === person) {
+            assignLineageColor(rel.entity1, color, visited);
+          }
+        });
+      };
+
+      assignLineageColor(marriage.spouse1, spouse1Color);
+      assignLineageColor(marriage.spouse2, spouse2Color);
+      
+      colorIndex += 2;
+    });
+
+    return familyColors;
+  }, []);
+
   // Enhanced error handling and connection management
   useEffect(() => {
     if (websocketData.length === 0) return;
 
     const latestMessage = websocketData[websocketData.length - 1];
     
-    // Handle error messages
     if (latestMessage.type === 'status') {
       const message = latestMessage.data.message;
       
-      // Check for error conditions
       if (message.includes('Error') || message.includes('not found') || message.includes('Connection error')) {
-        // Stop the expanding state for failed expansions
         if (expandingNode) {
           setExpandingNode(null);
         }
         
-        // Show error in status but don't block UI
         console.warn('Family tree expansion error:', message);
         
-        // Auto-hide error messages after 5 seconds
         setTimeout(() => {
           setStatus('');
           setProgress(0);
@@ -856,13 +1064,12 @@ function GenealogyTreeInternal({
     }
   }, [websocketData, expandingNode]);
 
-  // Enhanced expand node functionality with better error feedback
+  // Enhanced expand node functionality
   const handleExpandNode = useCallback((nodeId: string) => {
     const node = getNodeById(nodeId);
     if (node && node.data.entity && onExpandNode) {
       const personName = node.data.entity.replace(/\s+/g, '_');
       
-      // Check if this node has already been expanded recently (prevent spam)
       if (expandingNode === nodeId) {
         console.log('Node expansion already in progress');
         return;
@@ -870,40 +1077,22 @@ function GenealogyTreeInternal({
       
       setExpandingNode(nodeId);
       
-      // Set a timeout to reset expanding state in case of no response
       setTimeout(() => {
         if (expandingNode === nodeId) {
           setExpandingNode(null);
           setStatus(`Expansion timeout for ${node.data.entity}`);
           setProgress(0);
         }
-      }, 30000); // 30 second timeout
+      }, 30000);
       
-      // Call with configurable depth
       onExpandNode(personName, expandDepth);
-      
-      // Mark as expanded immediately for UI feedback
       setExpandedNodes(prev => new Set([...prev, nodeId]));
     }
     setContextMenu(prev => ({ ...prev, show: false }));
   }, [getNodeById, onExpandNode, expandDepth, expandingNode]);
 
-  // Clear expanding state when new data arrives
-  useEffect(() => {
-    if (expandingNode && websocketData.length > 0) {
-      // Check if we received new data after expansion
-      const hasNewData = websocketData.some(msg => 
-        msg.type === 'status' && msg.data.message.includes('Complete')
-      );
-      if (hasNewData) {
-        setExpandingNode(null);
-      }
-    }
-  }, [websocketData, expandingNode]);
-
   // Delete node functionality
   const handleDeleteNode = useCallback((nodeId: string) => {
-    // Remove the node and all connected edges
     const newNodes = nodes.filter(node => node.id !== nodeId);
     const newEdges = edges.filter(edge => 
       edge.source !== nodeId && edge.target !== nodeId
@@ -912,7 +1101,6 @@ function GenealogyTreeInternal({
     setNodes(newNodes);
     setEdges(newEdges);
     
-    // Remove from expanded nodes if it was expanded
     setExpandedNodes(prev => {
       const newSet = new Set(prev);
       newSet.delete(nodeId);
@@ -927,7 +1115,6 @@ function GenealogyTreeInternal({
     const node = getNodeById(nodeId);
     if (!node || node.type !== 'person') return;
     
-    // Generate new spouse ID and position
     const spouseId = `${nodeId}-spouse-${Date.now()}`;
     const marriageId = `${nodeId}-${spouseId}-marriage`;
     
@@ -936,7 +1123,6 @@ function GenealogyTreeInternal({
     const marriageX = node.position.x + 175;
     const marriageY = node.position.y + 200;
 
-    // Create new spouse node
     const newSpouseNode: Node = {
       id: spouseId,
       type: 'person',
@@ -949,7 +1135,6 @@ function GenealogyTreeInternal({
       },
     };
 
-    // Create marriage node
     const newMarriageNode: Node = {
       id: marriageId,
       type: 'marriage',
@@ -962,7 +1147,6 @@ function GenealogyTreeInternal({
       },
     };
 
-    // Create edges
     const newEdges: Edge[] = [
       {
         id: `${nodeId}-${marriageId}`,
@@ -990,18 +1174,15 @@ function GenealogyTreeInternal({
     const node = getNodeById(nodeId);
     if (!node) return;
     
-    // Generate new child ID and position
     const childId = `${nodeId}-child-${Date.now()}`;
     
     let childX = node.position.x;
     let childY = node.position.y + 350;
     let sourceId = nodeId;
 
-    // If it's a marriage node, position child below it
     if (node.type === 'marriage') {
-      childX = node.position.x - 25; // Center under marriage node
+      childX = node.position.x - 25;
     } else {
-      // For person nodes, try to find their marriage node
       const marriageNode = nodes.find(n => 
         n.type === 'marriage' && 
         (n.data.spouse1 === nodeId || n.data.spouse2 === nodeId)
@@ -1013,7 +1194,6 @@ function GenealogyTreeInternal({
       }
     }
 
-    // Create new child node
     const newChildNode: Node = {
       id: childId,
       type: 'person',
@@ -1026,7 +1206,6 @@ function GenealogyTreeInternal({
       },
     };
 
-    // Create edge from parent/marriage to child
     const newEdge: Edge = {
       id: `parent-child-${childId}`,
       source: sourceId,
@@ -1043,7 +1222,19 @@ function GenealogyTreeInternal({
     setContextMenu(prev => ({ ...prev, show: false }));
   }, [getNodeById, nodes, edges, setNodes, setEdges]);
 
-  // Enhanced context menu with better status indicators
+  // Clear expanding state when new data arrives
+  useEffect(() => {
+    if (expandingNode && websocketData.length > 0) {
+      const hasNewData = websocketData.some(msg => 
+        msg.type === 'status' && msg.data.message.includes('Complete')
+      );
+      if (hasNewData) {
+        setExpandingNode(null);
+      }
+    }
+  }, [websocketData, expandingNode]);
+
+  // Enhanced context menu
   const ContextMenuComponent = () => {
     if (!contextMenu.show) return null;
 
@@ -1112,7 +1303,7 @@ function GenealogyTreeInternal({
     );
   };
 
-  // Process WebSocket messages (existing logic)
+  // Process WebSocket messages
   useEffect(() => {
     if (websocketData.length === 0) return;
 
@@ -1142,9 +1333,9 @@ function GenealogyTreeInternal({
     setProgress(latestProgress);
   }, [websocketData]);
 
-  // Enhanced graph generation with better marriage handling
+  // Enhanced graph generation with smart positioning and color coding
   useEffect(() => {
-    if (personDetails.size === 0) return; // Allow graph creation even without relationships
+    if (personDetails.size === 0) return;
 
     const newNodes: Node[] = [];
     const newEdges: Edge[] = [];
@@ -1174,11 +1365,10 @@ function GenealogyTreeInternal({
       rel.relationship === 'mother of'
     );
 
-    // Create marriage mappings - FIXED to include all marriages
+    // Create marriage mappings
     const marriages = new Map<string, { spouse1: string; spouse2: string; children: string[] }>();
     const personToMarriages = new Map<string, string[]>();
 
-    // Process ALL marriages, including those in top layer
     marriageRelationships.forEach(rel => {
       const [person1, person2] = [rel.entity1, rel.entity2].sort();
       const marriageId = `${person1}-${person2}-marriage`;
@@ -1190,7 +1380,6 @@ function GenealogyTreeInternal({
           children: []
         });
         
-        // Track marriages for each person
         if (!personToMarriages.has(person1)) personToMarriages.set(person1, []);
         if (!personToMarriages.has(person2)) personToMarriages.set(person2, []);
         personToMarriages.get(person1)!.push(marriageId);
@@ -1198,11 +1387,10 @@ function GenealogyTreeInternal({
       }
     });
 
-    // Add children to marriages - ENHANCED logic
+    // Add children to marriages
     parentChildRelationships.forEach(rel => {
       let parent, child;
       
-      // Handle different relationship directions
       if (rel.relationship === 'child of') {
         parent = rel.entity2;
         child = rel.entity1;
@@ -1215,7 +1403,6 @@ function GenealogyTreeInternal({
         return;
       }
       
-      // Find marriages involving this parent
       const parentMarriages = personToMarriages.get(parent) || [];
       parentMarriages.forEach(marriageId => {
         const marriage = marriages.get(marriageId);
@@ -1225,11 +1412,14 @@ function GenealogyTreeInternal({
       });
     });
 
-    // ENHANCED generation calculation
+    // Assign family colors
+    const familyColors = assignFamilyColors(marriages, parentChildRelationships);
+
+    // ENHANCED generation calculation with family-aware positioning
     const generations = new Map<string, number>();
     const visited = new Set<string>();
     
-    // Find root person - prefer someone with no parents
+    // Find root person
     const peopleWithParents = new Set<string>();
     parentChildRelationships.forEach(rel => {
       if (rel.relationship === 'child of') {
@@ -1245,7 +1435,7 @@ function GenealogyTreeInternal({
     
     const rootPerson = rootCandidates.length > 0 ? rootCandidates[0] : Array.from(personDetails.keys())[0];
     
-    // BFS to assign generations - IMPROVED algorithm
+    // BFS to assign generations
     const queue: { person: string; generation: number }[] = [{ person: rootPerson, generation: 0 }];
     generations.set(rootPerson, 0);
     
@@ -1254,7 +1444,6 @@ function GenealogyTreeInternal({
       if (visited.has(person)) continue;
       visited.add(person);
       
-      // Process parent-child relationships
       parentChildRelationships.forEach(rel => {
         if (rel.relationship === 'child of' && rel.entity2 === person && !generations.has(rel.entity1)) {
           generations.set(rel.entity1, generation + 1);
@@ -1272,7 +1461,7 @@ function GenealogyTreeInternal({
       });
     }
 
-    // Assign same generation to spouses - ENHANCED
+    // Assign same generation to spouses
     marriageRelationships.forEach(rel => {
       const gen1 = generations.get(rel.entity1);
       const gen2 = generations.get(rel.entity2);
@@ -1282,7 +1471,6 @@ function GenealogyTreeInternal({
       } else if (gen2 !== undefined && gen1 === undefined) {
         generations.set(rel.entity1, gen2);
       } else if (gen1 !== undefined && gen2 !== undefined && gen1 !== gen2) {
-        // If spouses have different generations, use the higher one (older generation)
         const targetGen = Math.min(gen1, gen2);
         generations.set(rel.entity1, targetGen);
         generations.set(rel.entity2, targetGen);
@@ -1292,17 +1480,16 @@ function GenealogyTreeInternal({
     // Ensure all people have a generation assigned
     Array.from(personDetails.keys()).forEach(person => {
       if (!generations.has(person)) {
-        generations.set(person, 0); // Default to root generation
+        generations.set(person, 0);
       }
     });
 
-    // Group elements by generation - ENHANCED
+    // IMPROVED positioning algorithm with family lineage consideration
     const generationGroups = new Map<number, { 
-      marriages: string[], 
+      marriages: Array<{id: string, data: any}>, 
       singles: string[] 
     }>();
 
-    // Initialize generation groups for all generations including negative ones
     const allGenerations = new Set(Array.from(generations.values()));
     const minGen = Math.min(...Array.from(allGenerations));
     const maxGen = Math.max(...Array.from(allGenerations));
@@ -1311,7 +1498,7 @@ function GenealogyTreeInternal({
       generationGroups.set(gen, { marriages: [], singles: [] });
     }
 
-    // Group marriages by generation - FIXED
+    // Group marriages by generation and sort by family color
     Array.from(marriages.entries()).forEach(([marriageId, marriage]) => {
       const gen1 = generations.get(marriage.spouse1) || 0;
       const gen2 = generations.get(marriage.spouse2) || 0;
@@ -1319,8 +1506,20 @@ function GenealogyTreeInternal({
       
       const group = generationGroups.get(generation);
       if (group && personDetails.has(marriage.spouse1) && personDetails.has(marriage.spouse2)) {
-        group.marriages.push(marriageId);
+        group.marriages.push({
+          id: marriageId,
+          data: marriage
+        });
       }
+    });
+
+    // Sort marriages within each generation by family color to group related families
+    Array.from(generationGroups.values()).forEach(group => {
+      group.marriages.sort((a, b) => {
+        const colorA = familyColors.get(a.data.spouse1) || '';
+        const colorB = familyColors.get(b.data.spouse1) || '';
+        return colorA.localeCompare(colorB);
+      });
     });
 
     // Group single people by generation
@@ -1340,54 +1539,44 @@ function GenealogyTreeInternal({
       }
     });
 
-    // Create nodes with improved positioning - FIXED
+    // Create nodes with improved positioning
     const nodePositions = new Map<string, { x: number; y: number }>();
     
     Array.from(generationGroups.entries())
-      .sort(([a], [b]) => a - b) // Sort by generation (ancestors first)
+      .sort(([a], [b]) => a - b)
       .forEach(([generation, group]) => {
         const y = generation * VERTICAL_SPACING + 300;
         
-        // Calculate total width needed for this generation
         const marriageWidth = group.marriages.length * (HORIZONTAL_SPACING * 2 + MARRIAGE_WIDTH);
         const singleWidth = group.singles.length * HORIZONTAL_SPACING;
         const totalWidth = Math.max(marriageWidth + singleWidth, 400);
         
-        // Start from center and work outward
         let currentX = -totalWidth / 2;
         
-        // Position marriages first - ENSURE ALL MARRIAGES ARE CREATED
-        group.marriages.forEach(marriageId => {
-          const marriage = marriages.get(marriageId)!;
-          
-          // Get spouse details
+        // Position marriages with family-aware ordering
+        group.marriages.forEach(({ id: marriageId, data: marriage }) => {
           const spouse1Details = personDetails.get(marriage.spouse1);
           const spouse2Details = personDetails.get(marriage.spouse2);
           
-          // Only skip if neither spouse has details
           if (!spouse1Details && !spouse2Details) return;
           
-          // Calculate positions for the marriage group
           const marriageGroupWidth = HORIZONTAL_SPACING * 2 + MARRIAGE_WIDTH;
           const groupCenterX = currentX + marriageGroupWidth / 2;
           
-          // Position spouses symmetrically around center
           const spouse1X = groupCenterX - HORIZONTAL_SPACING / 2 - PERSON_WIDTH / 2;
           const spouse2X = groupCenterX + HORIZONTAL_SPACING / 2 - PERSON_WIDTH / 2;
           const marriageX = groupCenterX - MARRIAGE_WIDTH / 2;
           const marriageY = y + MARRIAGE_OFFSET_Y;
           
-          // Store positions
           nodePositions.set(marriage.spouse1, { x: spouse1X, y });
           nodePositions.set(marriage.spouse2, { x: spouse2X, y });
           nodePositions.set(marriageId, { x: marriageX, y: marriageY });
           
-          // Create spouse nodes - handle missing details gracefully
+          // Create spouse nodes with family color information
           [marriage.spouse1, marriage.spouse2].forEach((person, index) => {
             const details = index === 0 ? spouse1Details : spouse2Details;
             const x = index === 0 ? spouse1X : spouse2X;
             
-            // Create node even if details are missing
             newNodes.push({
               id: person,
               type: 'person',
@@ -1401,11 +1590,12 @@ function GenealogyTreeInternal({
                 image_url: details?.image_url,
                 nodeType: 'entity' as const,
                 isExpanded: expandedNodes.has(person),
+                familyColor: familyColors.get(person), // Add family color to node data
               },
             });
           });
 
-          // Create marriage node - ALWAYS CREATE FOR ALL MARRIAGES
+          // Create marriage node
           newNodes.push({
             id: marriageId,
             type: 'marriage',
@@ -1418,7 +1608,7 @@ function GenealogyTreeInternal({
             },
           });
 
-          // Connect spouses to marriage node
+          // Connect spouses to marriage node (keep pink for marriage connections)
           newEdges.push({
             id: `${marriage.spouse1}-${marriageId}`,
             source: marriage.spouse1,
@@ -1459,6 +1649,7 @@ function GenealogyTreeInternal({
               image_url: details.image_url,
               nodeType: 'entity' as const,
               isExpanded: expandedNodes.has(person),
+              familyColor: familyColors.get(person),
             },
           });
 
@@ -1466,11 +1657,10 @@ function GenealogyTreeInternal({
         });
       });
 
-    // Create parent-child relationships - ENHANCED
+    // Create parent-child relationships with family-specific colors
     parentChildRelationships.forEach((rel, index) => {
       let parent, child;
       
-      // Handle different relationship directions
       if (rel.relationship === 'child of') {
         parent = rel.entity2;
         child = rel.entity1;
@@ -1483,7 +1673,6 @@ function GenealogyTreeInternal({
         return;
       }
       
-      // Only create edges if both parent and child have details or nodes
       const hasParentNode = newNodes.some(n => n.id === parent);
       const hasChildNode = newNodes.some(n => n.id === child);
       
@@ -1501,30 +1690,31 @@ function GenealogyTreeInternal({
         }
       }
       
+      // Get family color for this parent-child relationship
+      const parentColor = familyColors.get(parent) || '#6b7280';
+      
       newEdges.push({
         id: `parent-child-${parent}-${child}-${index}`,
         source: sourceId,
         target: child,
         type: 'smoothstep',
         style: {
-          stroke: '#6b7280',
-          strokeWidth: 2,
+          stroke: parentColor, // Use family-specific color
+          strokeWidth: 3, // Slightly thicker for family lines
+          strokeDasharray: sourceId === parent ? '5,5' : undefined, // Dashed if direct parent, solid if from marriage
+        markerEnd: 'arrowclosed',
         },
+        label: `${parent.split(' ')[0]}'s line`, // Optional: add family line label
       });
     });
 
     console.log(`Generated tree: ${newNodes.length} nodes, ${newEdges.length} edges`);
     console.log(`Marriages found: ${marriages.size}`);
-    console.log('Generation distribution:', 
-      Array.from(generations.entries()).reduce((acc, [person, gen]) => {
-        acc[gen] = (acc[gen] || 0) + 1;
-        return acc;
-      }, {} as Record<number, number>)
-    );
+    console.log('Family colors assigned:', Array.from(familyColors.entries()).slice(0, 5));
 
     setNodes(newNodes);
     setEdges(newEdges);
-  }, [personDetails, relationships, setNodes, setEdges, expandedNodes]);
+  }, [personDetails, relationships, setNodes, setEdges, expandedNodes, assignFamilyColors]);
 
   return (
     <div className="absolute inset-0 w-full h-full">
@@ -1554,16 +1744,42 @@ function GenealogyTreeInternal({
         </div>
       )}
 
-      {/* Enhanced Instructions */}
+      {/* Enhanced Instructions with color legend */}
       {nodes.length > 0 && (
         <div className="absolute bottom-4 left-4 z-10 bg-white p-3 rounded-lg shadow-md max-w-xs">
           <div className="text-xs text-gray-600 space-y-1">
             <p className="font-semibold mb-2">Instructions:</p>
             <p>• Right-click nodes for options</p>
-            <p>• Expand depth: {expandDepth} generations</p>
+            <p>• Expansion depth: {expandDepth} generations</p>
             <p>• Drag to pan, scroll to zoom</p>
-            <p>🔗 Gray lines: Parent-child</p>
-            <p>💕 Pink lines: Marriage</p>
+            <div className="mt-2 pt-2 border-t border-gray-200">
+              <p className="font-semibold">Edge Types:</p>
+              <p>💕 Pink: Marriage connections</p>
+              <p>🌈 Colored: Family lineages</p>
+              <p>— Solid: From marriage</p>
+              <p>- - Dashed: Direct parent</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Color Legend for Family Lines */}
+      {nodes.length > 0 && (
+        <div className="absolute top-4 right-4 z-10 bg-white p-3 rounded-lg shadow-md max-w-sm">
+          <div className="text-xs text-gray-600">
+            <p className="font-semibold mb-2">Family Line Colors:</p>
+            <div className="grid grid-cols-2 gap-1">
+              {FAMILY_COLORS.slice(0, 6).map((color, index) => (
+                <div key={index} className="flex items-center space-x-2">
+                  <div 
+                    className="w-3 h-3 rounded"
+                    style={{ backgroundColor: color }}
+                  ></div>
+                  <span>Family {index + 1}</span>
+                </div>
+              ))}
+            </div>
+            <p className="mt-2 text-gray-500">Each spouse's family line has a unique color to distinguish lineages.</p>
           </div>
         </div>
       )}
