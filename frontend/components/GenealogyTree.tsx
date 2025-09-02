@@ -1002,39 +1002,92 @@ function GenealogyTreeInternal({
     return nodes.find(node => node.id === nodeId);
   }, [nodes]);
 
-  // Assign family colors based on lineage
+  // Assign family colors based on lineage - IMPROVED ALGORITHM
   const assignFamilyColors = useCallback((marriages: Map<string, any>, parentChildRels: Relationship[]) => {
     const familyColors = new Map<string, string>();
-    let colorIndex = 0;
-
-    // For each person in a marriage, assign them and their ancestors the same color
-    Array.from(marriages.values()).forEach(marriage => {
-      const spouse1Color = FAMILY_COLORS[colorIndex % FAMILY_COLORS.length];
-      const spouse2Color = FAMILY_COLORS[(colorIndex + 1) % FAMILY_COLORS.length];
+    const usedColors = new Set<string>();
+    
+    // Helper to get all ancestors of a person
+    const getAncestors = (person: string, visited: Set<string> = new Set()): string[] => {
+      if (visited.has(person)) return [];
+      visited.add(person);
       
-      // Assign colors to each spouse's family line
-      const assignLineageColor = (person: string, color: string, visited: Set<string> = new Set()) => {
-        if (visited.has(person)) return;
-        visited.add(person);
-        
-        if (!familyColors.has(person)) {
-          familyColors.set(person, color);
+      const ancestors: string[] = [];
+      parentChildRels.forEach(rel => {
+        if (rel.relationship === 'child of' && rel.entity1 === person) {
+          ancestors.push(rel.entity2);
+          ancestors.push(...getAncestors(rel.entity2, visited));
+        } else if (rel.relationship === 'parent of' && rel.entity2 === person) {
+          ancestors.push(rel.entity1);
+          ancestors.push(...getAncestors(rel.entity1, visited));
         }
-        
-        // Color all ancestors of this person
-        parentChildRels.forEach(rel => {
-          if (rel.relationship === 'child of' && rel.entity1 === person) {
-            assignLineageColor(rel.entity2, color, visited);
-          } else if (rel.relationship === 'parent of' && rel.entity2 === person) {
-            assignLineageColor(rel.entity1, color, visited);
-          }
-        });
-      };
+      });
+      return [...new Set(ancestors)]; // Remove duplicates
+    };
 
-      assignLineageColor(marriage.spouse1, spouse1Color);
-      assignLineageColor(marriage.spouse2, spouse2Color);
+    // Helper to assign color to person and all their ancestors
+    const assignLineageColor = (person: string, color: string) => {
+      if (familyColors.has(person)) return; // Already assigned
       
-      colorIndex += 2;
+      familyColors.set(person, color);
+      const ancestors = getAncestors(person);
+      ancestors.forEach(ancestor => {
+        if (!familyColors.has(ancestor)) {
+          familyColors.set(ancestor, color);
+        }
+      });
+    };
+
+    // Helper to find an available color that doesn't conflict with existing family members
+    const findAvailableColor = (conflictingFamilies: string[]): string => {
+      const conflictingColors = new Set(
+        conflictingFamilies.map(person => familyColors.get(person)).filter(Boolean)
+      );
+      
+      for (const color of FAMILY_COLORS) {
+        if (!conflictingColors.has(color)) {
+          return color;
+        }
+      }
+      
+      // If all colors conflict, return a random one (fallback)
+      return FAMILY_COLORS[Math.floor(Math.random() * FAMILY_COLORS.length)];
+    };
+
+    // Process marriages - ensure spouses and their families get different colors
+    Array.from(marriages.values()).forEach(marriage => {
+      const spouse1 = marriage.spouse1;
+      const spouse2 = marriage.spouse2;
+      
+      // Get all family members that would conflict with spouse1's color choice
+      const spouse1Ancestors = getAncestors(spouse1);
+      const spouse2Ancestors = getAncestors(spouse2);
+      
+      // Assign color to spouse1's family if not already assigned
+      if (!familyColors.has(spouse1)) {
+        const conflictingFamilies = [spouse2, ...spouse2Ancestors];
+        const spouse1Color = findAvailableColor(conflictingFamilies);
+        assignLineageColor(spouse1, spouse1Color);
+        usedColors.add(spouse1Color);
+      }
+      
+      // Assign color to spouse2's family if not already assigned
+      if (!familyColors.has(spouse2)) {
+        const conflictingFamilies = [spouse1, ...spouse1Ancestors, ...Array.from(familyColors.keys())];
+        const spouse2Color = findAvailableColor(conflictingFamilies);
+        assignLineageColor(spouse2, spouse2Color);
+        usedColors.add(spouse2Color);
+      }
+    });
+
+    // Assign colors to any remaining uncolored people
+    Array.from(parentChildRels).forEach(rel => {
+      [rel.entity1, rel.entity2].forEach(person => {
+        if (!familyColors.has(person)) {
+          const availableColor = findAvailableColor(Array.from(familyColors.keys()));
+          assignLineageColor(person, availableColor);
+        }
+      });
     });
 
     return familyColors;
