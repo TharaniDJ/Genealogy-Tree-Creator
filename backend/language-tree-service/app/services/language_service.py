@@ -12,16 +12,12 @@ class LanguageTreeService:
         relationships = await fetch_language_relationships(language_name, depth)
         return relationships
 
-    def format_relationships(self, relationships: List[List[str]]) -> List[Dict[str, str]]:
-        """Format relationships from list format to dictionary format"""
-        formatted = []
-        for entity1, relationship, entity2 in relationships:
-            formatted.append({
-                "entity1": entity1,
-                "relationship": relationship,
-                "entity2": entity2
-            })
-        return formatted
+    # Legacy method retained for compatibility if called elsewhere
+    def format_relationships(self, relationships: List[List[str]]) -> List[Dict[str, str]]:  # pragma: no cover
+        return [
+            {"entity1": e1, "relationship": rel, "entity2": e2}
+            for e1, rel, e2 in relationships
+        ]
 
     async def get_language_family_tree(self, language_name: str, depth: int) -> Dict:
         """Get complete language family tree data"""

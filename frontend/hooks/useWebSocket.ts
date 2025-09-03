@@ -1,7 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 interface WebSocketMessage {
-  type: 'status' | 'personal_details' | 'relationship';
+  type:
+    | 'status'
+    | 'personal_details'
+    | 'relationship'
+    | 'base_language'
+    | 'relationships_batch'
+    | 'complete'
+    | 'error';
   data: any;
 }
 
@@ -92,7 +99,7 @@ export function useWebSocket(url: string): UseWebSocketReturn {
   const sendMessage = useCallback((message: any) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       console.log('Sending message:', message);
-      wsRef.current.send(JSON.stringify(message));
+      wsRef.current.send(message);
     } else {
       console.warn('WebSocket is not connected. Cannot send message:', message);
     }

@@ -34,8 +34,7 @@ async def websocket_language_relationships(websocket: WebSocket):
                 else:
                     raise ValueError("Invalid format. Expected 'language_name,depth'")
                 
-                if depth < 1 or depth > 5:
-                    raise ValueError("Depth must be between 1 and 5")
+                
                 
                 print(f"Processing request for {language_name} with depth {depth}")
                 
