@@ -2,6 +2,9 @@
 # --- Enhanced Wikipedia Infobox-based Language Family Extractor ---
 import requests
 import re
+import mwparserfromhell
+import wikipediaapi
+import json
 from collections import deque
 from typing import List, Dict, Optional, Tuple, Set
 from app.core.websocket_manager import WebSocketManager
@@ -13,232 +16,417 @@ class LanguageFamilyTreeExtractor:
         self.session.headers.update({'User-Agent': user_agent})
         self.page_cache = {}
 
-    def get_page_content(self, title: str) -> str:
-        if title in self.page_cache:
-            return self.page_cache[title]
-        params = {
-            'action': 'query',
-            'format': 'json',
-            'titles': title,
-            'prop': 'revisions',
-            'rvprop': 'content',
-            'rvslots': 'main'
-        }
+    ########################
+    ## Wikidata + Wikipedia helpers
+    ########################
+
+    def get_language_relationships_wikidata(self, language_name):
+        """
+        Fetch language relationships from Wikidata using a SPARQL query.
+        """
+        sparql_query = f"""
+        SELECT ?parentLabel ?childLabel ?dialectLabel ?siblingLabel
+        WHERE {{
+          ?language rdfs:label "{language_name}"@en .
+          ?language wdt:P31/wdt:P279* wd:Q34770 .  # instance/subclass of language
+
+          # Optional: parent/child relationships
+          OPTIONAL {{ ?language wdt:P279 ?parent . }}  # subclass of
+          OPTIONAL {{ ?child wdt:P279 ?language . }}  # children as subclasses
+
+          # Dialects: items that are 'dialect of' this language
+          OPTIONAL {{ ?dialect wdt:P5019 ?language . }}
+
+          # Siblings: other dialects of the same parent
+          OPTIONAL {{
+            ?sibling wdt:P5019 ?commonParent .
+            ?language wdt:P5019 ?commonParent .
+            FILTER(?sibling != ?language)
+          }}
+
+          SERVICE wikibase:label {{ bd:serviceParam wikibase:language "[AUTO_LANGUAGE],en". }}
+        }}
+        """
+        url = 'https://query.wikidata.org/sparql'
         try:
-            response = self.session.get(self.base_url, params=params, timeout=10)
+            headers = {
+                'User-Agent': 'LanguageRelationshipFetcher/1.1 (educational@example.com)'
+            }
+            response = requests.get(url, params={'query': sparql_query, 'format': 'json'}, headers=headers, timeout=20)
             response.raise_for_status()
             data = response.json()
-            pages = data.get('query', {}).get('pages', {})
-            page_data = next(iter(pages.values()))
-            if 'revisions' in page_data:
-                content = page_data['revisions'][0]['slots']['main']['*']
-                self.page_cache[title] = content
-                return content
-            else:
+        except requests.exceptions.RequestException as e:
+            print(f"Error querying Wikidata: {e}")
+            return {}
+
+        results = {
+            "parents": [],
+            "children": [],
+            "dialects": [],
+            "siblings": [],
+        }
+
+        parent_set = set()
+        children_set = set()
+        dialects_set = set()
+        siblings_set = set()
+
+        for item in data.get('results', {}).get('bindings', []):
+            if 'parentLabel' in item:
+                parent_set.add(item['parentLabel']['value'])
+            if 'childLabel' in item:
+                children_set.add(item['childLabel']['value'])
+            if 'dialectLabel' in item:
+                dialects_set.add(item['dialectLabel']['value'])
+            if 'siblingLabel' in item:
+                siblings_set.add(item['siblingLabel']['value'])
+
+        results["parents"] = sorted(list(parent_set))
+        results["children"] = sorted(list(children_set))
+        results["dialects"] = sorted(list(dialects_set))
+        results["siblings"] = sorted(list(siblings_set))
+        return results
+
+    def get_language_relationships_infobox(self, language_name):
+        """
+        Fetches language relationships from the Wikipedia infobox.
+        """
+        wiki_wiki = wikipediaapi.Wikipedia('LanguageTreeBuilder/1.0 (educational@example.com)', 'en')
+        page = wiki_wiki.page(language_name)
+
+        if not page.exists():
+            print(f"Page for '{language_name}' not found on Wikipedia.")
+            return {}
+
+        wikicode = mwparserfromhell.parse(page.text)
+
+        infoboxes = wikicode.filter_templates(matches=lambda t: t.name.strip().lower().startswith('infobox language'))
+
+        if not infoboxes:
+            return {}
+        infobox = infoboxes[0]
+
+        results = {"parents": [], "dialects": []}
+        parent_set = set()
+        dialect_set = set()
+        parent_params = ['family', 'fam', 'family1', 'fam1', 'ancestor', 'ancestors']
+        dialect_params = ['dialects', 'varieties']
+
+        for param in infobox.params:
+            param_name = param.name.strip().lower()
+            param_value = param.value.strip_code().strip()
+
+            if any(p in param_name for p in parent_params):
+                parents = [p.strip() for p in param_value.replace('\n', ',').split(',') if p.strip()]
+                parent_set.update(parents)
+
+            if any(d in param_name for d in dialect_params):
+                dialects = [d.strip() for d in param_value.replace('\n', ',').split(',') if d.strip()]
+                dialect_set.update(dialects)
+
+        results["parents"] = sorted(list(parent_set))
+        results["dialects"] = sorted(list(dialect_set))
+        return results
+
+    ########################
+    ## Raw wikitext dialect extractor (dia1..dia40)
+    ########################
+
+    def _get_page_content(self, title: str) -> str:
+        """Fetch raw wikitext content of the given page title."""
+        if title in self.page_cache:
+            return self.page_cache[title]
+        
+        params = {
+            "action": "query",
+            "format": "json",
+            "titles": title,
+            "prop": "revisions",
+            "rvprop": "content",
+            "rvslots": "main",
+        }
+        try:
+            r = requests.get(self.base_url, params=params, headers={'User-Agent': 'LanguageTreeNotebook/1.0 (educational)'}, timeout=15)
+            r.raise_for_status()
+            data = r.json()
+            pages = data.get("query", {}).get("pages", {})
+            if not pages:
                 return ""
-        except Exception as e:
-            print(f"Error fetching page {title}: {e}")
+            page = next(iter(pages.values()))
+            revs = page.get("revisions")
+            if not revs:
+                return ""
+            content = revs[0].get("slots", {}).get("main", {}).get("*", "")
+            self.page_cache[title] = content
+            return content
+        except Exception:
             return ""
 
-    def clean_wiki_value(self, value: str) -> str:
-        if not value:
-            return ""
-        value = re.sub(r'\[\[([^|\]]*)\|([^\]]*)\]\]', r'\2', value)
-        value = re.sub(r'\[\[([^\]]*)\]\]', r'\1', value)
-        while True:
-            old_value = value
-            value = re.sub(r'\{\{[^{}]*\}\}', '', value)
-            if value == old_value:
-                break
-        value = re.sub(r'<ref[^>]*>.*?</ref>', '', value, flags=re.DOTALL)
-        value = re.sub(r'<ref[^>]*/?>', '', value)
-        value = re.sub(r'<[^>]*>', '', value)
-        value = re.sub(r'\s+', ' ', value).strip()
-        return value
-
-    def find_wiki_links(self, text: str) -> List[str]:
+    def _find_wiki_links(self, text: str) -> List[str]:
+        """Return list of linked page titles from wiki link markup [[Title|...]]."""
+        if not text:
+            return []
         links = []
-        for match in re.finditer(r'\[\[([^|]+)(?:\|[^]]*)?\]\]', text):
-            link = match.group(1).strip()
-            if link:
-                links.append(link)
+        for m in re.finditer(r"\[\[([^|#\]]+)(?:\|[^\]]*)?\]\]", text):
+            t = m.group(1).strip()
+            if t:
+                links.append(t)
         return links
 
-    def extract_infobox(self, wikitext: str) -> Tuple[Dict[str, str], Dict[str, str]]:
-        infobox_clean = {}
-        infobox_raw = {}
-        infobox_start = wikitext.find("{{Infobox language")
-        if infobox_start == -1:
-            infobox_start = wikitext.find("{{Infobox language family")
-        if infobox_start == -1:
-            match = re.search(r'\{\{infobox\s+(language|language family)', wikitext, re.IGNORECASE)
-            if match:
-                infobox_start = match.start()
+    def _extract_infobox(self, wikitext: str) -> Dict[str, str]:
+        """Extract raw key->value pairs from the Infobox (language or language family)."""
+        if not wikitext:
+            return {}
+
+        start = wikitext.find("{{Infobox language")
+        if start == -1:
+            start = wikitext.find("{{Infobox language family")
+        if start == -1:
+            m = re.search(r"\{\{infobox\s+(language|language family)", wikitext, re.IGNORECASE)
+            if m:
+                start = m.start()
             else:
-                return infobox_clean, infobox_raw
-        brace_count = 1
-        pos = infobox_start + 2
-        infobox_end = -1
+                return {}
+
+        # Find the matching closing braces for the infobox
+        pos = start + 2
+        depth = 1
+        end = -1
         while pos < len(wikitext):
-            if wikitext[pos:pos+2] == '{{':
-                brace_count += 1
+            if wikitext[pos:pos+2] == "{{":
+                depth += 1
                 pos += 2
-            elif wikitext[pos:pos+2] == '}}':
-                brace_count -= 1
+            elif wikitext[pos:pos+2] == "}}":
+                depth -= 1
                 pos += 2
-                if brace_count == 0:
-                    infobox_end = pos
+                if depth == 0:
+                    end = pos
                     break
             else:
                 pos += 1
-        if infobox_end == -1:
-            return infobox_clean, infobox_raw
-        infobox_content = wikitext[infobox_start:infobox_end]
-        lines = infobox_content.split('\n')
+        if end == -1:
+            return {}
+
+        content = wikitext[start:end]
+        raw: Dict[str, str] = {}
         current_key = None
-        current_value = []
-        for line in lines:
-            line = line.strip()
-            if line.startswith('{{Infobox language') or line.startswith('{{infobox language'):
+        current_val_lines: List[str] = []
+
+        for line in content.split("\n"):
+            s = line.strip()
+            if s.lower().startswith("{{infobox language"):
                 continue
-            if line.startswith('|') and '=' in line:
-                if current_key and current_value:
-                    raw_text = '\n'.join(current_value)
-                    cleaned_value = self.clean_wiki_value(raw_text)
-                    infobox_raw[current_key] = raw_text
-                    if cleaned_value:
-                        infobox_clean[current_key] = cleaned_value
-                parts = line[1:].split('=', 1)
-                if len(parts) == 2:
-                    current_key = parts[0].strip()
-                    current_value = [parts[1].strip()]
-            elif line.startswith('|') and current_key:
-                current_value.append(line[1:].strip())
-            elif current_key and not line.startswith('|'):
-                current_value.append(line)
-        if current_key and current_value:
-            raw_text = '\n'.join(current_value)
-            cleaned_value = self.clean_wiki_value(raw_text)
-            infobox_raw[current_key] = raw_text
-            if cleaned_value:
-                infobox_clean[current_key] = cleaned_value
-        return infobox_clean, infobox_raw
+            if s.startswith("|") and "=" in s:
+                if current_key is not None and current_val_lines:
+                    raw[current_key] = "\n".join(current_val_lines).strip()
+                key, val = s[1:].split("=", 1)
+                current_key = key.strip()
+                current_val_lines = [val.strip()]
+            elif s.startswith("|") and current_key is not None:
+                current_val_lines.append(s[1:].strip())
+            elif current_key is not None and not s.startswith("|"):
+                current_val_lines.append(s)
+
+        if current_key is not None and current_val_lines:
+            raw[current_key] = "\n".join(current_val_lines).strip()
+
+        return raw
+
+    def _get_page_categories(self, title: str) -> List[str]:
+        """Fetch non-hidden categories for a Wikipedia page title."""
+        params = {
+            "action": "query",
+            "format": "json",
+            "prop": "categories",
+            "titles": title,
+            "clshow": "!hidden",
+            "cllimit": "50",
+        }
+        try:
+            r = requests.get(self.base_url, params=params, headers={'User-Agent': 'LanguageTreeNotebook/1.0 (educational)'}, timeout=15)
+            r.raise_for_status()
+            data = r.json()
+            pages = data.get("query", {}).get("pages", {})
+            if not pages:
+                return []
+            page = next(iter(pages.values()))
+            cats = page.get("categories", []) or []
+            return [c.get("title", "") for c in cats if c.get("title")]
+        except Exception:
+            return []
+
+    def _is_probable_geopage(self, title: str) -> bool:
+        """
+        Heuristic: exclude pages that are likely countries/regions/geography.
+        Uses categories to spot geographic topics.
+        """
+        cats = self._get_page_categories(title)
+        if not cats:
+            return False
+        joined = " ".join(cats).lower()
+        geo_keywords = [
+            "country","countries","sovereign state","sovereign states","empire","empires",
+            "kingdom","kingdoms","roman","province","provinces","city","cities",
+            "populated places","regions of","counties of","states of","geography of",
+        ]
+        return any(k in joined for k in geo_keywords)
+
+    def _filter_dialect_titles(self, titles: List[str], language_name: str) -> List[str]:
+        """
+        Remove obvious non-dialect entries such as list pages, media namespaces,
+        the language itself, and geographic pages (countries/regions).
+        """
+        out: List[str] = []
+        seen = set()
+        for t in titles:
+            tt = (t or "").strip()
+            if not tt:
+                continue
+            low = tt.lower()
+            # Exclude list/maintenance and non-article namespaces
+            if low.startswith("list of") or low.startswith("outline of") or low.startswith("history of"):
+                continue
+            if any(tt.startswith(ns) for ns in ("Category:", "File:", "Image:", "Template:")):
+                continue
+            # Exclude the language's main page variants
+            if tt in {language_name, f"{language_name} language", f"{language_name} Language"}:
+                continue
+            # Exclude likely geo pages (countries/regions)
+            if self._is_probable_geopage(tt):
+                continue
+            if tt not in seen:
+                seen.add(tt)
+                out.append(tt)
+        return out
+
+    def get_dialect_relationships(self, language_name: str) -> List[Tuple[str, str, str]]:
+        """
+        Return only (dialect, 'dialect_of', language_name) tuples extracted from the
+        language's Wikipedia infobox. Looks at 'dialects' and 'dia1'..'dia40' fields,
+        and filters out non-dialect pages (e.g., countries, lists).
+        """
+        if not language_name or not isinstance(language_name, str):
+            return []
+
+        # Try a few common page title variations
+        candidates = [
+            f"{language_name} language",
+            language_name,
+            f"{language_name} Language",
+            f"{language_name} languages",
+            f"{language_name} language family",
+        ]
+
+        wikitext = ""
+        for t in candidates:
+            wikitext = self._get_page_content(t)
+            if wikitext and ("{{Infobox language" in wikitext or "{{Infobox language family" in wikitext):
+                break
+        if not wikitext:
+            return []
+
+        infobox_raw = self._extract_infobox(wikitext)
+        if not infobox_raw:
+            return []
+
+        found: List[str] = []
+
+        # Collect from explicit 'dialects' field if it contains links
+        if "dialects" in infobox_raw:
+            found.extend(self._find_wiki_links(infobox_raw["dialects"]))
+
+        # Collect from dia1..dia40 fields
+        for i in range(1, 41):
+            k = f"dia{i}"
+            if k in infobox_raw:
+                found.extend(self._find_wiki_links(infobox_raw[k]))
+
+        # Deduplicate while preserving order
+        seen = set()
+        ordered: List[str] = []
+        for d in found:
+            if d not in seen:
+                seen.add(d)
+                ordered.append(d)
+
+        # Filter out non-dialect pages
+        dialects = self._filter_dialect_titles(ordered, language_name)
+
+        return [(d, "dialect_of", language_name) for d in dialects]
+
+    ########################
+    ## Main Pipeline
+    ########################
+    
+    def get_language_relationships(self, language_name):
+        """
+        Main pipeline function to get language relationships.
+        Combines Wikidata, Wikipedia infobox parsing, and raw wikitext parsing.
+        """
+        print(f"--- Fetching relationships for: {language_name} ---\n")
+
+        print("1. Querying Wikidata...")
+        wikidata_results = self.get_language_relationships_wikidata(language_name)
+        print("Done.\n")
+
+        print("2. Parsing Wikipedia Infobox (mwparserfromhell)...")
+        infobox_results = self.get_language_relationships_infobox(language_name)
+        print("Done.\n")
+
+        print("3. Extracting dialects from raw Infobox wikitext (dia1..dia40)...")
+        dialect_tuples = self.get_dialect_relationships(language_name)
+        wikitext_dialects = [d for (d, _rel, _lang) in dialect_tuples]
+        print(f"   Found {len(wikitext_dialects)} dialects via wikitext parser.\n")
+
+        combined_parents = set(wikidata_results.get("parents", []))
+        if "parents" in infobox_results:
+            combined_parents.update(infobox_results["parents"])
+
+        # Filter infobox-derived dialects as well
+        infobox_dialects = infobox_results.get("dialects", [])
+        infobox_dialects_filtered = self._filter_dialect_titles(list(infobox_dialects), language_name)
+
+        combined_dialects = set(wikidata_results.get("dialects", []))
+        combined_dialects.update(infobox_dialects_filtered)
+        combined_dialects.update(wikitext_dialects)
+
+        return {
+            "language": language_name,
+            "parents": sorted(list(combined_parents)),
+            "children": wikidata_results.get("children", []),
+            "siblings": wikidata_results.get("siblings", []),
+            "dialects": sorted(list(combined_dialects)),
+        }
 
     def get_direct_relationships(self, language_name: str) -> List[Tuple[str, str, str]]:
+        """
+        Get direct language relationships using the enhanced pipeline.
+        Returns list of tuples: (entity1, relationship, entity2)
+        """
         relationships = []
-        page_variations = [
-            f"{language_name} language",
-            language_name,
-            f"{language_name} Language",
-            f"{language_name} languages",
-            f"{language_name} language family"
-        ]
-        content = ""
-        for page_title in page_variations:
-            content = self.get_page_content(page_title)
-            if content and ("{{Infobox language" in content or "{{Infobox language family" in content):
-                break
-        if not content:
-            return relationships
-
-        infobox_clean, infobox_raw = self.extract_infobox(content)
-        print("infobox")
-        print(infobox_clean)
-        print("infobox_raw")
-        print(infobox_raw)
-        if not infobox_clean:
-            return relationships
-
-        # --- only pick immediate parent/children/dialects ---
-        if 'fam1' in infobox_clean:  # direct family
-            relationships.append((language_name, "descended_from", infobox_clean['fam1']))
-
-        if 'ancestor' in infobox_clean:  # direct ancestor
-            relationships.append((language_name, "descended_from", infobox_clean['ancestor']))
-
-        if 'protoname' in infobox_clean:  # sometimes one step ancestor
-            relationships.append((language_name, "descended_from", infobox_clean['protoname']))
-
-        if 'child1' in infobox_raw:
-            children = self.find_wiki_links(infobox_raw['child1'])
-            for child in children:
-                relationships.append((child, "descended_from", language_name))
-
-        if 'dialects' in infobox_raw:
-            dialects = self.find_wiki_links(infobox_raw['dialects'])
-            for dialect in dialects:
-                relationships.append((dialect, "dialect_of", language_name))
-
+        data = self.get_language_relationships(language_name)
+        
+        # Convert the structured data to relationship tuples
+        for parent in data.get("parents", []):
+            relationships.append((language_name, "descended_from", parent))
+        
+        for child in data.get("children", []):
+            relationships.append((child, "descended_from", language_name))
+        
+        for dialect in data.get("dialects", []):
+            relationships.append((dialect, "dialect_of", language_name))
+        
+        for sibling in data.get("siblings", []):
+            relationships.append((sibling, "sibling_of", language_name))
+        
         return relationships
 
-    
     def get_language_family_hierarchy(self, language_name: str) -> List[Tuple[str, str, str]]:
-        relationships = []
-        page_variations = [
-            f"{language_name} language",
-            language_name,
-            f"{language_name} Language",
-            f"{language_name} languages",
-            f"{language_name} language family"
-        ]
-        content = ""
-        for page_title in page_variations:
-            content = self.get_page_content(page_title)
-            if content and ("{{Infobox language" in content or "{{Infobox language family" in content):
-                break
-        if not content:
-            return relationships
-        infobox_clean, infobox_raw = self.extract_infobox(content)
-        if not infobox_clean:
-            return relationships
-        family_chain = []
-        if 'familycolor' in infobox_clean:
-            family_chain.append(infobox_clean['familycolor'])
-        for i in range(1, 16):
-            fam_key = f'fam{i}'
-            if fam_key in infobox_clean:
-                family_chain.append(infobox_clean[fam_key])
-        if family_chain:
-            # Instead of belongs_to → use descended_from consistently
-            if len(family_chain) > 0:
-                relationships.append((family_chain[-1], "descended_from", language_name))
-            for i in range(len(family_chain) - 1, 0, -1):
-                relationships.append((family_chain[i-1], "descended_from", family_chain[i]))
-        ancestors = []
-        for i in range(1, 9):
-            ancestor_key = f'ancestor{i}' if i > 1 else 'ancestor'
-            if ancestor_key in infobox_clean:
-                ancestors.append(infobox_clean[ancestor_key])
-        if 'protoname' in infobox_clean:
-            ancestors.append(infobox_clean['protoname'])
-        if 'earlyforms' in infobox_raw:
-            early_links = self.find_wiki_links(infobox_raw['earlyforms'])
-            early_links.reverse()
-            ancestors.extend(early_links)
-        current_descendant = language_name
-        for ancestor in ancestors:
-            relationships.append((current_descendant, "descended_from", ancestor))
-            current_descendant = ancestor
-        for i in range(1, 41):
-            dialect_key = f'dia{i}'
-            if dialect_key in infobox_raw:
-                dialects = self.find_wiki_links(infobox_raw[dialect_key])
-                for dialect in dialects:
-                    relationships.append((dialect, "dialect_of", language_name))
-        if 'dialects' in infobox_clean:
-            cleaned = infobox_clean['dialects']
-            if 'list' not in cleaned.lower() and 'see' not in cleaned.lower():
-                dialects = self.find_wiki_links(infobox_raw['dialects'])
-                for dialect in dialects:
-                    relationships.append((dialect, "dialect_of", language_name))
-        for i in range(1, 51):
-            child_key = f'child{i}'
-            if child_key in infobox_raw:
-                children = self.find_wiki_links(infobox_raw[child_key])
-                for child in children:
-                    # child belongs_to language → flip into descendant_of
-                    relationships.append((language_name, "descended_from", child))
-        return relationships
+        """
+        Get comprehensive language family hierarchy.
+        This method provides backward compatibility for the check_language_validity function.
+        """
+        return self.get_direct_relationships(language_name)
 
 # --- Async wrapper for extractor with websocket updates ---
 async def fetch_language_relationships(language_name: str, depth: int, websocket_manager: Optional[WebSocketManager] = None) -> List[Dict[str, str]]:
@@ -276,6 +464,8 @@ async def fetch_language_relationships(language_name: str, depth: int, websocket
             # Add related languages for further exploration
             if current_depth < depth:
                 for lang1, rel, lang2 in lang_relationships:
+                    if rel == "dialect_of":
+                        continue
                     if lang1 not in processed_languages:
                         languages_to_process.append((lang1, current_depth + 1))
                     if lang2 not in processed_languages:
