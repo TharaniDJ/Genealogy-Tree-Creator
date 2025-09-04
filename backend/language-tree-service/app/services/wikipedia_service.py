@@ -183,20 +183,34 @@ async def fetch_language_relationships(language_name: str, depth: int, websocket
         })
         visited_pairs.add(pair)
 
-    # Optionally include siblings (same parent) only at depth 0 of start
-    if languoid.parent:
-        for sib in languoid.parent.children:
-            if sib.id == languoid.id:
+    # Collect all unique parent nodes from the tree (ancestors + descendant parents + starting languoid)
+    all_parent_nodes: Set[Any] = set()
+    
+    # Add starting languoid as a potential parent
+    all_parent_nodes.add(languoid)
+    
+    # Add all ancestors
+    for anc in ancestors:
+        all_parent_nodes.add(anc)
+    
+    
+    # For each parent node, collect all its children (siblings of each other)
+    for parent_node in all_parent_nodes:
+        if not hasattr(parent_node, 'children') or not parent_node.children:
+            continue
+                
+        for child in parent_node.children:
+            pair = (child.id, parent_node.id)
+            if child.id == languoid.id:
                 continue
-            pair = (sib.id, languoid.parent.id)
             if pair in visited_pairs:
                 continue
             edges.append({
-                "entity1": sib.name,
-                "entity1_glottocode": sib.id,
+                "entity1": child.name,
+                "entity1_glottocode": child.id,
                 "relationship": "member_of",
-                "entity2": languoid.parent.name,
-                "entity2_glottocode": languoid.parent.id
+                "entity2": parent_node.name,
+                "entity2_glottocode": parent_node.id
             })
             visited_pairs.add(pair)
 
