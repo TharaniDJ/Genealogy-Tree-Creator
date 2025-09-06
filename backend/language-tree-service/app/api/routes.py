@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from typing import List
-from app.services.wikipedia_service import fetch_language_relationships, get_language_details
+from app.services.wikipedia_service import fetch_language_relationships
 from app.models.language import LanguageRelationship, LanguageInfo
 
 router = APIRouter()
@@ -24,24 +24,24 @@ async def get_language_relationships(language_name: str, depth: int):
         print(f"Error fetching relationships: {e}")
         raise HTTPException(status_code=500, detail=f"Error fetching relationships: {str(e)}")
 
-@router.get('/info/{language_name}', response_model=LanguageInfo)
-async def get_language_info(language_name: str):
-    """
-    Get detailed information about a specific language.
+# @router.get('/info/{language_name}', response_model=LanguageInfo)
+# async def get_language_info(language_name: str):
+#     """
+#     Get detailed information about a specific language.
     
-    - **language_name**: Name of the language (e.g., "English", "Spanish")
-    """
-    print(f"Fetching info for {language_name}")
-    try:
-        language_info = await get_language_details(language_name)
-        if not language_info:
-            raise HTTPException(status_code=404, detail=f"Language '{language_name}' not found")
-        return language_info
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"Error fetching language info: {e}")
-        raise HTTPException(status_code=500, detail=f"Error fetching language info: {str(e)}")
+#     - **language_name**: Name of the language (e.g., "English", "Spanish")
+#     """
+#     print(f"Fetching info for {language_name}")
+#     try:
+#         language_info = await get_language_details(language_name)
+#         if not language_info:
+#             raise HTTPException(status_code=404, detail=f"Language '{language_name}' not found")
+#         return language_info
+#     except HTTPException:
+#         raise
+#     except Exception as e:
+#         print(f"Error fetching language info: {e}")
+#         raise HTTPException(status_code=500, detail=f"Error fetching language info: {str(e)}")
 
 @router.get('/health')
 async def health_check():

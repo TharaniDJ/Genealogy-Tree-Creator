@@ -23,7 +23,7 @@ class Settings:
     MAX_CONNECTIONS: int = 100
     
     # Rate limiting
-    MAX_DEPTH: int = 5
+    MAX_DEPTH: int = 50
     MAX_REQUESTS_PER_MINUTE: int = 60
     
     # Caching
