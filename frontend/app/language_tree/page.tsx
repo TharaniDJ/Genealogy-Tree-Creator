@@ -25,7 +25,7 @@ dagreGraph.setDefaultEdgeLabel(() => ({}));
 const nodeWidth = 172;
 const nodeHeight = 36;
 
-type LanguageNodeData = { label: string; meta?: string };
+type LanguageNodeData = { label: string; meta?: string; category?: string };
 type LanguageRFNode = Node<LanguageNodeData>;
 
 const getLayoutedElements = (nodes: LanguageRFNode[], edges: Edge[], direction = 'TB') => {
@@ -95,7 +95,7 @@ const LanguageTreePage = () => {
 
   const slugify = (label: string) => label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$|/g, '').slice(0,40) || 'lang';
 
-  const ensureNode = useCallback((label: string) => {
+  const ensureNode = useCallback((label: string, category?: string) => {
     if (!label) return null;
     const map = labelToIdRef.current;
     if (map.has(label)) return map.get(label)!;
@@ -113,11 +113,25 @@ const LanguageTreePage = () => {
     }
     map.set(label, id);
     setNodes(prev => {
-      if (prev.some(n => n.id === id)) return prev;
-      return [...prev, { id, data: { label }, position: { x: 0, y: 0 }, type: 'language' }];
+      // If node exists update category/meta if absent
+      if (prev.some(n => n.id === id)) {
+        return prev.map(n => {
+          if (n.id !== id) return n;
+          if (category && !n.data.category) {
+            return { ...n, data: { ...n.data, category, meta: humanizeCategory(category) } };
+          }
+          return n;
+        });
+      }
+      return [...prev, { id, data: { label, category, meta: category ? humanizeCategory(category) : undefined }, position: { x: 0, y: 0 }, type: 'language' }];
     });
     return id;
   }, [setNodes]);
+
+  const humanizeCategory = (cat?: string) => {
+    if (!cat) return '';
+    return cat.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase());
+  };
 
   // Process streaming messages from backend (status, relationship, complete, error)
   useEffect(() => {
@@ -134,18 +148,20 @@ const LanguageTreePage = () => {
           break; }
         case 'relationship': {
           const d = msg.data || {};
-            const l1: string = d.language1;
-            const l2: string = d.language2;
-            if (l1 && l2) {
-              const childLabel = d.relationship === 'Child of' ? l1 : l1; // default; current backend only emits 'Child of'
-              const parentLabel = d.relationship === 'Child of' ? l2 : l2;
-              const parentId = ensureNode(parentLabel);
-              const childId = ensureNode(childLabel);
-              if (parentId && childId) {
-                const edgeId = `e-${parentId}-${childId}`;
-                setEdges(prev => prev.some(e => e.id === edgeId) ? prev : [...prev, { id: edgeId, source: parentId, target: childId, type: 'smoothstep', animated: true }]);
-              }
+          const l1: string = d.language1;
+          const l2: string = d.language2;
+          const c1: string | undefined = d.language1_category || undefined;
+          const c2: string | undefined = d.language2_category || undefined;
+          if (l1 && l2) {
+            const childLabel = d.relationship === 'Child of' ? l1 : l1; // current backend only emits 'Child of'
+            const parentLabel = d.relationship === 'Child of' ? l2 : l2;
+            const parentId = ensureNode(parentLabel, c2);
+            const childId = ensureNode(childLabel, c1);
+            if (parentId && childId) {
+              const edgeId = `e-${parentId}-${childId}`;
+              setEdges(prev => prev.some(e => e.id === edgeId) ? prev : [...prev, { id: edgeId, source: parentId, target: childId, type: 'smoothstep', animated: true }]);
             }
+          }
           break; }
         case 'complete': {
           completeRef.current = true;
@@ -160,8 +176,8 @@ const LanguageTreePage = () => {
               if (!l1 || !l2) continue;
               const parentLabel = r.relationship === 'Child of' ? l2 : l2;
               const childLabel = r.relationship === 'Child of' ? l1 : l1;
-              const parentId = ensureNode(parentLabel);
-              const childId = ensureNode(childLabel);
+              const parentId = ensureNode(parentLabel, r.language2_category);
+              const childId = ensureNode(childLabel, r.language1_category);
               if (parentId && childId) {
                 const edgeId = `e-${parentId}-${childId}`;
                 setEdges(prev => prev.some(e => e.id === edgeId) ? prev : [...prev, { id: edgeId, source: parentId, target: childId, type: 'smoothstep', animated: true }]);
