@@ -43,6 +43,64 @@ MAX_NODES = 1500
 LABEL_CACHE: Dict[str, str] = {}
 VALID_QIDS: Set[str] = set()
 INVALID_QIDS: Set[str] = set()
+CLASSIFICATION_CACHE: Dict[str, Optional[str]] = {}
+
+# Accepted Wikidata type QIDs (instance/subclass) considered valid language entities
+VALID_TYPE_QIDS: Dict[str, str] = {
+	"language": "Q34770",
+	
+	"dialect": "Q33384",
+	
+	"language_family": "Q25295",
+	
+	"proto_language": "Q206577",
+	"extinct_language": "Q38058796",
+	"dead_language": "Q45762",
+}
+
+
+def _validate_qid(qid: str) -> Tuple[bool, Optional[str]]:
+	"""Return (is_valid, classification_key) for a Wikidata QID.
+
+	Caches results to avoid repeated SPARQL calls. Classification key is one
+	of the keys in VALID_TYPE_QIDS or None if not matched.
+	"""
+	if not qid:
+		return False, None
+	if qid in VALID_QIDS:
+		# We may or may not have stored classification separately
+		return True, CLASSIFICATION_CACHE.get(qid)
+	if qid in INVALID_QIDS:
+		return False, None
+	# Build VALUES clause of acceptable types
+	values_clause = " ".join(f"wd:{t}" for t in VALID_TYPE_QIDS.values())
+	query = f"""
+	SELECT ?type WHERE {{
+	  VALUES ?item {{ wd:{qid} }}
+	  {{ ?item wdt:P31 ?type. }} UNION {{ ?item wdt:P279 ?type. }}
+	  VALUES ?validType {{ {values_clause} }}
+	  FILTER(?type IN (?validType))
+	}}
+	LIMIT 1
+	"""
+	data = _safe_get_json(SPARQL_ENDPOINT, params={"query": query, "format": "json"}) or {}
+	bindings = data.get("results", {}).get("bindings", [])
+	if not bindings:
+		INVALID_QIDS.add(qid)
+		CLASSIFICATION_CACHE[qid] = None
+		return False, None
+	type_uri = bindings[0]["type"]["value"]
+	type_qid = type_uri.split("/")[-1]
+	# Reverse lookup classification key
+	for key, tqid in VALID_TYPE_QIDS.items():
+		if tqid == type_qid:
+			VALID_QIDS.add(qid)
+			CLASSIFICATION_CACHE[qid] = key
+			return True, key
+	# Fallback (should not happen if VALUES clause matches)
+	VALID_QIDS.add(qid)
+	CLASSIFICATION_CACHE[qid] = None
+	return True, None
 
 
 def _safe_get_json(url: str, *, params: dict, headers: dict | None = None):
@@ -209,6 +267,10 @@ async def fetch_language_relationships(language_name: str, depth: int, websocket
 	print(root_qid)
 	# Force root label in cache
 	root_label = _get_label(root_qid)
+	# Validate root; raise if not an acceptable language-related entity
+	root_valid, root_class = _validate_qid(root_qid)
+	if not root_valid:
+		raise ValueError(f"Root entity for '{language_name}' (QID {root_qid}) is not a recognized language/dialect/family")
 	VALID_QIDS.add(root_qid)
 
 	visited: Set[str] = set()
@@ -216,13 +278,16 @@ async def fetch_language_relationships(language_name: str, depth: int, websocket
 	emitted: Set[Tuple[str, str, str]] = set()
 	total = 0
 
-	async def emit(rel: Tuple[str, str, str]):
+	async def emit(rel: Tuple[str, str, str], qid1: Optional[str] = None, qid2: Optional[str] = None):
 		nonlocal total
 		if rel in emitted:
 			return
 		emitted.add(rel)
 		total += 1
 		if websocket_manager:
+			# Derive categories (classification) from cached QIDs if available
+			cat1 = CLASSIFICATION_CACHE.get(qid1) if qid1 else None
+			cat2 = CLASSIFICATION_CACHE.get(qid2) if qid2 else None
 			await websocket_manager.send_json(
 				{
 					"type": "relationship",
@@ -231,6 +296,8 @@ async def fetch_language_relationships(language_name: str, depth: int, websocket
 						"relationship": rel[1],
 						"language2": rel[2],
 						"count": total,
+						"language1_category": cat1,
+						"language2_category": cat2,
 					},
 				}
 			)
@@ -241,27 +308,39 @@ async def fetch_language_relationships(language_name: str, depth: int, websocket
 		visited.add(entity_id)
 		current_label = _get_label(entity_id)
 
-		# Parents
+		# Validate current entity (may already be validated)
+		_validate_qid(entity_id)
+
+		# Parents (only keep valid)
 		for parent_id, parent_label in _get_parents(entity_id):
+			valid_parent, parent_class = _validate_qid(parent_id)
+			if not valid_parent:
+				continue
 			rel = (current_label, "Child of", parent_label)
 			relations.append(rel)
-			await emit(rel)
+			await emit(rel, qid1=entity_id, qid2=parent_id)
 			await recurse(parent_id, current_depth + 1)
 
 		# Children by P527
 		for child_id, child_label in _get_children_by_p527(entity_id):
 			if child_id != entity_id:
+				valid_child, child_class = _validate_qid(child_id)
+				if not valid_child:
+					continue
 				rel = (child_label, "Child of", current_label)
 				relations.append(rel)
-				await emit(rel)
+				await emit(rel, qid1=child_id, qid2=entity_id)
 				await recurse(child_id, current_depth + 1)
 
 		# Children by reverse P279
 		for child_id, child_label in _get_children(entity_id):
 			if child_id != entity_id and child_id not in visited:
+				valid_child, child_class = _validate_qid(child_id)
+				if not valid_child:
+					continue
 				rel = (child_label, "Child of", current_label)
 				relations.append(rel)
-				await emit(rel)
+				await emit(rel, qid1=child_id, qid2=entity_id)
 				await recurse(child_id, current_depth + 1)
 
 	# Perform traversal with immediate emission
