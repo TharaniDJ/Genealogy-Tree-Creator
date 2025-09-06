@@ -61,6 +61,8 @@ const LanguageTreePage = () => {
   const [progress, setProgress] = useState(0);
   const [layoutDirection, setLayoutDirection] = useState<'TB' | 'LR'>('TB');
   const [autoLayoutOnComplete, setAutoLayoutOnComplete] = useState(true);
+  // Track currently selected node for edge highlighting
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 
   const { messages, connectionStatus, connect, disconnect, sendMessage } = useWebSocket('ws://localhost:8001/ws/relationships');
 
@@ -222,6 +224,27 @@ const LanguageTreePage = () => {
     layout(dir);
   };
 
+  // Highlight edges connected to selected node without mutating core edge state
+  const displayEdges = useMemo(() => {
+    if (!selectedNodeId) return edges;
+    return edges.map(e => {
+      const isConnected = e.source === selectedNodeId || e.target === selectedNodeId;
+      if (isConnected) {
+        return {
+          ...e,
+          style: { ...(e.style || {}), stroke: '#2563eb', strokeWidth: 3 },
+          animated: true,
+          className: (e.className ? e.className + ' ' : '') + 'edge-highlight'
+        };
+      }
+      return {
+        ...e,
+        style: { ...(e.style || {}), stroke: '#cbd5e1', strokeWidth: 1, opacity: 0.4 },
+        className: (e.className ? e.className + ' ' : '') + 'edge-dim'
+      };
+    });
+  }, [edges, selectedNodeId]);
+
   return (
     <div className="h-screen w-full flex flex-col bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
       {/* Modern Header with Glass Effect */}
@@ -369,10 +392,12 @@ const LanguageTreePage = () => {
       <div className="flex-1 relative">
         <ReactFlow
           nodes={nodes}
-          edges={edges}
+          edges={displayEdges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={(params: Connection) => setEdges((eds) => addEdge(params, eds))}
+          onNodeClick={(_, node) => setSelectedNodeId(prev => prev === node.id ? null : node.id)}
+          onPaneClick={() => setSelectedNodeId(null)}
           nodeTypes={nodeTypes}
           fitView
           className="bg-transparent"
