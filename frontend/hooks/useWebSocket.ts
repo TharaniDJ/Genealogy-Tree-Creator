@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 interface WebSocketMessage {
-  type: 'status' | 'personal_details' | 'relationship';
+  type: 'status' | 'relationship' | 'complete' | 'error' | string; // keep string fallback for forward compatibility
   data: any;
 }
 

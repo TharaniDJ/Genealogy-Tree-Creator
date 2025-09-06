@@ -24,6 +24,7 @@ async def websocket_language_relationships(websocket: WebSocket):
         while True:
             # Receive data from client
             data = await websocket.receive_text()
+            data=data.strip("\"")
             print(f"Received WebSocket request: {data}")
             
             try:
