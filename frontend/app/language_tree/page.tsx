@@ -17,6 +17,7 @@ import 'reactflow/dist/style.css';
 import dagre from 'dagre';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import LanguageNode from '../../components/LanguageNode';
+import LanguageDetailsSidebar from '../../components/LanguageDetailsSidebar';
 
 // Dagre layouting
 const dagreGraph = new dagre.graphlib.Graph();
@@ -25,7 +26,7 @@ dagreGraph.setDefaultEdgeLabel(() => ({}));
 const nodeWidth = 172;
 const nodeHeight = 36;
 
-type LanguageNodeData = { label: string; meta?: string; category?: string };
+type LanguageNodeData = { label: string; meta?: string; category?: string; qid?: string };
 type LanguageRFNode = Node<LanguageNodeData>;
 
 const getLayoutedElements = (nodes: LanguageRFNode[], edges: Edge[], direction = 'TB') => {
@@ -63,6 +64,13 @@ const LanguageTreePage = () => {
   const [autoLayoutOnComplete, setAutoLayoutOnComplete] = useState(true);
   // Track currently selected node for edge highlighting
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  // Sidebar state
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] = useState<{
+    name: string;
+    qid?: string;
+    category?: string;
+  } | null>(null);
 
   const { messages, connectionStatus, connect, disconnect, sendMessage } = useWebSocket('ws://localhost:8001/ws/relationships');
 
@@ -97,7 +105,7 @@ const LanguageTreePage = () => {
 
   const slugify = (label: string) => label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$|/g, '').slice(0,40) || 'lang';
 
-  const ensureNode = useCallback((label: string, category?: string) => {
+  const ensureNode = useCallback((label: string, category?: string, qid?: string) => {
     if (!label) return null;
     const map = labelToIdRef.current;
     if (map.has(label)) return map.get(label)!;
@@ -119,13 +127,28 @@ const LanguageTreePage = () => {
       if (prev.some(n => n.id === id)) {
         return prev.map(n => {
           if (n.id !== id) return n;
+          const updates: Partial<LanguageNodeData> = {};
           if (category && !n.data.category) {
-            return { ...n, data: { ...n.data, category, meta: humanizeCategory(category) } };
+            updates.category = category;
+            updates.meta = humanizeCategory(category);
           }
-          return n;
+          if (qid && !n.data.qid) {
+            updates.qid = qid;
+          }
+          return Object.keys(updates).length > 0 ? { ...n, data: { ...n.data, ...updates } } : n;
         });
       }
-      return [...prev, { id, data: { label, category, meta: category ? humanizeCategory(category) : undefined }, position: { x: 0, y: 0 }, type: 'language' }];
+      return [...prev, { 
+        id, 
+        data: { 
+          label, 
+          category, 
+          meta: category ? humanizeCategory(category) : undefined,
+          qid 
+        }, 
+        position: { x: 0, y: 0 }, 
+        type: 'language' 
+      }];
     });
     return id;
   }, [setNodes]);
@@ -154,11 +177,15 @@ const LanguageTreePage = () => {
           const l2: string = d.language2;
           const c1: string | undefined = d.language1_category || undefined;
           const c2: string | undefined = d.language2_category || undefined;
+          const qid1: string | undefined = d.language1_qid || undefined;
+          const qid2: string | undefined = d.language2_qid || undefined;
           if (l1 && l2) {
             const childLabel = d.relationship === 'Child of' ? l1 : l1; // current backend only emits 'Child of'
             const parentLabel = d.relationship === 'Child of' ? l2 : l2;
-            const parentId = ensureNode(parentLabel, c2);
-            const childId = ensureNode(childLabel, c1);
+            const childQid = d.relationship === 'Child of' ? qid1 : qid1;
+            const parentQid = d.relationship === 'Child of' ? qid2 : qid2;
+            const parentId = ensureNode(parentLabel, c2, parentQid);
+            const childId = ensureNode(childLabel, c1, childQid);
             if (parentId && childId) {
               const edgeId = `e-${parentId}-${childId}`;
               setEdges(prev => prev.some(e => e.id === edgeId) ? prev : [...prev, { id: edgeId, source: parentId, target: childId, type: 'smoothstep', animated: true }]);
@@ -178,8 +205,10 @@ const LanguageTreePage = () => {
               if (!l1 || !l2) continue;
               const parentLabel = r.relationship === 'Child of' ? l2 : l2;
               const childLabel = r.relationship === 'Child of' ? l1 : l1;
-              const parentId = ensureNode(parentLabel, r.language2_category);
-              const childId = ensureNode(childLabel, r.language1_category);
+              const parentQid = r.relationship === 'Child of' ? r.language2_qid : r.language2_qid;
+              const childQid = r.relationship === 'Child of' ? r.language1_qid : r.language1_qid;
+              const parentId = ensureNode(parentLabel, r.language2_category, parentQid);
+              const childId = ensureNode(childLabel, r.language1_category, childQid);
               if (parentId && childId) {
                 const edgeId = `e-${parentId}-${childId}`;
                 setEdges(prev => prev.some(e => e.id === edgeId) ? prev : [...prev, { id: edgeId, source: parentId, target: childId, type: 'smoothstep', animated: true }]);
@@ -244,6 +273,22 @@ const LanguageTreePage = () => {
       };
     });
   }, [edges, selectedNodeId]);
+
+  // Handle node click to open sidebar
+  const handleNodeClick = useCallback((event: React.MouseEvent, node: LanguageRFNode) => {
+    setSelectedNodeId(prev => prev === node.id ? null : node.id);
+    setSelectedLanguage({
+      name: node.data.label,
+      qid: node.data.qid,
+      category: node.data.category
+    });
+    setSidebarOpen(true);
+  }, []);
+
+  const handleCloseSidebar = useCallback(() => {
+    setSidebarOpen(false);
+    setSelectedLanguage(null);
+  }, []);
 
   return (
     <div className="h-screen w-full flex flex-col bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
@@ -396,8 +441,12 @@ const LanguageTreePage = () => {
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={(params: Connection) => setEdges((eds) => addEdge(params, eds))}
-          onNodeClick={(_, node) => setSelectedNodeId(prev => prev === node.id ? null : node.id)}
-          onPaneClick={() => setSelectedNodeId(null)}
+          onNodeClick={handleNodeClick}
+          onPaneClick={() => {
+            setSelectedNodeId(null);
+            setSidebarOpen(false);
+            setSelectedLanguage(null);
+          }}
           nodeTypes={nodeTypes}
           fitView
           className="bg-transparent"
@@ -421,6 +470,15 @@ const LanguageTreePage = () => {
           />
         </ReactFlow>
       </div>
+
+      {/* Language Details Sidebar */}
+      <LanguageDetailsSidebar
+        isOpen={sidebarOpen}
+        onClose={handleCloseSidebar}
+        languageName={selectedLanguage?.name || ''}
+        qid={selectedLanguage?.qid}
+        category={selectedLanguage?.category}
+      />
     </div>
   );
 };
