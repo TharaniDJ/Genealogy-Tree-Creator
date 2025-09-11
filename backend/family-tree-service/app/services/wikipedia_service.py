@@ -1,3 +1,4 @@
+
 from typing import List, Dict, Optional
 import requests
 import asyncio
@@ -222,158 +223,229 @@ def get_parents(qid: str) -> List[str]:
         parents.append(snak["mainsnak"]["datavalue"]["value"]["id"])
     return parents
 
-async def collect_relationships(qid: str, depth: int, direction: str, relationships: List[Dict[str, str]], visited: set, all_qids: set, websocket_manager: Optional[WebSocketManager] = None, sent_entities: Optional[set] = None):
+async def get_adoptive_children_sparql(qid: str) -> List[str]:
+    """Get adoptive children using SPARQL query."""
+    query = f"""
+    SELECT ?child WHERE {{
+      ?child wdt:P1441 wd:{qid} .
+    }}
+    """
+
+    headers = {
+        "Accept": "application/sparql-results+json",
+        "User-Agent": "MyWikipediaTool/1.0 (https://example.com/contact)"
+    }
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(SPARQL_API, params={"query": query}, headers=headers) as resp:
+                if resp.status != 200:
+                    print(f"SPARQL query failed for adoptive children of {qid}: {resp.status}")
+                    return []
+
+                data = await resp.json(content_type=None)
+                results = data.get("results", {}).get("bindings", [])
+                
+                children = []
+                for result in results:
+                    child_uri = result.get("child", {}).get("value", "")
+                    if child_uri.startswith("http://www.wikidata.org/entity/"):
+                        child_qid = child_uri.split("/")[-1]
+                        children.append(child_qid)
+                
+                return children
+    except Exception as e:
+        print(f"Error fetching adoptive children for {qid}: {e}")
+        return []
+
+async def get_all_children_sparql(qid: str) -> Dict[str, List[str]]:
+    """Get all types of children using SPARQL query."""
+    query = f"""
+    SELECT ?child ?relationship WHERE {{
+      {{
+        ?child wdt:P22 wd:{qid} .
+        BIND("biological_father" AS ?relationship)
+      }} UNION {{
+        ?child wdt:P25 wd:{qid} .
+        BIND("biological_mother" AS ?relationship)
+      }} UNION {{
+        ?child wdt:P1441 wd:{qid} .
+        BIND("adoptive_parent" AS ?relationship)
+      }} UNION {{
+        ?child wdt:P8810 wd:{qid} .
+        BIND("parent" AS ?relationship)
+      }}
+    }}
+    """
+
+    headers = {
+        "Accept": "application/sparql-results+json",
+        "User-Agent": "MyWikipediaTool/1.0 (https://example.com/contact)"
+    }
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(SPARQL_API, params={"query": query}, headers=headers) as resp:
+                if resp.status != 200:
+                    print(f"SPARQL query failed for children of {qid}: {resp.status}")
+                    return {}
+
+                data = await resp.json(content_type=None)
+                results = data.get("results", {}).get("bindings", [])
+                
+                children_by_type = {
+                    "biological_father": [],
+                    "biological_mother": [],
+                    "adoptive_parent": [],
+                    "parent": []
+                }
+                
+                for result in results:
+                    child_uri = result.get("child", {}).get("value", "")
+                    relationship = result.get("relationship", {}).get("value", "")
+                    
+                    if child_uri.startswith("http://www.wikidata.org/entity/"):
+                        child_qid = child_uri.split("/")[-1]
+                        if relationship in children_by_type:
+                            children_by_type[relationship].append(child_qid)
+                
+                return children_by_type
+    except Exception as e:
+        print(f"Error fetching children for {qid}: {e}")
+        return {}
+
+def extract_qid(snak: dict) -> Optional[str]:
+    """Safely extract QID from a snak, return None if unavailable."""
+    try:
+        if snak.get("mainsnak", {}).get("snaktype") != "value":
+            return None
+        return snak["mainsnak"]["datavalue"]["value"]["id"]
+    except Exception:
+        return None
+
+
+async def collect_relationships(
+    qid: str,
+    depth: int,
+    direction: str,
+    relationships: List[Dict[str, str]],
+    visited: set,
+    all_qids: set,
+    websocket_manager: Optional[WebSocketManager] = None,
+    sent_entities: Optional[set] = None
+):
     """
     Recursively collect family relationships in {"entity1": str, "relationship": str, "entity2": str} format.
-    direction: 'up' (ancestors) or 'down' (descendants)
+    Supports only 3 types: child of, spouse of, adopted by.
     """
     if depth == 0 or qid in visited:
         return
     visited.add(qid)
-    
-    # Initialize sent_entities if not provided
+
     if sent_entities is None:
         sent_entities = set()
 
     entity = fetch_entity(qid)
     claims = entity.get("claims", {})
 
-    if direction == "up":  # Ancestors via P22 (father) and P25 (mother)
-        for snak in claims.get("P22", []):  # Father relationships
-            father_qid = snak["mainsnak"]["datavalue"]["value"]["id"]
-            relationship = {"entity1": qid, "relationship": "child of", "entity2": father_qid}
-            relationships.append(relationship)
-            all_qids.update([qid, father_qid])
-            
-            # Send relationship immediately via WebSocket
-            if websocket_manager:
-                # Get labels for this specific relationship
-                labels = get_labels({qid, father_qid})
+    # ----------------------
+    # Biological & adoptive parents (UP)
+    # ----------------------
+    if direction == "up":
+        for prop, rel_name in {
+            "P22": "child of",     # father
+            "P25": "child of",     # mother
+            "P3373": "adopted by", # adoptive parent
+            "P3448": "adopted by"  # stepparent
+        }.items():
+            for snak in claims.get(prop, []):
+                parent_qid = extract_qid(snak)
+                if not parent_qid:
+                    continue
+                relationships.append({"entity1": qid, "relationship": rel_name, "entity2": parent_qid})
+                all_qids.update([qid, parent_qid])
 
-                print(f"labels for {qid} and {father_qid}: {labels}")
+                if websocket_manager:
+                    labels = get_labels({qid, parent_qid})
+                    named_rel = {
+                        "entity1": labels.get(qid, qid),
+                        "relationship": rel_name,
+                        "entity2": labels.get(parent_qid, parent_qid)
+                    }
+                    await websocket_manager.send_message(json.dumps({"type": "relationship", "data": named_rel}))
 
-                named_relationship = {
-                    "entity1": labels.get(qid, qid),
-                    "relationship": "child of",
-                    "entity2": labels.get(father_qid, father_qid)
-                }
-                await websocket_manager.send_message(json.dumps({
-                    "type": "relationship",
-                    "data": named_relationship
-                }))
-                
-                # Send personal details for father if not already sent
-                if father_qid not in sent_entities:
-                    father_details = await getPersonalDetailsByQid(father_qid)
-                    if father_details:
-                        await websocket_manager.send_message(json.dumps({
-                            "type": "personal_details",
-                            "data": {
-                                "entity": labels.get(father_qid, father_qid),
-                                "qid": father_qid,
-                                **father_details
-                            }
-                        }))
-                        sent_entities.add(father_qid)
-            
-            await collect_relationships(father_qid, depth - 1, direction, relationships, visited, all_qids, websocket_manager, sent_entities)
+                    if parent_qid not in sent_entities:
+                        parent_details = await getPersonalDetailsByQid(parent_qid)
+                        if parent_details:
+                            await websocket_manager.send_message(json.dumps({
+                                "type": "personal_details",
+                                "data": {
+                                    "entity": labels.get(parent_qid, parent_qid),
+                                    "qid": parent_qid,
+                                    **parent_details
+                                }
+                            }))
+                            sent_entities.add(parent_qid)
 
-        for snak in claims.get("P25", []):  # Mother relationships
-            mother_qid = snak["mainsnak"]["datavalue"]["value"]["id"]
-            relationship = {"entity1": qid, "relationship": "child of", "entity2": mother_qid}
-            relationships.append(relationship)
-            all_qids.update([qid, mother_qid])
-            
-            # Send relationship immediately via WebSocket
-            if websocket_manager:
-                # Get labels for this specific relationship
-                labels = get_labels({qid, mother_qid})
-                named_relationship = {
-                    "entity1": labels.get(qid, qid),
-                    "relationship": "child of",
-                    "entity2": labels.get(mother_qid, mother_qid)
-                }
-                await websocket_manager.send_message(json.dumps({
-                    "type": "relationship",
-                    "data": named_relationship
-                }))
-                
-                # Send personal details for mother if not already sent
-                if mother_qid not in sent_entities:
-                    mother_details = await getPersonalDetailsByQid(mother_qid)
-                    if mother_details:
-                        await websocket_manager.send_message(json.dumps({
-                            "type": "personal_details",
-                            "data": {
-                                "entity": labels.get(mother_qid, mother_qid),
-                                "qid": mother_qid,
-                                **mother_details
-                            }
-                        }))
-                        sent_entities.add(mother_qid)
-            
-            await collect_relationships(mother_qid, depth - 1, direction, relationships, visited, all_qids, websocket_manager, sent_entities)
+                # recurse upward
+                await collect_relationships(
+                    parent_qid, depth - 1, direction,
+                    relationships, visited, all_qids,
+                    websocket_manager, sent_entities
+                )
 
-    elif direction == "down":  # Descendants via P40 (child)
-        # First, collect all spouses and send spouse relationships
-        spouse_qids = set()
-        for spouse_snak in claims.get("P26", []):  # Spouse relationships
-            spouse_qid = spouse_snak["mainsnak"]["datavalue"]["value"]["id"]
-            spouse_qids.add(spouse_qid)
-            relationship = {"entity1": qid, "relationship": "spouse of", "entity2": spouse_qid}
-            relationships.append(relationship)
-            all_qids.update([qid, spouse_qid])
-            
-            # Send spouse relationship immediately via WebSocket
-            if websocket_manager:
-                # Get labels for this specific relationship
-                labels = get_labels({qid, spouse_qid})
-                named_relationship = {
-                    "entity1": labels.get(qid, qid),
-                    "relationship": "spouse of",
-                    "entity2": labels.get(spouse_qid, spouse_qid)
-                }
-                await websocket_manager.send_message(json.dumps({
-                    "type": "relationship",
-                    "data": named_relationship
-                }))
-                
-                # Send personal details for spouse if not already sent
-                if spouse_qid not in sent_entities:
-                    spouse_details = await getPersonalDetailsByQid(spouse_qid)
-                    if spouse_details:
-                        await websocket_manager.send_message(json.dumps({
-                            "type": "personal_details",
-                            "data": {
-                                "entity": labels.get(spouse_qid, spouse_qid),
-                                "qid": spouse_qid,
-                                **spouse_details
-                            }
-                        }))
-                        sent_entities.add(spouse_qid)
+    # ----------------------
+    # Spouses & children (DOWN)
+    # ----------------------
+    elif direction == "down":
+        # spouses
+        for prop, rel_name in {"P26": "spouse of", "P451": "spouse of"}.items():
+            for snak in claims.get(prop, []):
+                spouse_qid = extract_qid(snak)
+                if not spouse_qid:
+                    continue
+                relationships.append({"entity1": qid, "relationship": rel_name, "entity2": spouse_qid})
+                all_qids.update([qid, spouse_qid])
 
-        # Then, process child relationships
-        for snak in claims.get("P40", []):  # Child relationships
-            child_qid = snak["mainsnak"]["datavalue"]["value"]["id"]
-            relationship = {"entity1": child_qid, "relationship": "child of", "entity2": qid}
-            relationships.append(relationship)
+                if websocket_manager:
+                    labels = get_labels({qid, spouse_qid})
+                    named_rel = {
+                        "entity1": labels.get(qid, qid),
+                        "relationship": rel_name,
+                        "entity2": labels.get(spouse_qid, spouse_qid)
+                    }
+                    await websocket_manager.send_message(json.dumps({"type": "relationship", "data": named_rel}))
+
+                    if spouse_qid not in sent_entities:
+                        spouse_details = await getPersonalDetailsByQid(spouse_qid)
+                        if spouse_details:
+                            await websocket_manager.send_message(json.dumps({
+                                "type": "personal_details",
+                                "data": {
+                                    "entity": labels.get(spouse_qid, spouse_qid),
+                                    "qid": spouse_qid,
+                                    **spouse_details
+                                }
+                            }))
+                            sent_entities.add(spouse_qid)
+
+        # children
+        for snak in claims.get("P40", []):
+            child_qid = extract_qid(snak)
+            if not child_qid:
+                continue
+            relationships.append({"entity1": child_qid, "relationship": "child of", "entity2": qid})
             all_qids.update([child_qid, qid])
 
-            # Send relationship immediately via WebSocket
             if websocket_manager:
-                # Get labels for this specific relationship
                 labels = get_labels({child_qid, qid})
-                named_relationship = {
+                named_rel = {
                     "entity1": labels.get(child_qid, child_qid),
                     "relationship": "child of",
                     "entity2": labels.get(qid, qid)
                 }
-                await websocket_manager.send_message(json.dumps({
-                    "type": "relationship",
-                    "data": named_relationship
-                }))
-                
-                # Send personal details for child if not already sent
+                await websocket_manager.send_message(json.dumps({"type": "relationship", "data": named_rel}))
+
                 if child_qid not in sent_entities:
                     child_details = await getPersonalDetailsByQid(child_qid)
                     if child_details:
@@ -387,85 +459,84 @@ async def collect_relationships(qid: str, depth: int, direction: str, relationsh
                         }))
                         sent_entities.add(child_qid)
 
-            # Check if any of the known spouses is also a parent of this child
-            child_entity = fetch_entity(child_qid)
-            child_claims = child_entity.get("claims", {})
-            child_parents = set()
-            for parent_prop in ["P22", "P25"]:  # Father and mother
-                for parent_snak in child_claims.get(parent_prop, []):
-                    parent_qid = parent_snak["mainsnak"]["datavalue"]["value"]["id"]
-                    child_parents.add(parent_qid)
+            # recurse downward
+            await collect_relationships(
+                child_qid, depth - 1, direction,
+                relationships, visited, all_qids,
+                websocket_manager, sent_entities
+            )
 
-            # For each spouse that is also a parent of this child, send the child-spouse relationship
-            for spouse_qid in spouse_qids:
-                if spouse_qid in child_parents:
-                    spouse_relationship = {"entity1": child_qid, "relationship": "child of", "entity2": spouse_qid}
-                    relationships.append(spouse_relationship)
-                    all_qids.add(spouse_qid)
-                    
-                    # Send spouse-child relationship immediately via WebSocket
-                    if websocket_manager:
-                        # Get labels for this specific relationship
-                        labels = get_labels({child_qid, spouse_qid})
-                        named_relationship = {
-                            "entity1": labels.get(child_qid, child_qid),
-                            "relationship": "child of",
-                            "entity2": labels.get(spouse_qid, spouse_qid)
-                        }
-                        await websocket_manager.send_message(json.dumps({
-                            "type": "relationship",
-                            "data": named_relationship
-                        }))
-
-            await collect_relationships(child_qid, depth - 1, direction, relationships, visited, all_qids, websocket_manager, sent_entities)
-
-    # Collect spouse relationships (P26) only for "up" direction to avoid duplication
-    # For "down" direction, spouse relationships are already handled before child relationships
-    if direction == "up":
-        for snak in claims.get("P26", []):
-            spouse_qid = snak["mainsnak"]["datavalue"]["value"]["id"]
-            relationship = {"entity1": qid, "relationship": "spouse of", "entity2": spouse_qid}
-            relationships.append(relationship)
-            all_qids.update([qid, spouse_qid])
-            
-            # Send spouse relationship immediately via WebSocket
-            if websocket_manager:
-                # Get labels for this specific relationship
-                labels = get_labels({qid, spouse_qid})
-                named_relationship = {
-                    "entity1": labels.get(qid, qid),
-                    "relationship": "spouse of",
-                    "entity2": labels.get(spouse_qid, spouse_qid)
-                }
+async def send_relationship_and_details(websocket_manager: Optional[WebSocketManager], relationship: Dict[str, str], qids: set, sent_entities: set):
+    """Helper function to send relationship and personal details via WebSocket."""
+    if not websocket_manager:
+        return
+        
+    # Get labels for this specific relationship
+    labels = get_labels(qids)
+    
+    # Send relationship with proper labels
+    entity1_name = labels.get(relationship["entity1"], relationship["entity1"])
+    entity2_name = labels.get(relationship["entity2"], relationship["entity2"])
+    
+    named_relationship = {
+        "entity1": entity1_name,
+        "relationship": relationship["relationship"],
+        "entity2": entity2_name
+    }
+    
+    await websocket_manager.send_message(json.dumps({
+        "type": "relationship",
+        "data": named_relationship
+    }))
+    
+    # Send personal details for entities not already sent
+    for qid in qids:
+        if qid not in sent_entities:
+            details = await getPersonalDetailsByQid(qid)
+            if details:
                 await websocket_manager.send_message(json.dumps({
-                    "type": "relationship",
-                    "data": named_relationship
+                    "type": "personal_details",
+                    "data": {
+                        "entity": labels.get(qid, qid),
+                        "qid": qid,
+                        **details
+                    }
                 }))
-                
-                # Send personal details for spouse if not already sent
-                if spouse_qid not in sent_entities:
-                    spouse_details = await getPersonalDetailsByQid(spouse_qid)
-                    if spouse_details:
-                        await websocket_manager.send_message(json.dumps({
-                            "type": "personal_details",
-                            "data": {
-                                "entity": labels.get(spouse_qid, spouse_qid),
-                                "qid": spouse_qid,
-                                **spouse_details
-                            }
-                        }))
-                        sent_entities.add(spouse_qid)
+                sent_entities.add(qid)
+
+async def handle_child_spouse_relationships(child_qid: str, spouse_qids: set, relationships: List[Dict[str, str]], all_qids: set, websocket_manager: Optional[WebSocketManager], sent_entities: set):
+    """Helper function to handle child-spouse relationships."""
+    # Check if any of the known spouses is also a parent of this child
+    child_entity = fetch_entity(child_qid)
+    child_claims = child_entity.get("claims", {})
+    child_parents = set()
+    
+    # Check all parent types
+    for parent_prop in ["P22", "P25", "P1441", "P8810"]:  # Father, mother, adoptive parent, generic parent
+        for parent_snak in child_claims.get(parent_prop, []):
+            parent_qid = parent_snak["mainsnak"]["datavalue"]["value"]["id"]
+            child_parents.add(parent_qid)
+
+    # For each spouse that is also a parent of this child, send the child-spouse relationship
+    for spouse_qid in spouse_qids:
+        if spouse_qid in child_parents:
+            spouse_relationship = {"entity1": child_qid, "relationship": "child of", "entity2": spouse_qid}
+            relationships.append(spouse_relationship)
+            all_qids.add(spouse_qid)
+            
+            await send_relationship_and_details(websocket_manager, spouse_relationship, {child_qid, spouse_qid}, sent_entities)
 
 async def collect_bidirectional_relationships(qid: str, depth: int, websocket_manager: Optional[WebSocketManager] = None) -> List[Dict[str, str]]:
     """Collect relationships in both directions and return formatted list."""
     relationships = []
     all_qids = set([qid])
     sent_entities = set()  # Track entities whose personal details have been sent
+    
     # Send initial status via WebSocket
     if websocket_manager:
         await websocket_manager.send_message(json.dumps({
             "type": "status",
-            "data": {"message": "Starting relationship collection...", "progress": 0}
+            "data": {"message": "Starting relationship collection (including adoptions)...", "progress": 0}
         }))
         
         # Get initial entity details and send them
@@ -486,7 +557,7 @@ async def collect_bidirectional_relationships(qid: str, depth: int, websocket_ma
             }))
             sent_entities.add(qid)  # Mark initial entity as sent
 
-    # Collect ancestors (upward)
+    # Collect ancestors (upward) - includes biological parents, adoptive parents, and spouses
     await collect_relationships(qid, depth, "up", relationships, set(), all_qids, websocket_manager, sent_entities)
 
     # Send progress update
@@ -496,14 +567,14 @@ async def collect_bidirectional_relationships(qid: str, depth: int, websocket_ma
             "data": {"message": "Ancestors collected, now collecting descendants...", "progress": 50}
         }))
 
-    # Collect descendants (downward)
+    # Collect descendants (downward) - includes biological children, adopted children, and spouses
     await collect_relationships(qid, depth, "down", relationships, set(), all_qids, websocket_manager, sent_entities)
 
     # Send completion status
     if websocket_manager:
         await websocket_manager.send_message(json.dumps({
             "type": "status",
-            "data": {"message": "Collection complete!", "progress": 100}
+            "data": {"message": "Collection complete! (Including adoption relationships)", "progress": 100}
         }))
 
     # Fetch labels for all entities
