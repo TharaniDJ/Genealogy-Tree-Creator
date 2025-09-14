@@ -1225,23 +1225,18 @@ const FAMILY_COLORS = [
 
 // Edge styles for different relationship types
 const RELATIONSHIP_STYLES = {
-  'biological child of': { 
+  
+  'child of': {  // Changed from 'biological child of'
     stroke: '#1f2937', 
     strokeWidth: 3, 
-    strokeDasharray: undefined,
+    strokeDasharray: undefined, // Solid for biological
     label: '' 
   },
-  'adopted child of': { 
+  'adopted by': {  // Changed from 'adopted child of'
     stroke: '#7c3aed', 
     strokeWidth: 3, 
-    strokeDasharray: '8,4',
+    strokeDasharray: '8,4', // Dashed for adopted
     label: 'adopted' 
-  },
-  'child of': { 
-    stroke: '#6b7280', 
-    strokeWidth: 2, 
-    strokeDasharray: '5,5',
-    label: '' 
   },
   'spouse of': { 
     stroke: '#ec4899', 
@@ -2271,7 +2266,7 @@ function GenealogyTreeInternal({
           style: {
             stroke: parentColor,
             strokeWidth: styleConfig.strokeWidth,
-            strokeDasharray: !isFromMarriage ? styleConfig.strokeDasharray : undefined,
+            strokeDasharray: styleConfig.strokeDasharray,
           },
           markerEnd: {
             type: MarkerType.ArrowClosed,
