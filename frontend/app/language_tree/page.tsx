@@ -188,7 +188,15 @@ const LanguageTreePage = () => {
             const childId = ensureNode(childLabel, c1, childQid);
             if (parentId && childId) {
               const edgeId = `e-${parentId}-${childId}`;
-              setEdges(prev => prev.some(e => e.id === edgeId) ? prev : [...prev, { id: edgeId, source: parentId, target: childId, type: 'smoothstep', animated: true }]);
+              setEdges(prev => {
+                const edgeExists = prev.some(e => e.id === edgeId);
+                if (!edgeExists) {
+                  // Schedule layout after the edge is added
+                  setTimeout(() => layout('TB'), 100);
+                  return [...prev, { id: edgeId, source: parentId, target: childId, type: 'smoothstep', animated: true }];
+                }
+                return prev;
+              });
             }
           }
           break; }
