@@ -122,6 +122,7 @@ input::placeholder {
 
 .react-flow__node.selected {
   box-shadow: 0 0 0 2px #3b82f6;
+  border-radius: 12px;
 }
 
 .person-node {
