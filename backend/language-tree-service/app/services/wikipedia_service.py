@@ -155,6 +155,66 @@ def _validate_qid(qid: str) -> Tuple[bool, Optional[str]]:
 	return True, None
 
 
+def _validate_root_language(qid: str) -> Tuple[bool, List[str]]:
+	"""Comprehensive validation for root language QID with detailed type information.
+	
+	Returns (is_valid, list_of_matching_types) where matching_types are ordered by priority.
+	Priority order: language -> modern/ancient/dead/extinct -> dialect -> sign -> creole/pidgin -> family -> proto
+	"""
+	if not qid:
+		return False, []
+		
+	# Comprehensive language type QIDs in priority order
+	LANGUAGE_TYPE_HIERARCHY = [
+		("language", "Q34770"),
+		("modern_language", "Q1288568"),
+		("ancient_language", "Q436240"), 
+		("dead_language", "Q45762"),
+		("extinct_language", "Q38058796"),
+		("dialect", "Q33384"),
+		("sign_language", "Q34228"),
+		("creole_language", "Q33289"),
+		("pidgin_language", "Q33831"),
+		("language_family", "Q25295"),
+		("proto_language", "Q206577"),
+	]
+	
+	# Build VALUES clause for all language types
+	values_clause = " ".join(f"wd:{qid_val}" for _, qid_val in LANGUAGE_TYPE_HIERARCHY)
+	
+	query = f"""
+	SELECT ?type WHERE {{
+	  VALUES ?item {{ wd:{qid} }}
+	  {{ ?item wdt:P31 ?type. }} UNION {{ ?item wdt:P279 ?type. }}
+	  VALUES ?validType {{ {values_clause} }}
+	  FILTER(?type IN (?validType))
+	}}
+	"""
+	
+	data = _safe_get_json(SPARQL_ENDPOINT, params={"query": query, "format": "json"}) or {}
+	bindings = data.get("results", {}).get("bindings", [])
+	
+	if not bindings:
+		return False, []
+	
+	# Extract all matching type QIDs
+	found_type_qids = set()
+	for binding in bindings:
+		type_uri = binding["type"]["value"]
+		type_qid = type_uri.split("/")[-1]
+		found_type_qids.add(type_qid)
+	
+	# Map back to type names in priority order
+	matching_types = []
+	for type_name, type_qid in LANGUAGE_TYPE_HIERARCHY:
+		if type_qid in found_type_qids:
+			matching_types.append(type_name)
+	
+	# Valid if we found at least one matching type
+	is_valid = len(matching_types) > 0
+	return is_valid, matching_types
+
+
 def _safe_get_json(url: str, *, params: dict, headers: dict | None = None):
 	merged = {**HEADERS, **(headers or {})}
 	for attempt in range(1, MAX_RETRIES + 1):
@@ -202,10 +262,9 @@ def _get_language_labels(qids: List[str]) -> Dict[str, str]:
 		entities = data.get("entities", {})
 		for qid, ent in entities.items():
 			label = ent.get("labels", {}).get("en", {}).get("value")
-			if label:
-				results[qid] = label
-			else:
-				results.setdefault(qid, qid)
+			if label and label.strip():
+				results[qid] = label.strip()
+			# Don't set a fallback - let _get_label handle missing labels
 		time.sleep(0.05)
 	return results
 
@@ -217,17 +276,28 @@ def _get_label(qid: str) -> str:
 		return LABEL_CACHE[qid]
 	labels = _get_language_labels([qid])
 	label = labels.get(qid, qid)
+	
+	# If label is the same as QID, it means lookup failed
+	# Don't cache failed lookups and return empty string to signal failure
+	if label == qid:
+		return ""
+	
 	LABEL_CACHE[qid] = label
 	return label
 
 
 def get_wikidata_entity_id(language_name):
-    """Return the Wikidata Q-identifier for a language name."""
-    try:
-        # First try direct page lookup
+    """Return the Wikidata Q-identifier for a language name.
+    
+    Tries multiple search strategies and validates each QID to ensure it's 
+    actually a language-related entity. This handles edge cases like 'English' 
+    which might return Q182 (England) instead of Q1860 (English language).
+    """
+    def _try_page_lookup(title):
+        """Helper to try direct page lookup for a given title."""
         params = {
             "action": "query",
-            "titles": f"{language_name} language",
+            "titles": title,
             "prop": "pageprops",
             "ppprop": "wikibase_item",
             "format": "json",
@@ -237,30 +307,115 @@ def get_wikidata_entity_id(language_name):
         for page in pages.values():
             if "pageprops" in page and "wikibase_item" in page["pageprops"]:
                 return page["pageprops"]["wikibase_item"]
-        # Search fallback
+        return None
+    
+    def _try_page_lookup_with_validation(title, check_title_match=False):
+        """Helper to try page lookup and validate the QID is language-related."""
+        qid = _try_page_lookup(title)
+        if qid:
+            is_valid, _ = _validate_root_language(qid)
+            if is_valid:
+                # If check_title_match is True, ensure the title relevance
+                if check_title_match:
+                    # Check if the page title is relevant to the language name
+                    title_lower = title.lower()
+                    language_lower = language_name.lower()
+                    
+                    # Accept if title starts with language name or is exact match
+                    if (title_lower == language_lower or 
+                        title_lower == f"{language_lower} language" or
+                        title_lower.startswith(f"{language_lower} ") or
+                        title_lower.endswith(f" {language_lower}")):
+                        return qid
+                    return None
+                return qid
+        return None
+    
+    def _search_and_validate_with_priority(search_term, check_title_match=True):
+        """Search and validate results with priority for exact/close matches."""
         params = {
             "action": "query",
             "list": "search",
-            "srsearch": f"{language_name} language",
-            "srlimit": 1,
+            "srsearch": search_term,
+            "srlimit": 10,  # Check more results for better coverage
             "format": "json",
         }
         data = _safe_get_json(WIKIPEDIA_API, params=params) or {}
-        search = data.get("query", {}).get("search", [])
-        if search:
-            page_title = search[0]["title"]
-            params = {
-                "action": "query",
-                "titles": page_title,
-                "prop": "pageprops",
-                "ppprop": "wikibase_item",
-                "format": "json",
-            }
-            data = _safe_get_json(WIKIPEDIA_API, params=params) or {}
-            pages = data.get("query", {}).get("pages", {})
-            for page in pages.values():
-                if "pageprops" in page and "wikibase_item" in page["pageprops"]:
-                    return page["pageprops"]["wikibase_item"]
+        search_results = data.get("query", {}).get("search", [])
+        
+        if not search_results:
+            return None
+            
+        # Sort results by relevance - prioritize exact matches and close matches
+        language_lower = language_name.lower()
+        
+        def get_priority(result):
+            title = result["title"].lower()
+            # Highest priority: exact match
+            if title == language_lower:
+                return 0
+            # High priority: exact match with "language"
+            if title == f"{language_lower} language":
+                return 1
+            # Medium priority: starts with language name
+            if title.startswith(f"{language_lower} "):
+                return 2
+            # Lower priority: contains language name
+            if language_lower in title:
+                return 3
+            # Lowest priority: other matches
+            return 4
+        
+        sorted_results = sorted(search_results, key=get_priority)
+        
+        for result in sorted_results:
+            page_title = result["title"]
+            qid = _try_page_lookup_with_validation(page_title, check_title_match)
+            if qid:
+                return qid
+        return None
+    
+    try:
+        # Strategy 1: Try direct name lookup first (e.g., "Sanskrit")
+        qid = _try_page_lookup_with_validation(language_name)
+        if qid:
+            return qid
+        
+        # Strategy 2: Try with " language" suffix
+        qid = _try_page_lookup_with_validation(f"{language_name} language")
+        if qid:
+            return qid
+            
+        # Strategy 3: Search with direct name, prioritizing exact matches
+        qid = _search_and_validate_with_priority(language_name, check_title_match=True)
+        if qid:
+            return qid
+            
+        # Strategy 4: Search with " language" suffix, prioritizing exact matches
+        qid = _search_and_validate_with_priority(f"{language_name} language", check_title_match=True)
+        if qid:
+            return qid
+        
+        # Strategy 5: Broader search without strict title matching as fallback
+        qid = _search_and_validate_with_priority(language_name, check_title_match=False)
+        if qid:
+            return qid
+                
+        # Strategy 6: Try common language name variations
+        variations = [
+            f"{language_name}ese",
+            f"{language_name}ese language", 
+            f"Ancient {language_name}",
+            f"Old {language_name}",
+            f"Modern {language_name}",
+            f"{language_name} language family"
+        ]
+        
+        for variation in variations:
+            qid = _try_page_lookup_with_validation(variation)
+            if qid:
+                return qid
+                
     except Exception as e:
         print(f"Error getting QID for {language_name}: {e}")
     return None
@@ -344,12 +499,32 @@ async def fetch_language_relationships(language_name: str, depth: int, websocket
 	if not root_qid:
 		raise ValueError(f"Language '{language_name}' not found in Wikidata")
 	print(root_qid)
+	
 	# Force root label in cache
 	root_label = _get_label(root_qid)
-	# Validate root; raise if not an acceptable language-related entity
-	root_valid, root_class = _validate_qid(root_qid)
+	
+	# Comprehensive validation for root language
+	root_valid, root_types = _validate_root_language(root_qid)
 	if not root_valid:
 		raise ValueError(f"Root entity for '{language_name}' (QID {root_qid}) is not a recognized language/dialect/family")
+	
+	# Emit root language information with detailed type classification
+	if websocket_manager:
+		await websocket_manager.send_json({
+			"type": "root_language",
+			"data": {
+				"language_name": language_name,
+				"qid": root_qid,
+				"label": root_label,
+				"types": root_types,
+				"primary_type": root_types[0] if root_types else None,
+				"is_language_family": "language_family" in root_types,
+				"is_extinct": any(t in root_types for t in ["dead_language", "extinct_language", "ancient_language"]),
+				"is_constructed": "constructed_language" in root_types,
+				"is_sign_language": "sign_language" in root_types
+			}
+		})
+	
 	VALID_QIDS.add(root_qid)
 
 	visited: Set[str] = set()
@@ -361,20 +536,32 @@ async def fetch_language_relationships(language_name: str, depth: int, websocket
 		nonlocal total
 		if rel in emitted:
 			return
+		
+		# Validate that both languages have proper names (not just QIDs)
+		lang1_name, relationship, lang2_name, qid1, qid2 = rel
+		
+		# Skip if either language name is actually a QID (starts with Q followed by digits)
+		if (lang1_name.startswith('Q') and lang1_name[1:].isdigit()) or \
+		   (lang2_name.startswith('Q') and lang2_name[1:].isdigit()):
+			return
+		
+		# Skip if either language name is empty or None
+		if not lang1_name or not lang2_name or lang1_name.strip() == '' or lang2_name.strip() == '':
+			return
+			
 		emitted.add(rel)
 		total += 1
 		if websocket_manager:
 			# Derive categories (classification) from cached QIDs if available
-			qid1, qid2 = rel[3], rel[4]
 			cat1 = CLASSIFICATION_CACHE.get(qid1) if qid1 else None
 			cat2 = CLASSIFICATION_CACHE.get(qid2) if qid2 else None
 			await websocket_manager.send_json(
 				{
 					"type": "relationship",
 					"data": {
-						"language1": rel[0],
-						"relationship": rel[1],
-						"language2": rel[2],
+						"language1": lang1_name,
+						"relationship": relationship,
+						"language2": lang2_name,
 						"language1_qid": qid1,
 						"language2_qid": qid2,
 						"count": total,
@@ -389,6 +576,10 @@ async def fetch_language_relationships(language_name: str, depth: int, websocket
 			return
 		visited.add(entity_id)
 		current_label = _get_label(entity_id)
+		
+		# Skip if we couldn't get a proper label for this entity
+		if not current_label or current_label.strip() == "":
+			return
 
 		# Validate current entity (may already be validated)
 		_validate_qid(entity_id)
@@ -398,7 +589,11 @@ async def fetch_language_relationships(language_name: str, depth: int, websocket
 			valid_parent, parent_class = _validate_qid(parent_id)
 			if not valid_parent:
 				continue
-			rel = (current_label, "Child of", parent_label, entity_id, parent_id)
+			# Get proper label, skip if empty
+			proper_parent_label = _get_label(parent_id)
+			if not proper_parent_label or proper_parent_label.strip() == "":
+				continue
+			rel = (current_label, "Child of", proper_parent_label, entity_id, parent_id)
 			relations.append(rel)
 			await emit(rel)
 			await recurse(parent_id, current_depth + 1)
@@ -409,7 +604,11 @@ async def fetch_language_relationships(language_name: str, depth: int, websocket
 				valid_child, child_class = _validate_qid(child_id)
 				if not valid_child:
 					continue
-				rel = (child_label, "Child of", current_label, child_id, entity_id)
+				# Get proper label, skip if empty
+				proper_child_label = _get_label(child_id)
+				if not proper_child_label or proper_child_label.strip() == "":
+					continue
+				rel = (proper_child_label, "Child of", current_label, child_id, entity_id)
 				relations.append(rel)
 				await emit(rel)
 				await recurse(child_id, current_depth + 1)
@@ -420,7 +619,11 @@ async def fetch_language_relationships(language_name: str, depth: int, websocket
 				valid_child, child_class = _validate_qid(child_id)
 				if not valid_child:
 					continue
-				rel = (child_label, "Child of", current_label, child_id, entity_id)
+				# Get proper label, skip if empty
+				proper_child_label = _get_label(child_id)
+				if not proper_child_label or proper_child_label.strip() == "":
+					continue
+				rel = (proper_child_label, "Child of", current_label, child_id, entity_id)
 				relations.append(rel)
 				await emit(rel)
 				await recurse(child_id, current_depth + 1)
