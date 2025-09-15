@@ -59,88 +59,57 @@ VALID_TYPE_QIDS: Dict[str, str] = {
 }
 
 from SPARQLWrapper import SPARQLWrapper, JSON
-import wptools
 
 async def fetch_language_info(qid: str, lang_code: str = "en"):
-    """
-    Fetch important information about a language, language family, or dialect by its Wikidata QID.
-    Tries Wikidata SPARQL first, falls back to Wikipedia infobox extraction, fault tolerant.
+	"""
+	Fetch important information about a language, language family, or dialect by its Wikidata QID.
+	Uses Wikidata SPARQL to retrieve speakers, ISO code, and distribution map URL when available.
 
-    Args:
-        qid (str): Wikidata QID like 'Q12345'
-        lang_code (str): Language code for labels/descriptions (default 'en')
+	Args:
+		qid (str): Wikidata QID like 'Q12345'
+		lang_code (str): Language code for labels/descriptions (default 'en')
 
-    Returns:
-        dict: Extracted information matching LanguageInfo model structure
-    """
-    info: Dict[str, Optional[str]] = {
-        "speakers": None,
-        "iso_code": None,
-        "distribution_map_url": None
-    }
-    sparql = SPARQLWrapper("https://query.wikidata.org/sparql")
-    
-    try:
-        # Enhanced SPARQL query to get language information
-        sparql.setQuery(f"""
-        SELECT ?itemLabel ?itemDescription ?article 
-               ?speakersValue ?isoCode WHERE {{
-          VALUES ?item {{ wd:{qid} }}
-          OPTIONAL {{ ?item wdt:P1098 ?speakersValue. }}
-          OPTIONAL {{ ?item wdt:P219 ?isoCode. }}
-          OPTIONAL {{
-            ?article schema:about ?item ;
-                     schema:isPartOf <https://{lang_code}.wikipedia.org/> .
-          }}
-          SERVICE wikibase:label {{ bd:serviceParam wikibase:language "{lang_code},en". }}
-        }}
-        """)
-        sparql.setReturnFormat(JSON)
-        results = sparql.query().convert()
+	Returns:
+		dict: Extracted information matching LanguageInfo model structure
+	"""
+	info: Dict[str, Optional[str]] = {
+		"speakers": None,
+		"iso_code": None,
+		"distribution_map_url": None
+	}
+	sparql = SPARQLWrapper("https://query.wikidata.org/sparql")
 
-        # Handle different return types from SPARQLWrapper
-        if isinstance(results, dict):
-            bindings = results.get("results", {}).get("bindings", [])
-        else:
-            bindings = []
-            
-        if bindings:
-            b = bindings[0]
-            info["speakers"] = b.get("speakersValue", {}).get("value")
-            info["iso_code"] = b.get("isoCode", {}).get("value")
-            article_url = b.get("article", {}).get("value")
-        else:
-            article_url = None
-    except Exception as e:
-        # SPARQL query failed
-        article_url = None
+	try:
+		# SPARQL query to get language information (without Wikipedia infobox fallback)
+		sparql.setQuery(f"""
+		SELECT ?itemLabel ?itemDescription ?speakersValue ?isoCode WHERE {{
+		  VALUES ?item {{ wd:{qid} }}
+		  OPTIONAL {{ ?item wdt:P1098 ?speakersValue. }}
+		  OPTIONAL {{ ?item wdt:P219 ?isoCode. }}
+		  SERVICE wikibase:label {{ bd:serviceParam wikibase:language "{lang_code},en". }}
+		}}
+		""")
+		sparql.setReturnFormat(JSON)
+		results = sparql.query().convert()
 
-    # Get distribution map image URL
-    info["distribution_map_url"] = get_distribution_map_image(qid)
+		# Handle different return types from SPARQLWrapper
+		if isinstance(results, dict):
+			bindings = results.get("results", {}).get("bindings", [])
+		else:
+			bindings = []
 
-    # If information is missing, try Wikipedia infobox fallback
-    if article_url and (not info["speakers"] or not info["iso_code"]):
-        try:
-            # Extract Wikipedia page title from URL
-            title = article_url.rsplit("/", 1)[-1]
-            # Use wptools to get infobox data
-            page = wptools.page(title, lang=lang_code)
-            page.get_parse()
-            infobox = page.data.get("infobox", {})
-            
-            # Extract additional information from infobox
-            if infobox:
-                if not info["speakers"]:
-                    speakers = infobox.get("speakers", infobox.get("speakers2"))
-                    if speakers:
-                        info["speakers"] = str(speakers)
-                
-                if not info["iso_code"]:
-                    info["iso_code"] = infobox.get("iso1", infobox.get("iso2", infobox.get("iso3")))
-        except Exception as e:
-            pass  # Silently ignore Wikipedia fallback errors
-    
-    return info
+		if bindings:
+			b = bindings[0]
+			info["speakers"] = b.get("speakersValue", {}).get("value")
+			info["iso_code"] = b.get("isoCode", {}).get("value")
+	except Exception:
+		# Silently ignore SPARQL errors and return whatever info we have
+		pass
+
+	# Get distribution map image URL
+	info["distribution_map_url"] = get_distribution_map_image(qid)
+
+	return info
 
 def _validate_qid(qid: str) -> Tuple[bool, Optional[str]]:
 	"""Return (is_valid, classification_key) for a Wikidata QID.
