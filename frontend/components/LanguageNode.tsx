@@ -3,51 +3,87 @@
 import React, { useMemo } from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 
-// Category -> palette mapping
-const CATEGORY_STYLES: Record<string, { from: string; to: string; ring: string; glow: string }> = {
-  language: { from: 'from-emerald-500', to: 'to-green-600', ring: 'ring-emerald-300/40', glow: 'from-emerald-400 via-green-500 to-teal-500' },
-  dialect: { from: 'from-indigo-500', to: 'to-purple-600', ring: 'ring-indigo-300/40', glow: 'from-indigo-400 via-purple-500 to-fuchsia-500' },
-  language_family: { from: 'from-blue-500', to: 'to-cyan-600', ring: 'ring-blue-300/40', glow: 'from-blue-400 via-cyan-500 to-sky-500' },
-  proto_language: { from: 'from-amber-500', to: 'to-orange-600', ring: 'ring-amber-300/40', glow: 'from-amber-400 via-orange-500 to-yellow-500' },
-  extinct_language: { from: 'from-rose-500', to: 'to-red-600', ring: 'ring-rose-300/40', glow: 'from-rose-400 via-red-500 to-pink-500' },
-  dead_language: { from: 'from-slate-500', to: 'to-neutral-600', ring: 'ring-slate-300/40', glow: 'from-slate-400 via-gray-500 to-zinc-500' },
+// Category -> palette mapping for dark theme
+const CATEGORY_STYLES: Record<string, { from: string; to: string; ring: string; glow: string; bg: string }> = {
+  language: { 
+    from: 'from-emerald-400', 
+    to: 'to-green-500', 
+    ring: 'ring-emerald-400/30', 
+    glow: 'from-emerald-400 via-green-500 to-teal-500',
+    bg: 'bg-gray-800/90'
+  },
+  dialect: { 
+    from: 'from-indigo-400', 
+    to: 'to-purple-500', 
+    ring: 'ring-indigo-400/30', 
+    glow: 'from-indigo-400 via-purple-500 to-fuchsia-500',
+    bg: 'bg-gray-800/90'
+  },
+  language_family: { 
+    from: 'from-blue-400', 
+    to: 'to-cyan-500', 
+    ring: 'ring-blue-400/30', 
+    glow: 'from-blue-400 via-cyan-500 to-sky-500',
+    bg: 'bg-gray-800/90'
+  },
+  proto_language: { 
+    from: 'from-amber-400', 
+    to: 'to-orange-500', 
+    ring: 'ring-amber-400/30', 
+    glow: 'from-amber-400 via-orange-500 to-yellow-500',
+    bg: 'bg-gray-800/90'
+  },
+  extinct_language: { 
+    from: 'from-rose-400', 
+    to: 'to-red-500', 
+    ring: 'ring-rose-400/30', 
+    glow: 'from-rose-400 via-red-500 to-pink-500',
+    bg: 'bg-gray-800/90'
+  },
+  dead_language: { 
+    from: 'from-slate-400', 
+    to: 'to-neutral-500', 
+    ring: 'ring-slate-400/30', 
+    glow: 'from-slate-400 via-gray-500 to-zinc-500',
+    bg: 'bg-gray-800/90'
+  },
 };
 
-// Modern styled language node with glassmorphism design
+// Modern styled language node with glassmorphism design for dark theme
 const LanguageNode: React.FC<NodeProps> = ({ data }) => {
   const style = useMemo(() => CATEGORY_STYLES[data.category as string] || CATEGORY_STYLES.language, [data.category]);
   return (
     <div className="relative group">
-      {/* Glow effect on hover */}
-      <div className={`absolute -inset-1 bg-gradient-to-r ${style.glow} rounded-2xl blur opacity-0 group-hover:opacity-25 transition-opacity duration-300`}></div>
+      {/* Enhanced glow effect on hover */}
+      <div className={`absolute -inset-1 bg-gradient-to-r ${style.glow} rounded-2xl blur-sm opacity-0 group-hover:opacity-40 transition-opacity duration-300`}></div>
       
-      {/* Main node container */}
-      <div className={`relative bg-white/90 backdrop-blur-xl border border-white/30 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 min-w-[160px] group-hover:scale-105 ring-2 ${style.ring}`}>
+      {/* Main node container with dark theme */}
+      <div className={`relative ${style.bg} backdrop-blur-xl border border-gray-600/40 rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 min-w-[160px] group-hover:scale-105 ring-2 ${style.ring}`}>
         <Handle 
           type="target" 
           position={Position.Top} 
-          className={`!w-3 !h-3 !bg-gradient-to-r !${style.from} !${style.to} !border-2 !border-white !shadow-lg hover:!scale-125 !transition-transform !duration-200`} 
+          className={`!w-3 !h-3 !bg-gradient-to-r !${style.from} !${style.to} !border-2 !border-gray-700 !shadow-lg hover:!scale-125 !transition-transform !duration-200`} 
         />
         
-        {/* Content */}
+        {/* Content with dark theme text */}
         <div className="px-4 py-3 text-center">
-          <div className="font-semibold text-slate-800 text-sm leading-tight mb-1">
+          <div className="font-semibold text-gray-100 text-sm leading-tight mb-1">
             {data.label}
           </div>
           {data.meta && (
-            <div className="text-xs text-slate-500 opacity-80">
+            <div className="text-xs text-gray-400 opacity-90">
               {data.meta}
             </div>
           )}
         </div>
 
-        {/* Subtle gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-50/30 via-transparent to-indigo-50/30 rounded-xl pointer-events-none"></div>
+        {/* Subtle gradient overlay for dark theme */}
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 via-transparent to-cyan-900/20 rounded-xl pointer-events-none"></div>
         
         <Handle 
           type="source" 
           position={Position.Bottom} 
-          className={`!w-3 !h-3 !bg-gradient-to-r !${style.from} !${style.to} !border-2 !border-white !shadow-lg hover:!scale-125 !transition-transform !duration-200`} 
+          className={`!w-3 !h-3 !bg-gradient-to-r !${style.from} !${style.to} !border-2 !border-gray-700 !shadow-lg hover:!scale-125 !transition-transform !duration-200`} 
         />
       </div>
     </div>

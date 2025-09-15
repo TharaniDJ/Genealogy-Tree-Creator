@@ -269,14 +269,14 @@ const LanguageTreePage = () => {
       if (isConnected) {
         return {
           ...e,
-          style: { ...(e.style || {}), stroke: '#2563eb', strokeWidth: 3 },
+          style: { ...(e.style || {}), stroke: '#8b5cf6', strokeWidth: 3 },
           animated: true,
           className: (e.className ? e.className + ' ' : '') + 'edge-highlight'
         };
       }
       return {
         ...e,
-        style: { ...(e.style || {}), stroke: '#cbd5e1', strokeWidth: 1, opacity: 0.4 },
+        style: { ...(e.style || {}), stroke: '#64748b', strokeWidth: 1, opacity: 0.3 },
         className: (e.className ? e.className + ' ' : '') + 'edge-dim'
       };
     });
@@ -299,19 +299,19 @@ const LanguageTreePage = () => {
   }, []);
 
   return (
-    <div className="h-screen w-full flex flex-col bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      {/* Modern Header with Glass Effect */}
-      <div className="relative bg-white/80 backdrop-blur-xl border-b border-white/20 shadow-lg shadow-blue-500/5">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 via-indigo-600/5 to-purple-600/5"></div>
+    <div className="h-screen w-full flex flex-col bg-gradient-to-br from-slate-900 via-gray-900 to-slate-800">
+      {/* Modern Dark Header with Glass Effect */}
+      <div className="relative bg-gray-900/80 backdrop-blur-xl border-b border-gray-700/30 shadow-lg shadow-purple-500/10">
+        <div className="absolute inset-0 bg-gradient-to-r from-purple-600/10 via-blue-600/10 to-cyan-600/10"></div>
         <div className="relative px-6 py-4">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center shadow-lg">
+              <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-cyan-600 rounded-lg flex items-center justify-center shadow-lg">
                 <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
               </div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
                 Language Tree Explorer
               </h1>
             </div>
@@ -320,15 +320,15 @@ const LanguageTreePage = () => {
             <div className="flex items-center space-x-2">
               <div className={`px-3 py-1 rounded-full text-xs font-medium border ${
                 connectionStatus === 'connected' 
-                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                  ? 'bg-emerald-900/50 text-emerald-300 border-emerald-500/30' 
                   : connectionStatus === 'connecting'
-                  ? 'bg-amber-50 text-amber-700 border-amber-200'
-                  : 'bg-red-50 text-red-700 border-red-200'
+                  ? 'bg-amber-900/50 text-amber-300 border-amber-500/30'
+                  : 'bg-red-900/50 text-red-300 border-red-500/30'
               }`}>
                 <div className="flex items-center space-x-1">
                   <div className={`w-2 h-2 rounded-full ${
-                    connectionStatus === 'connected' ? 'bg-emerald-500' : 
-                    connectionStatus === 'connecting' ? 'bg-amber-500' : 'bg-red-500'
+                    connectionStatus === 'connected' ? 'bg-emerald-400' : 
+                    connectionStatus === 'connecting' ? 'bg-amber-400' : 'bg-red-400'
                   }`}></div>
                   <span>{connectionStatus === 'connected' ? 'Connected' : connectionStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}</span>
                 </div>
@@ -346,9 +346,9 @@ const LanguageTreePage = () => {
                   value={language} 
                   onChange={(e) => setLanguage(e.target.value)} 
                   placeholder="Enter language name..."
-                  className="w-full px-4 py-3 pl-10 bg-white/70 backdrop-blur-sm border border-blue-200/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-400 transition-all duration-200 shadow-sm hover:shadow-md text-slate-700 placeholder-slate-400"
+                  className="w-full px-4 py-3 pl-10 bg-gray-800/70 backdrop-blur-sm border border-gray-600/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400 transition-all duration-200 shadow-sm hover:shadow-md text-gray-100 placeholder-gray-400"
                 />
-                <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </div>
@@ -363,7 +363,7 @@ const LanguageTreePage = () => {
                 placeholder="Depth"
                 min="1"
                 max="5"
-                className="w-full px-3 py-3 bg-white/70 backdrop-blur-sm border border-blue-200/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-400 transition-all duration-200 shadow-sm hover:shadow-md text-slate-700 text-center"
+                className="w-full px-3 py-3 bg-gray-800/70 backdrop-blur-sm border border-gray-600/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400 transition-all duration-200 shadow-sm hover:shadow-md text-gray-100 text-center"
               />
             </div>
 
@@ -371,7 +371,7 @@ const LanguageTreePage = () => {
             <button 
               onClick={handleSearch} 
               disabled={connectionStatus !== 'connected'} 
-              className="px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 disabled:from-slate-300 disabled:to-slate-400 text-white font-medium rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl disabled:cursor-not-allowed disabled:shadow-sm transform hover:scale-105 disabled:hover:scale-100"
+              className="px-6 py-3 bg-gradient-to-r from-purple-500 to-cyan-600 hover:from-purple-600 hover:to-cyan-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-medium rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl disabled:cursor-not-allowed disabled:shadow-sm transform hover:scale-105 disabled:hover:scale-100"
             >
               <div className="flex items-center space-x-2">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -387,8 +387,8 @@ const LanguageTreePage = () => {
                 onClick={() => changeLayout('TB')} 
                 className={`p-3 rounded-xl transition-all duration-200 shadow-sm hover:shadow-md ${
                   layoutDirection === 'TB' 
-                    ? 'bg-blue-100 text-blue-600 border border-blue-200' 
-                    : 'bg-white/70 text-slate-600 border border-slate-200 hover:bg-blue-50'
+                    ? 'bg-purple-900/50 text-purple-300 border border-purple-500/30' 
+                    : 'bg-gray-800/70 text-gray-300 border border-gray-600/30 hover:bg-purple-900/30'
                 }`}
                 title="Vertical Layout"
               >
@@ -400,8 +400,8 @@ const LanguageTreePage = () => {
                 onClick={() => changeLayout('LR')} 
                 className={`p-3 rounded-xl transition-all duration-200 shadow-sm hover:shadow-md ${
                   layoutDirection === 'LR' 
-                    ? 'bg-blue-100 text-blue-600 border border-blue-200' 
-                    : 'bg-white/70 text-slate-600 border border-slate-200 hover:bg-blue-50'
+                    ? 'bg-purple-900/50 text-purple-300 border border-purple-500/30' 
+                    : 'bg-gray-800/70 text-gray-300 border border-gray-600/30 hover:bg-purple-900/30'
                 }`}
                 title="Horizontal Layout"
               >
@@ -417,9 +417,9 @@ const LanguageTreePage = () => {
                 type="checkbox" 
                 checked={autoLayoutOnComplete} 
                 onChange={e => setAutoLayoutOnComplete(e.target.checked)}
-                className="w-4 h-4 text-blue-600 bg-white border-2 border-blue-300 rounded focus:ring-blue-500 focus:ring-2"
+                className="w-4 h-4 text-purple-600 bg-gray-800 border-2 border-gray-600 rounded focus:ring-purple-500 focus:ring-2"
               />
-              <span className="text-sm font-medium text-slate-600">Auto layout</span>
+              <span className="text-sm font-medium text-gray-300">Auto layout</span>
             </label>
           </div>
 
@@ -427,12 +427,12 @@ const LanguageTreePage = () => {
           {(status !== 'Not connected' && status !== 'Completed') && (
             <div className="mt-4 space-y-2">
               <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-slate-700">{status}</span>
-                <span className="text-xs text-slate-500">{progress}%</span>
+                <span className="text-sm font-medium text-gray-200">{status}</span>
+                <span className="text-xs text-gray-400">{progress}%</span>
               </div>
-              <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+              <div className="w-full bg-gray-700/50 rounded-full h-2 overflow-hidden">
                 <div 
-                  className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full transition-all duration-300 ease-out"
+                  className="h-full bg-gradient-to-r from-purple-500 to-cyan-600 rounded-full transition-all duration-300 ease-out"
                   style={{ width: `${progress}%` }}
                 ></div>
               </div>
@@ -461,20 +461,20 @@ const LanguageTreePage = () => {
           style={{ background: 'transparent' }}
         >
           <Controls 
-            className="!bg-white/80 !backdrop-blur-xl !border-white/20 !shadow-lg !rounded-xl"
+            className="!bg-gray-900/80 !backdrop-blur-xl !border-gray-700/30 !shadow-lg !rounded-xl"
             style={{
-              background: 'rgba(255, 255, 255, 0.8)',
+              background: 'rgba(17, 24, 39, 0.8)',
               backdropFilter: 'blur(12px)',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
+              border: '1px solid rgba(55, 65, 81, 0.3)',
               borderRadius: '12px',
-              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
+              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
             }}
           />
           <Background 
-            color="#e2e8f0" 
+            color="#374151" 
             gap={20}
             size={1}
-            className="opacity-30"
+            className="opacity-20"
           />
         </ReactFlow>
       </div>
