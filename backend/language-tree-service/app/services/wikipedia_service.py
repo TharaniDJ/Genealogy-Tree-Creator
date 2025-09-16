@@ -571,9 +571,32 @@ async def fetch_language_relationships(language_name: str, depth: int, websocket
 				}
 			)
 
-	async def recurse(entity_id: str, current_depth: int):
-		if current_depth > depth or entity_id in visited or len(visited) >= MAX_NODES:
+	async def recurse(entity_id: str, current_depth: int, direction: str = "both"):
+		"""
+		Recursively traverse language relationships with direction awareness.
+		
+		Args:
+			entity_id: Wikidata QID to process
+			current_depth: Current traversal depth
+			direction: "up" (parents only), "down" (children only), "both" (both directions)
+		"""
+		if entity_id in visited or len(visited) >= MAX_NODES:
 			return
+		
+		# For depth control with direction awareness
+		if direction == "up" and current_depth > depth:
+			# If we've reached max depth going up, explore children and return
+			current_label = _get_label(entity_id)
+			if current_label and current_label.strip():
+				visited.add(entity_id)
+				_validate_qid(entity_id)
+				await explore_children_only(entity_id, current_label)
+			return
+		elif direction == "down" and current_depth > depth:
+			return
+		elif direction == "both" and current_depth > depth:
+			return
+			
 		visited.add(entity_id)
 		current_label = _get_label(entity_id)
 		
@@ -584,23 +607,35 @@ async def fetch_language_relationships(language_name: str, depth: int, websocket
 		# Validate current entity (may already be validated)
 		_validate_qid(entity_id)
 
-		# Parents (only keep valid)
-		for parent_id, parent_label in _get_parents(entity_id):
-			valid_parent, parent_class = _validate_qid(parent_id)
-			if not valid_parent:
-				continue
-			# Get proper label, skip if empty
-			proper_parent_label = _get_label(parent_id)
-			if not proper_parent_label or proper_parent_label.strip() == "":
-				continue
-			rel = (current_label, "Child of", proper_parent_label, entity_id, parent_id)
-			relations.append(rel)
-			await emit(rel)
-			await recurse(parent_id, current_depth + 1)
+		# Parents (only if direction allows upward traversal)
+		if direction in ["up", "both"]:
+			for parent_id, parent_label in _get_parents(entity_id):
+				if parent_id in visited:
+					continue
+				valid_parent, parent_class = _validate_qid(parent_id)
+				if not valid_parent:
+					continue
+				# Get proper label, skip if empty
+				proper_parent_label = _get_label(parent_id)
+				if not proper_parent_label or proper_parent_label.strip() == "":
+					continue
+				rel = (current_label, "Child of", proper_parent_label, entity_id, parent_id)
+				relations.append(rel)
+				await emit(rel)
+				if current_depth < depth:
+					await recurse(parent_id, current_depth + 1, "both")
+				else:
+					await recurse(parent_id, current_depth + 1, "up")
 
+		# Children (only if direction allows downward traversal)
+		if direction in ["down", "both"]:
+			await explore_children_only(entity_id, current_label)
+	
+	async def explore_children_only(entity_id: str, current_label: str):
+		"""Helper function to explore only children of a given entity."""
 		# Children by P527
 		for child_id, child_label in _get_children_by_p527(entity_id):
-			if child_id != entity_id:
+			if child_id != entity_id and child_id not in visited:
 				valid_child, child_class = _validate_qid(child_id)
 				if not valid_child:
 					continue
@@ -611,7 +646,22 @@ async def fetch_language_relationships(language_name: str, depth: int, websocket
 				rel = (proper_child_label, "Child of", current_label, child_id, entity_id)
 				relations.append(rel)
 				await emit(rel)
-				await recurse(child_id, current_depth + 1)
+				# Only go one level down for top-level children
+				if len(visited) < MAX_NODES:
+					visited.add(child_id)
+					child_current_label = _get_label(child_id)
+					if child_current_label and child_current_label.strip():
+						_validate_qid(child_id)
+						# Get grandchildren (one more level)
+						for grandchild_id, grandchild_label in _get_children_by_p527(child_id):
+							if grandchild_id not in visited and grandchild_id != child_id:
+								valid_grandchild, _ = _validate_qid(grandchild_id)
+								if valid_grandchild:
+									proper_grandchild_label = _get_label(grandchild_id)
+									if proper_grandchild_label and proper_grandchild_label.strip():
+										rel = (proper_grandchild_label, "Child of", child_current_label, grandchild_id, child_id)
+										relations.append(rel)
+										await emit(rel)
 
 		# Children by reverse P279
 		for child_id, child_label in _get_children(entity_id):
@@ -626,10 +676,25 @@ async def fetch_language_relationships(language_name: str, depth: int, websocket
 				rel = (proper_child_label, "Child of", current_label, child_id, entity_id)
 				relations.append(rel)
 				await emit(rel)
-				await recurse(child_id, current_depth + 1)
+				# Only go one level down for top-level children
+				if len(visited) < MAX_NODES:
+					visited.add(child_id)
+					child_current_label = _get_label(child_id)
+					if child_current_label and child_current_label.strip():
+						_validate_qid(child_id)
+						# Get grandchildren (one more level)
+						for grandchild_id, grandchild_label in _get_children(child_id):
+							if grandchild_id not in visited and grandchild_id != child_id:
+								valid_grandchild, _ = _validate_qid(grandchild_id)
+								if valid_grandchild:
+									proper_grandchild_label = _get_label(grandchild_id)
+									if proper_grandchild_label and proper_grandchild_label.strip():
+										rel = (proper_grandchild_label, "Child of", child_current_label, grandchild_id, child_id)
+										relations.append(rel)
+										await emit(rel)
 
-	# Perform traversal with immediate emission
-	await recurse(root_qid, 1)
+	# Perform traversal with immediate emission - start with both directions
+	await recurse(root_qid, 1, "both")
 
 	# Final unique list
 	unique_relations = list({(r[0], r[1], r[2], r[3], r[4]) for r in relations})
