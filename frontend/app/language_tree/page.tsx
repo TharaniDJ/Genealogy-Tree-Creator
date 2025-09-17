@@ -160,6 +160,120 @@ const LanguageTreePage = () => {
     return cat.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase());
   };
 
+  // Helpers to prompt user for input in a simple way
+  const promptForLabel = useCallback((defaultValue = '') => {
+    const res = window.prompt('Enter language label/name:', defaultValue);
+    const val = (res || '').trim();
+    return val ? val : null;
+  }, []);
+
+  const promptForCategory = useCallback((defaultValue = '') => {
+    const res = window.prompt('Enter category (e.g., language, dialect, language_family, proto_language, extinct_language, dead_language):', defaultValue);
+    const val = (res || '').trim();
+    return val || undefined;
+  }, []);
+
+  // CRUD: Add a standalone node
+  const addStandaloneNode = useCallback(() => {
+    const label = promptForLabel('New Language');
+    if (!label) return;
+    const existing = labelToIdRef.current.get(label);
+    if (existing) {
+      // Select existing instead of duplicating
+      setSelectedNodeId(existing);
+      const n = nodes.find(nd => nd.id === existing);
+      if (n) {
+        setSelectedLanguage({ name: n.data.label, qid: n.data.qid, category: n.data.category });
+        setSidebarOpen(true);
+      }
+      return;
+    }
+    const cat = promptForCategory('language');
+    const id = ensureNode(label, cat);
+    if (id) {
+      setSelectedNodeId(id);
+      setSelectedLanguage({ name: label, category: cat });
+      setSidebarOpen(true);
+      // Re-layout to place the new node
+      setTimeout(() => layout(layoutDirection), 0);
+    }
+  }, [ensureNode, layout, layoutDirection, nodes, promptForCategory, promptForLabel]);
+
+  // CRUD: Add a child node to the currently selected node
+  const addChildNode = useCallback(() => {
+    if (!selectedNodeId) return;
+    const parent = nodes.find(n => n.id === selectedNodeId);
+    if (!parent) return;
+    const label = promptForLabel('Child Language');
+    if (!label) return;
+    let childId: string | undefined = labelToIdRef.current.get(label);
+    if (!childId) {
+      const cat = promptForCategory('language');
+      const createdId = ensureNode(label, cat);
+      if (!createdId) return;
+      childId = createdId;
+    }
+    const edgeId = `e-${selectedNodeId}-${childId}`;
+    setEdges(prev => {
+      if (prev.some(e => e.id === edgeId)) return prev;
+      return [...prev, { id: edgeId, source: selectedNodeId, target: childId!, type: 'smoothstep', animated: true }];
+    });
+    setTimeout(() => layout(layoutDirection), 0);
+  }, [ensureNode, layout, layoutDirection, nodes, selectedNodeId, promptForLabel, promptForCategory, setEdges]);
+
+  // CRUD: Edit the selected node's label/category
+  const editSelectedNode = useCallback(() => {
+    if (!selectedNodeId) return;
+    const node = nodes.find(n => n.id === selectedNodeId);
+    if (!node) return;
+    const oldLabel = node.data.label;
+    const newLabel = promptForLabel(oldLabel) || oldLabel;
+    // Prevent renaming to an existing different node's label
+    const existing = labelToIdRef.current.get(newLabel);
+    if (existing && existing !== selectedNodeId) {
+      window.alert('A node with that label already exists. Choose another label.');
+      return;
+    }
+    const newCategory = promptForCategory(node.data.category || '') || node.data.category;
+    // Update mapping: remove old label key(s) pointing to this id, then add new
+    for (const [k, v] of Array.from(labelToIdRef.current.entries())) {
+      if (v === selectedNodeId) {
+        labelToIdRef.current.delete(k);
+      }
+    }
+    labelToIdRef.current.set(newLabel, selectedNodeId);
+    // Update node state
+    setNodes(prev => prev.map(n => {
+      if (n.id !== selectedNodeId) return n;
+      const data = { ...n.data, label: newLabel, category: newCategory, meta: newCategory ? humanizeCategory(newCategory) : undefined };
+      return { ...n, data };
+    }));
+    setSelectedLanguage({ name: newLabel, qid: node.data.qid, category: newCategory });
+    setTimeout(() => layout(layoutDirection), 0);
+  }, [humanizeCategory, layout, layoutDirection, nodes, promptForCategory, promptForLabel, selectedNodeId, setNodes]);
+
+  // CRUD: Delete the selected node and its connected edges
+  const deleteSelectedNode = useCallback(() => {
+    if (!selectedNodeId) return;
+    const node = nodes.find(n => n.id === selectedNodeId);
+    const label = node?.data.label;
+    const ok = window.confirm(`Delete node${label ? ` \"${label}\"` : ''} and its connections?`);
+    if (!ok) return;
+    // Remove node
+    setNodes(prev => prev.filter(n => n.id !== selectedNodeId));
+    // Remove connected edges
+    setEdges(prev => prev.filter(e => e.source !== selectedNodeId && e.target !== selectedNodeId));
+    // Clean mapping entries pointing to this id
+    for (const [k, v] of Array.from(labelToIdRef.current.entries())) {
+      if (v === selectedNodeId) labelToIdRef.current.delete(k);
+    }
+    // Clear selection/sidebar
+    setSelectedNodeId(null);
+    setSidebarOpen(false);
+    setSelectedLanguage(null);
+    setTimeout(() => layout(layoutDirection), 0);
+  }, [layout, layoutDirection, nodes, selectedNodeId, setEdges, setNodes]);
+
   // Process streaming messages from backend (status, relationship, complete, error)
   useEffect(() => {
     if (!messages.length) return;
@@ -534,6 +648,40 @@ const LanguageTreePage = () => {
             size={1}
             className="opacity-20"
           />
+          {/* Floating toolbar for CRUD operations */}
+          <div className="absolute top-4 right-4 z-10 flex items-center gap-2 bg-gray-900/80 backdrop-blur-xl border border-gray-700/30 rounded-xl p-2 shadow-lg">
+            <button
+              onClick={addStandaloneNode}
+              className="px-3 py-2 text-sm rounded-lg bg-gradient-to-r from-purple-500 to-cyan-600 text-white hover:from-purple-600 hover:to-cyan-700 transition-colors shadow"
+              title="Add node"
+            >
+              Add Node
+            </button>
+            <button
+              onClick={addChildNode}
+              disabled={!selectedNodeId}
+              className={`px-3 py-2 text-sm rounded-lg transition-colors shadow ${selectedNodeId ? 'bg-gray-800/70 text-gray-200 hover:bg-purple-900/40 border border-gray-600/40' : 'bg-gray-800/40 text-gray-500 border border-gray-700/30 cursor-not-allowed'}`}
+              title="Add child to selected"
+            >
+              Add Child
+            </button>
+            <button
+              onClick={editSelectedNode}
+              disabled={!selectedNodeId}
+              className={`px-3 py-2 text-sm rounded-lg transition-colors shadow ${selectedNodeId ? 'bg-gray-800/70 text-gray-200 hover:bg-purple-900/40 border border-gray-600/40' : 'bg-gray-800/40 text-gray-500 border border-gray-700/30 cursor-not-allowed'}`}
+              title="Edit selected node"
+            >
+              Edit
+            </button>
+            <button
+              onClick={deleteSelectedNode}
+              disabled={!selectedNodeId}
+              className={`px-3 py-2 text-sm rounded-lg transition-colors shadow ${selectedNodeId ? 'bg-rose-600/80 text-white hover:bg-rose-600' : 'bg-gray-800/40 text-gray-500 border border-gray-700/30 cursor-not-allowed'}`}
+              title="Delete selected node"
+            >
+              Delete
+            </button>
+          </div>
         </ReactFlow>
       </div>
 
