@@ -65,7 +65,7 @@ const LanguageTreePage = () => {
   const expandedQidsRef = useRef<Set<string>>(new Set());
   // Track currently selected node for edge highlighting
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  // Sidebar state
+  
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState<{
     name: string;
@@ -96,7 +96,7 @@ const LanguageTreePage = () => {
         setNodes(layoutedNodes);
         return layoutedEdges;
       });
-      return prevNodes; // actual replacement done above
+      return prevNodes; 
     });
   }, [layoutDirection, setNodes, setEdges]);
 
@@ -410,15 +410,15 @@ const LanguageTreePage = () => {
     lastProcessedIndexRef.current = messages.length;
     // create root node immediately
     const rootLabel = language.trim();
-    if (rootLabel) {
-      const rootId = rootLabel.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$|/g,'') || 'root';
-      labelToIdRef.current.set(rootLabel, rootId);
-      setNodes([{ id: rootId, data: { label: rootLabel }, position: { x: 0, y: 0 }, type: 'language' }]);
-    }
+    //if (rootLabel) {
+    //  const rootId = rootLabel.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$|/g,'') || 'root';
+    //  labelToIdRef.current.set(rootLabel, rootId);
+    //  setNodes([{ id: rootId, data: { label: rootLabel }, position: { x: 0, y: 0 }, type: 'language' }]);
+    //}
     sendMessage(`${language},${depth}`);
   }, [language, depth, messages.length, sendMessage, setNodes, setEdges]);
 
-  // Expand logic: request depth-1 relationships for a node by QID; deduplicate on arrival
+  // Expand logic: request depth-1 relationship
   const expandNodeByQid = useCallback((qid: string) => {
     if (!qid) return;
     if (expandedQidsRef.current.has(qid)) return; // avoid duplicate expand calls
@@ -649,7 +649,7 @@ const LanguageTreePage = () => {
             <div className="mt-4 space-y-2">
               <div className="flex justify-between items-center">
                 <span className="text-sm font-medium text-gray-200">{status}</span>
-                <span className="text-xs text-gray-400">{progress}%</span>
+                
               </div>
               <div className="w-full bg-gray-700/50 rounded-full h-2 overflow-hidden">
                 <div 

@@ -287,14 +287,13 @@ def _get_label(qid: str) -> str:
 
 
 def get_wikidata_entity_id(language_name):
-    """Return the Wikidata Q-identifier for a language name.
+    """
     
     Tries multiple search strategies and validates each QID to ensure it's 
-    actually a language-related entity. This handles edge cases like 'English' 
-    which might return Q182 (England) instead of Q1860 (English language).
+    actually a language-related entity.
     """
     def _try_page_lookup(title):
-        """Helper to try direct page lookup for a given title."""
+       
         params = {
             "action": "query",
             "titles": title,
@@ -315,13 +314,13 @@ def get_wikidata_entity_id(language_name):
         if qid:
             is_valid, _ = _validate_root_language(qid)
             if is_valid:
-                # If check_title_match is True, ensure the title relevance
+                
                 if check_title_match:
                     # Check if the page title is relevant to the language name
                     title_lower = title.lower()
                     language_lower = language_name.lower()
                     
-                    # Accept if title starts with language name or is exact match
+                    
                     if (title_lower == language_lower or 
                         title_lower == f"{language_lower} language" or
                         title_lower.startswith(f"{language_lower} ") or
@@ -332,7 +331,7 @@ def get_wikidata_entity_id(language_name):
         return None
     
     def _search_and_validate_with_priority(search_term, check_title_match=True):
-        """Search and validate results with priority for exact/close matches."""
+        """Search and validate results with priority for exact or close matches."""
         params = {
             "action": "query",
             "list": "search",
@@ -563,10 +562,10 @@ async def fetch_language_relationships(language_name: str, depth: int, websocket
 		raise ValueError(f"Language '{language_name}' not found in Wikidata")
 	print(root_qid)
 	
-	# Force root label in cache
+	
 	root_label = _get_label(root_qid)
 	
-	# Comprehensive validation for root language
+	
 	root_valid, root_types = _validate_root_language(root_qid)
 	if not root_valid:
 		raise ValueError(f"Root entity for '{language_name}' (QID {root_qid}) is not a recognized language/dialect/family")
