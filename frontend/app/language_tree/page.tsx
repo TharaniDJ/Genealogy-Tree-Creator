@@ -26,7 +26,7 @@ dagreGraph.setDefaultEdgeLabel(() => ({}));
 const nodeWidth = 172;
 const nodeHeight = 36;
 
-type LanguageNodeData = { label: string; meta?: string; category?: string; qid?: string };
+type LanguageNodeData = { label: string; meta?: string; category?: string; qid?: string; onExpand?: () => void };
 type LanguageRFNode = Node<LanguageNodeData>;
 
 const getLayoutedElements = (nodes: LanguageRFNode[], edges: Edge[], direction = 'TB') => {
@@ -62,6 +62,7 @@ const LanguageTreePage = () => {
   const [progress, setProgress] = useState(0);
   const [layoutDirection, setLayoutDirection] = useState<'TB' | 'LR'>('TB');
   const [autoLayoutOnComplete, setAutoLayoutOnComplete] = useState(true);
+  const expandedQidsRef = useRef<Set<string>>(new Set());
   // Track currently selected node for edge highlighting
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   // Sidebar state
@@ -144,7 +145,8 @@ const LanguageTreePage = () => {
           label, 
           category, 
           meta: category ? humanizeCategory(category) : undefined,
-          qid 
+          qid,
+          onExpand: qid ? () => expandNodeByQid(qid) : undefined
         }, 
         position: { x: 0, y: 0 }, 
         type: 'language' 
@@ -169,6 +171,30 @@ const LanguageTreePage = () => {
           if (msg.data) {
             setStatus(msg.data.message || '');
             if (typeof msg.data.progress === 'number') setProgress(msg.data.progress);
+          }
+          break; }
+        case 'root_language': {
+          const d = msg.data || {};
+          const qid: string | undefined = d.qid || undefined;
+          const label: string | undefined = d.label || undefined;
+          const primaryType: string | undefined = d.primary_type || undefined;
+          if (label) {
+            const id = labelToIdRef.current.get(label);
+            if (id) {
+              setNodes(prev => prev.map(n => {
+                if (n.id !== id) return n;
+                const updates: Partial<LanguageNodeData> = {};
+                if (qid) updates.qid = qid;
+                if (primaryType && !n.data.category) {
+                  updates.category = primaryType;
+                  updates.meta = humanizeCategory(primaryType);
+                }
+                if (qid && !n.data.onExpand) {
+                  updates.onExpand = () => expandNodeByQid(qid);
+                }
+                return Object.keys(updates).length ? { ...n, data: { ...n.data, ...updates } } : n;
+              }));
+            }
           }
           break; }
         case 'relationship': {
@@ -197,6 +223,17 @@ const LanguageTreePage = () => {
                 }
                 return prev;
               });
+
+              // Update nodes to include expand handlers if missing
+              setNodes(prev => prev.map(n => {
+                if (n.id === parentId && parentQid && !n.data.onExpand) {
+                  return { ...n, data: { ...n.data, qid: parentQid, onExpand: () => expandNodeByQid(parentQid) } };
+                }
+                if (n.id === childId && childQid && !n.data.onExpand) {
+                  return { ...n, data: { ...n.data, qid: childQid, onExpand: () => expandNodeByQid(childQid) } };
+                }
+                return n;
+              }));
             }
           }
           break; }
@@ -220,6 +257,17 @@ const LanguageTreePage = () => {
               if (parentId && childId) {
                 const edgeId = `e-${parentId}-${childId}`;
                 setEdges(prev => prev.some(e => e.id === edgeId) ? prev : [...prev, { id: edgeId, source: parentId, target: childId, type: 'smoothstep', animated: true }]);
+
+                // ensure expand handlers
+                setNodes(prev => prev.map(n => {
+                  if (n.id === parentId && parentQid && !n.data.onExpand) {
+                    return { ...n, data: { ...n.data, qid: parentQid, onExpand: () => expandNodeByQid(parentQid) } };
+                  }
+                  if (n.id === childId && childQid && !n.data.onExpand) {
+                    return { ...n, data: { ...n.data, qid: childQid, onExpand: () => expandNodeByQid(childQid) } };
+                  }
+                  return n;
+                }));
               }
             }
           }
@@ -255,6 +303,16 @@ const LanguageTreePage = () => {
     }
     sendMessage(`${language},${depth}`);
   }, [language, depth, messages.length, sendMessage, setNodes, setEdges]);
+
+  // Expand logic: request depth-1 relationships for a node by QID; deduplicate on arrival
+  const expandNodeByQid = useCallback((qid: string) => {
+    if (!qid) return;
+    if (expandedQidsRef.current.has(qid)) return; // avoid duplicate expand calls
+    expandedQidsRef.current.add(qid);
+    setStatus(`Expanding ${qid}...`);
+    setProgress(0);
+    sendMessage({ action: 'expand_by_qid', qid, depth: 1 });
+  }, [sendMessage]);
 
   const changeLayout = (dir: 'TB' | 'LR') => {
     setLayoutDirection(dir);

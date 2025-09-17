@@ -49,8 +49,10 @@ const CATEGORY_STYLES: Record<string, { from: string; to: string; ring: string; 
   },
 };
 
+type LanguageNodeData = { label: string; meta?: string; category?: string; qid?: string; onExpand?: () => void };
+
 // Modern styled language node with glassmorphism design for dark theme
-const LanguageNode: React.FC<NodeProps> = ({ data }) => {
+const LanguageNode: React.FC<NodeProps<LanguageNodeData>> = ({ data }) => {
   const style = useMemo(() => CATEGORY_STYLES[data.category as string] || CATEGORY_STYLES.language, [data.category]);
   return (
     <div className="relative group">
@@ -79,7 +81,17 @@ const LanguageNode: React.FC<NodeProps> = ({ data }) => {
 
         {/* Subtle gradient overlay for dark theme */}
         <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 via-transparent to-cyan-900/20 rounded-xl pointer-events-none"></div>
-        
+        {/* Expand button (shown on hover if handler exists) */}
+        {data.onExpand && (
+          <button
+            onClick={(e) => { e.stopPropagation(); data.onExpand && data.onExpand(); }}
+            title="Expand"
+            className="absolute -bottom-2 -right-2 px-2 py-1 text-[10px] font-medium rounded-lg bg-purple-600/80 text-white border border-purple-400/40 shadow hover:bg-purple-600 transition-colors opacity-0 group-hover:opacity-100"
+          >
+            Expand
+          </button>
+        )}
+
         <Handle 
           type="source" 
           position={Position.Bottom} 

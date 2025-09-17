@@ -481,6 +481,69 @@ def get_distribution_map_image(qid: str) -> Optional[str]:
 	return None
 
 
+def relationships_depth1_by_qid(qid: str) -> List[Dict[str, str]]:
+	"""Return immediate parent/child relationships for a given QID (depth=1).
+
+	Does not perform WebSocket streaming. Intended for on-demand node expansion
+	when the frontend already knows the QID of the node to expand.
+	"""
+	if not qid:
+		return []
+
+	# Ensure classification cache is populated for the root qid
+	_validate_qid(qid)
+	root_label = _get_label(qid)
+
+	rels_set: Set[Tuple[str, str]] = set()  # (child_id, parent_id)
+	out: List[Dict[str, str]] = []
+
+	def _emit(child_id: str, parent_id: str, child_label: str, parent_label: str):
+		# Skip if labels are missing
+		if not child_label or not child_label.strip() or not parent_label or not parent_label.strip():
+			return
+		key = (child_id, parent_id)
+		if key in rels_set:
+			return
+		rels_set.add(key)
+
+		# Validate and capture categories
+		_validate_qid(child_id)
+		_validate_qid(parent_id)
+		child_cat = CLASSIFICATION_CACHE.get(child_id) or ""
+		parent_cat = CLASSIFICATION_CACHE.get(parent_id) or ""
+
+		out.append({
+			"language1": child_label,
+			"relationship": "Child of",
+			"language2": parent_label,
+			"language1_qid": child_id,
+			"language2_qid": parent_id,
+			"language1_category": child_cat,
+			"language2_category": parent_cat,
+		})
+
+	# Parents of root (root is child of parent)
+	for parent_id, _ in _get_parents(qid):
+		proper_parent_label = _get_label(parent_id)
+		# Resolve root label if not available yet
+		proper_child_label = root_label or _get_label(qid)
+		_emit(qid, parent_id, proper_child_label, proper_parent_label)
+
+	# Children of root by P527
+	for child_id, _ in _get_children_by_p527(qid):
+		proper_child_label = _get_label(child_id)
+		proper_parent_label = root_label or _get_label(qid)
+		_emit(child_id, qid, proper_child_label, proper_parent_label)
+
+	# Children of root by reverse P279
+	for child_id, _ in _get_children(qid):
+		proper_child_label = _get_label(child_id)
+		proper_parent_label = root_label or _get_label(qid)
+		_emit(child_id, qid, proper_child_label, proper_parent_label)
+
+	return out
+
+
 async def fetch_language_relationships(language_name: str, depth: int, websocket_manager: Optional[WebSocketManager] = None) -> List[Dict[str, str]]:
 	"""Fetch genealogical relationships for a language up to `depth`.
 
