@@ -8,6 +8,9 @@ class LanguageRelationship(BaseModel):
     language2: str
     language1_qid: Optional[str] = None
     language2_qid: Optional[str] = None
+    # Optional categories (used by save feature)
+    language1_category: Optional[str] = None
+    language2_category: Optional[str] = None
 
 class DistributionMapResponse(BaseModel):
     """Model for distribution map image response"""

@@ -433,6 +433,55 @@ const LanguageTreePage = () => {
     layout(dir);
   };
 
+  // Build current relationships payload from edges + nodes' labels/qids/categories
+  const buildRelationshipsPayload = useCallback(() => {
+    const idToNode = new Map(nodes.map(n => [n.id, n] as const));
+    // relationships: parent (source) -> child (target)
+    return edges.map(e => {
+      const parent = idToNode.get(e.source);
+      const child = idToNode.get(e.target);
+      return {
+        language1: child?.data.label || '',
+        relationship: 'Child of',
+        language2: parent?.data.label || '',
+        language1_qid: child?.data.qid,
+        language2_qid: parent?.data.qid,
+        language1_category: child?.data.category,
+        language2_category: parent?.data.category,
+      } as any;
+    });
+  }, [edges, nodes]);
+
+  // Save current graph to backend
+  const handleSaveGraph = useCallback(async () => {
+    try {
+      const userId = '1234';
+      const graphName = window.prompt('Enter a name for this graph:', language.trim()) || language.trim() || 'Unnamed Graph';
+      const rels = buildRelationshipsPayload();
+      const payload = {
+        user_id: userId,
+        name: graphName,
+        depth: depth,
+        node_count: nodes.length,
+        relationships: rels,
+      };
+      const res = await fetch('http://localhost:8001/graphs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || 'Failed to save graph');
+      }
+      const saved = await res.json();
+      setStatus(`Saved graph "${saved.name}"`);
+    } catch (err: any) {
+      console.error('Save graph failed', err);
+      setStatus(`Error saving graph: ${err?.message || err}`);
+    }
+  }, [buildRelationshipsPayload, depth, language, nodes.length]);
+
   // Highlight edges connected to selected node without mutating core edge state
   const displayEdges = useMemo(() => {
     if (!selectedNodeId) return edges;
@@ -680,6 +729,14 @@ const LanguageTreePage = () => {
               title="Delete selected node"
             >
               Delete
+            </button>
+            <div className="w-px h-6 bg-gray-700/50 mx-1" />
+            <button
+              onClick={handleSaveGraph}
+              className="px-3 py-2 text-sm rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 text-white hover:from-emerald-600 hover:to-teal-700 transition-colors shadow"
+              title="Save current graph"
+            >
+              Save Graph
             </button>
           </div>
         </ReactFlow>

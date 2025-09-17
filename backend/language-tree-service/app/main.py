@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import router as api_router
 from app.api.websocket import router as websocket_router
 from app.core.websocket_manager import WebSocketManager
+from app.services.graph_repository import graph_repo
 
 app = FastAPI(title='Language Tree Creator', 
               description='A service for exploring language family relationships',
@@ -21,7 +22,12 @@ websocket_manager = WebSocketManager()
 @app.on_event("startup")
 async def startup_event():
     """Startup event handler"""
-    pass
+    # Initialize MongoDB connection for graph repository
+    await graph_repo.setup(
+        uri="mongodb://localhost:27017/",
+        db_name="Genealogy_Tree_Creator",
+        collection_name="Language_Trees"
+    )
 
 @app.on_event("shutdown")
 async def shutdown_event():

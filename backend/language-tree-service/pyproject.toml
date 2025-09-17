@@ -12,7 +12,8 @@ dependencies = [
     "uvicorn>=0.35.0",
     "websockets>=15.0.1",
     "SPARQLWrapper",
-    "wptools"
+    "wptools",
+    "motor>=3.4.0"
 ]
 
 [tool.uv]

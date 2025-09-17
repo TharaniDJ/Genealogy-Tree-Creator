@@ -1,7 +1,9 @@
 from fastapi import APIRouter, HTTPException
-from typing import List
+from typing import List, Optional
 from app.services.wikipedia_service import fetch_language_relationships, get_distribution_map_image,fetch_language_info
 from app.models.language import LanguageRelationship, LanguageInfo, DistributionMapResponse
+from app.models.graph import GraphSaveRequest, GraphResponse, GraphUpdateRequest
+from app.services.graph_repository import graph_repo
 
 router = APIRouter()
 
@@ -104,3 +106,79 @@ async def get_service_stats():
             "/stats"
         ]
     }
+
+# ------------------ Graph Save/Retrieve APIs ------------------
+
+@router.post('/graphs', response_model=GraphResponse)
+async def save_graph(graph: GraphSaveRequest):
+    """
+    Save a graph for a user. Uses placeholder MongoDB repository.
+    - user_id: defaults to "1234" if not provided
+    - name: graph name (defaults to search name from client)
+    - depth, node_count, relationships: describe the graph
+    """
+    try:
+        if not graph.name:
+            raise HTTPException(status_code=400, detail="Graph name is required")
+        resp = await graph_repo.save_graph(graph)
+        return resp
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error saving graph: {e}")
+        raise HTTPException(status_code=500, detail=f"Error saving graph: {str(e)}")
+
+
+@router.get('/graphs/{user_id}', response_model=List[GraphResponse])
+async def get_graphs_for_user(user_id: str):
+    """Return all graphs for a user."""
+    try:
+        return await graph_repo.get_graphs_for_user(user_id)
+    except Exception as e:
+        print(f"Error retrieving graphs: {e}")
+        raise HTTPException(status_code=500, detail=f"Error retrieving graphs: {str(e)}")
+
+
+@router.get('/graphs/{user_id}/by-name/{name}', response_model=GraphResponse)
+async def get_graph_by_name(user_id: str, name: str):
+    """Return a specific graph for a user by name."""
+    try:
+        g = await graph_repo.get_graph_by_name(user_id, name)
+        if not g:
+            raise HTTPException(status_code=404, detail="Graph not found")
+        return g
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error retrieving graph by name: {e}")
+        raise HTTPException(status_code=500, detail=f"Error retrieving graph: {str(e)}")
+
+
+@router.put('/graphs/{user_id}/by-name/{name}', response_model=GraphResponse)
+async def update_graph(user_id: str, name: str, update: GraphUpdateRequest):
+    """Update a user's graph by name. Supports renaming and content updates."""
+    try:
+        g = await graph_repo.update_graph(user_id, name, update)
+        if not g:
+            raise HTTPException(status_code=404, detail="Graph not found")
+        return g
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error updating graph: {e}")
+        raise HTTPException(status_code=500, detail=f"Error updating graph: {str(e)}")
+
+
+@router.delete('/graphs/{user_id}/by-name/{name}')
+async def delete_graph(user_id: str, name: str):
+    """Delete a user's graph by name."""
+    try:
+        ok = await graph_repo.delete_graph(user_id, name)
+        if not ok:
+            raise HTTPException(status_code=404, detail="Graph not found")
+        return {"deleted": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error deleting graph: {e}")
+        raise HTTPException(status_code=500, detail=f"Error deleting graph: {str(e)}")
