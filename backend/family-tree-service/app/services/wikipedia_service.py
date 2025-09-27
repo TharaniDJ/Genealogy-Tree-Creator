@@ -1636,6 +1636,57 @@ WIKIPEDIA_API = "https://en.wikipedia.org/w/api.php"
 WIKIDATA_API = "https://www.wikidata.org/wiki/Special:EntityData/{}.json"
 SPARQL_API='https://query.wikidata.org/sparql'
 
+async def fetch_relationships_by_qid(qid: str, depth: int, websocket_manager: Optional[WebSocketManager] = None, entity_name: Optional[str] = None) -> List[Dict[str, str]]:
+    """
+    Fetch genealogical relationships using QID directly (no name lookup needed).
+    This is more reliable and faster than name-based lookup.
+    """
+    try:
+        # Validate QID format
+        if not qid or not qid.startswith('Q') or not qid[1:].isdigit():
+            error_msg = f"Invalid QID format: {qid}"
+            print(error_msg)
+            
+            if websocket_manager:
+                await websocket_manager.send_message(json.dumps({
+                    "type": "status",
+                    "data": {
+                        "message": error_msg,
+                        "progress": 100
+                    }
+                }))
+            return []
+        
+        # Send initial status
+        display_name = entity_name or qid
+        print(f"Starting QID-based expansion for '{qid}' (entity: {display_name})")
+        
+        if websocket_manager:
+            await websocket_manager.send_message(json.dumps({
+                "type": "status",
+                "data": {
+                    "message": f"Expanding family tree for {display_name} using QID {qid}...",
+                    "progress": 0
+                }
+            }))
+        
+        # Use existing function with QID directly - no name lookup needed
+        return await collect_bidirectional_relationships(qid, depth, websocket_manager)
+        
+    except Exception as e:
+        error_msg = f"Error fetching relationships for QID '{qid}': {str(e)}"
+        print(error_msg)
+        
+        if websocket_manager:
+            await websocket_manager.send_message(json.dumps({
+                "type": "status",
+                "data": {
+                    "message": error_msg,
+                    "progress": 100
+                }
+            }))
+        
+        return []
 async def getPersonalDetails(page_title:str):
     qid = get_qid(page_title)
     if not qid:
