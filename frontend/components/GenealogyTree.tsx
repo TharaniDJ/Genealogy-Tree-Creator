@@ -455,20 +455,22 @@ function GenealogyTreeInternal({
       '1'
     );
 
-    let relType = 'biological child of';
-    if (relationshipType === '2') relType = 'adopted child of';
+    let relType = 'child of'; // Changed from 'biological child of'
+    if (relationshipType === '2') relType = 'adopted by'; // Changed from 'adopted child of'
     else if (relationshipType === '3') relType = 'child of';
 
     const childId = `${nodeId}-child-${Date.now()}`;
     let childX = node.position.x;
     let childY = node.position.y + 350;
     let sourceId = nodeId;
-    
-    const styleConfig = RELATIONSHIP_STYLES[relType as keyof typeof RELATIONSHIP_STYLES];
+
+    // Get style config with fallback
+    const styleConfig = RELATIONSHIP_STYLES[relType as keyof typeof RELATIONSHIP_STYLES] || RELATIONSHIP_STYLES['child of'];
+
     let edgeStyle = {
-      stroke: styleConfig.stroke,
-      strokeWidth: styleConfig.strokeWidth,
-      strokeDasharray: styleConfig.strokeDasharray,
+      stroke: styleConfig?.stroke || '#1f2937', // Fallback color
+      strokeWidth: styleConfig?.strokeWidth || 3, // Fallback width
+      strokeDasharray: styleConfig?.strokeDasharray,
     };
 
     if (node.type === 'marriage') {
@@ -531,7 +533,7 @@ function GenealogyTreeInternal({
         type: MarkerType.ArrowClosed,
         color: edgeStyle.stroke,
       },
-      label: styleConfig.label || (relType === 'adopted child of' ? 'adopted' : ''),
+      label: styleConfig?.label || (relType === 'adopted by' ? 'adopted' : ''),
     };
 
     setNodes([...nodes, newChildNode]);
