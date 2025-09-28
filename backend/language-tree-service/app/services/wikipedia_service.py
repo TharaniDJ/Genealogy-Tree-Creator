@@ -1,4 +1,3 @@
-
 """Service functions for fetching language genealogical relationships.
 
 The implementation adapts the exploration logic prototyped in `info.ipynb` into
@@ -29,7 +28,7 @@ from typing import Dict, List, Optional, Set, Tuple
 from app.core.websocket_manager import WebSocketManager
 from app.core.config import settings
 
-HEADERS = {"User-Agent": "LanguageFamilyTreeService/1.0 (https://example.com)", "Accept": "application/json"}
+HEADERS = {"User-Agent": "LanguageFamilyTreeService/1.0 (https://dasun.codes)", "Accept": "application/json"}
 
 WIKIPEDIA_API = settings.WIKIPEDIA_API
 WIKIDATA_QUERY_API = settings.WIKIDATA_QUERY_API
@@ -57,6 +56,7 @@ VALID_TYPE_QIDS: Dict[str, str] = {
 	"extinct_language": "Q38058796",
 	"dead_language": "Q45762",
 }
+
 
 from SPARQLWrapper import SPARQLWrapper, JSON
 
@@ -647,12 +647,13 @@ async def fetch_language_relationships(language_name: str, depth: int, websocket
 		
 		# For depth control with direction awareness
 		if direction == "up" and current_depth > depth:
-			# If we've reached max depth going up, explore children and return
+			# If we've reached max depth going up, explore children with remaining depth and return
 			current_label = _get_label(entity_id)
 			if current_label and current_label.strip():
 				visited.add(entity_id)
 				_validate_qid(entity_id)
-				await explore_children_only(entity_id, current_label)
+				# Use depth-respecting downward traversal for the root level
+				await explore_children_with_depth(entity_id, current_label, depth)
 			return
 		elif direction == "down" and current_depth > depth:
 			return
@@ -691,11 +692,48 @@ async def fetch_language_relationships(language_name: str, depth: int, websocket
 
 		# Children (only if direction allows downward traversal)
 		if direction in ["down", "both"]:
-			await explore_children_only(entity_id, current_label)
+			await explore_children_with_depth(entity_id, current_label, depth - current_depth + 1)
 	
-	async def explore_children_only(entity_id: str, current_label: str):
-		"""Helper function to explore only children of a given entity."""
+	async def explore_children_one_level(entity_id: str, current_label: str):
+		"""Helper function to explore only immediate children (one level) of a given entity.
+		Used for breadth-first search operations where you need precise level control."""
 		# Children by P527
+		for child_id, child_label in _get_children_by_p527(entity_id):
+			if child_id != entity_id and child_id not in visited and len(visited) < MAX_NODES:
+				valid_child, child_class = _validate_qid(child_id)
+				if not valid_child:
+					continue
+				# Get proper label, skip if empty
+				proper_child_label = _get_label(child_id)
+				if not proper_child_label or proper_child_label.strip() == "":
+					continue
+				rel = (proper_child_label, "Child of", current_label, child_id, entity_id)
+				relations.append(rel)
+				await emit(rel)
+
+		# Children by reverse P279
+		for child_id, child_label in _get_children(entity_id):
+			if child_id != entity_id and child_id not in visited and len(visited) < MAX_NODES:
+				valid_child, child_class = _validate_qid(child_id)
+				if not valid_child:
+					continue
+				# Get proper label, skip if empty
+				proper_child_label = _get_label(child_id)
+				if not proper_child_label or proper_child_label.strip() == "":
+					continue
+				rel = (proper_child_label, "Child of", current_label, child_id, entity_id)
+				relations.append(rel)
+				await emit(rel)
+
+	async def explore_children_with_depth(entity_id: str, current_label: str, remaining_depth: int):
+		"""Helper function to explore children of a given entity up to a specified depth.
+		Performs depth-respecting downward traversal for breadth-first search."""
+		if remaining_depth <= 0 or len(visited) >= MAX_NODES:
+			return
+			
+		children_to_explore = []
+		
+		# Collect children by P527
 		for child_id, child_label in _get_children_by_p527(entity_id):
 			if child_id != entity_id and child_id not in visited:
 				valid_child, child_class = _validate_qid(child_id)
@@ -705,27 +743,16 @@ async def fetch_language_relationships(language_name: str, depth: int, websocket
 				proper_child_label = _get_label(child_id)
 				if not proper_child_label or proper_child_label.strip() == "":
 					continue
+				
+				visited.add(child_id)
 				rel = (proper_child_label, "Child of", current_label, child_id, entity_id)
 				relations.append(rel)
 				await emit(rel)
-				# Only go one level down for top-level children
-				if len(visited) < MAX_NODES:
-					visited.add(child_id)
-					child_current_label = _get_label(child_id)
-					if child_current_label and child_current_label.strip():
-						_validate_qid(child_id)
-						# Get grandchildren (one more level)
-						for grandchild_id, grandchild_label in _get_children_by_p527(child_id):
-							if grandchild_id not in visited and grandchild_id != child_id:
-								valid_grandchild, _ = _validate_qid(grandchild_id)
-								if valid_grandchild:
-									proper_grandchild_label = _get_label(grandchild_id)
-									if proper_grandchild_label and proper_grandchild_label.strip():
-										rel = (proper_grandchild_label, "Child of", child_current_label, grandchild_id, child_id)
-										relations.append(rel)
-										await emit(rel)
+				
+				if remaining_depth > 1:
+					children_to_explore.append((child_id, proper_child_label))
 
-		# Children by reverse P279
+		# Collect children by reverse P279
 		for child_id, child_label in _get_children(entity_id):
 			if child_id != entity_id and child_id not in visited:
 				valid_child, child_class = _validate_qid(child_id)
@@ -735,25 +762,19 @@ async def fetch_language_relationships(language_name: str, depth: int, websocket
 				proper_child_label = _get_label(child_id)
 				if not proper_child_label or proper_child_label.strip() == "":
 					continue
+				
+				visited.add(child_id)
 				rel = (proper_child_label, "Child of", current_label, child_id, entity_id)
 				relations.append(rel)
 				await emit(rel)
-				# Only go one level down for top-level children
-				if len(visited) < MAX_NODES:
-					visited.add(child_id)
-					child_current_label = _get_label(child_id)
-					if child_current_label and child_current_label.strip():
-						_validate_qid(child_id)
-						# Get grandchildren (one more level)
-						for grandchild_id, grandchild_label in _get_children(child_id):
-							if grandchild_id not in visited and grandchild_id != child_id:
-								valid_grandchild, _ = _validate_qid(grandchild_id)
-								if valid_grandchild:
-									proper_grandchild_label = _get_label(grandchild_id)
-									if proper_grandchild_label and proper_grandchild_label.strip():
-										rel = (proper_grandchild_label, "Child of", child_current_label, grandchild_id, child_id)
-										relations.append(rel)
-										await emit(rel)
+				
+				if remaining_depth > 1:
+					children_to_explore.append((child_id, proper_child_label))
+
+		# Recursively explore children at the next depth level
+		for child_id, child_label in children_to_explore:
+			if len(visited) < MAX_NODES:
+				await explore_children_with_depth(child_id, child_label, remaining_depth - 1)
 
 	# Perform traversal with immediate emission - start with both directions
 	await recurse(root_qid, 1, "both")
