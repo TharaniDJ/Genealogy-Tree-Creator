@@ -5,6 +5,7 @@ from app.models.language import LanguageRelationship, LanguageInfo, Distribution
 from app.models.graph import GraphSaveRequest, GraphResponse, GraphUpdateRequest
 from app.services.graph_repository import graph_repo
 
+from app.services.generate_relationships import start_dataset_generation, get_task_status
 router = APIRouter()
 
 @router.get("/relationships/{language_name}/{depth}", response_model=List[LanguageRelationship])
@@ -50,7 +51,38 @@ async def get_distribution_map(qid: str):
     except Exception as e:
         print(f"Error fetching distribution map: {e}")
         raise HTTPException(status_code=500, detail=f"Error fetching distribution map: {str(e)}")
+@router.post('/create-dataset')
+async def create_dataset():
+    """
+    Start dataset generation as a background task.
+    Returns immediately with a task ID to track progress.
+    """
+    try:
+        task_id = start_dataset_generation()
+        return {
+            "message": "Dataset generation started",
+            "task_id": task_id,
+            "status_endpoint": f"/dataset-status/{task_id}"
+        }
+    except Exception as e:
+        print(f'Error starting dataset creation: {e}')
+        raise HTTPException(status_code=500, detail=f"Error starting dataset creation: {str(e)}")
 
+@router.get('/dataset-status/{task_id}')
+async def get_dataset_status(task_id: str):
+    """
+    Get the status of a dataset generation task.
+    """
+    try:
+        status = get_task_status(task_id)
+        if not status:
+            raise HTTPException(status_code=404, detail="Task not found")
+        return status
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f'Error getting dataset status: {e}')
+        raise HTTPException(status_code=500, detail=f"Error getting dataset status: {str(e)}")
 @router.get('/info/{qid}', response_model=LanguageInfo)
 async def get_language_info(qid: str):
     """
@@ -102,6 +134,8 @@ async def get_service_stats():
             "/relationships/{language_name}/{depth}",
             "/distribution-map/{qid}",
             "/info/{qid}",
+            "/create-dataset",
+            "/dataset-status/{task_id}",
             "/health",
             "/stats"
         ]

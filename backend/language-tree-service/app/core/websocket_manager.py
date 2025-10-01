@@ -1,7 +1,7 @@
 import asyncio
 import json
 import logging
-from typing import Dict, Set
+from typing import Dict, Set, Optional
 from fastapi import WebSocket, WebSocketDisconnect
 
 logger = logging.getLogger(__name__)
@@ -12,11 +12,14 @@ class WebSocketManager:
     def __init__(self):
         self.active_connections: Dict[str, WebSocket] = {}
         self.user_connections: Dict[str, Set[str]] = {}
+        self.active_tasks: Dict[str, asyncio.Task] = {}  # Track active tasks per connection
+        self.cancellation_tokens: Dict[str, asyncio.Event] = {}  # Cancellation tokens per connection
         
-    async def connect(self, websocket: WebSocket, connection_id: str, user_id: str = None):
+    async def connect(self, websocket: WebSocket, connection_id: str, user_id: Optional[str] = None):
         """Accept a new WebSocket connection"""
         await websocket.accept()
         self.active_connections[connection_id] = websocket
+        self.cancellation_tokens[connection_id] = asyncio.Event()
         
         if user_id:
             if user_id not in self.user_connections:
@@ -25,8 +28,20 @@ class WebSocketManager:
             
         logger.info(f"WebSocket connected: {connection_id} for user: {user_id}")
         
-    def disconnect(self, connection_id: str, user_id: str = None):
-        """Remove a WebSocket connection"""
+    def disconnect(self, connection_id: str, user_id: Optional[str] = None):
+        """Remove a WebSocket connection and cancel any active tasks"""
+        # Cancel any active tasks for this connection
+        if connection_id in self.active_tasks:
+            task = self.active_tasks[connection_id]
+            if not task.done():
+                task.cancel()
+            del self.active_tasks[connection_id]
+            
+        # Set cancellation token
+        if connection_id in self.cancellation_tokens:
+            self.cancellation_tokens[connection_id].set()
+            del self.cancellation_tokens[connection_id]
+            
         if connection_id in self.active_connections:
             del self.active_connections[connection_id]
             
@@ -36,6 +51,24 @@ class WebSocketManager:
                 del self.user_connections[user_id]
                 
         logger.info(f"WebSocket disconnected: {connection_id} for user: {user_id}")
+        
+    def set_active_task(self, connection_id: str, task: asyncio.Task):
+        """Set the active task for a connection"""
+        if connection_id in self.active_tasks:
+            old_task = self.active_tasks[connection_id]
+            if not old_task.done():
+                old_task.cancel()
+        self.active_tasks[connection_id] = task
+        
+    def is_connection_cancelled(self, connection_id: str) -> bool:
+        """Check if a connection has been cancelled"""
+        if connection_id not in self.cancellation_tokens:
+            return True  # Connection no longer exists
+        return self.cancellation_tokens[connection_id].is_set()
+        
+    def is_connection_active(self, connection_id: str) -> bool:
+        """Check if a connection is still active"""
+        return connection_id in self.active_connections and not self.is_connection_cancelled(connection_id)
         
     async def send_personal_message(self, message: str, connection_id: str):
         """Send a message to a specific connection"""
@@ -59,19 +92,19 @@ class WebSocketManager:
         for connection_id in connection_ids:
             await self.send_personal_message(message, connection_id)
             
-    async def send_message(self, message: str, connection_id: str = None):
+    async def send_message(self, message: str, connection_id: Optional[str] = None):
         """Send message to specific connection or broadcast to all"""
         if connection_id:
             await self.send_personal_message(message, connection_id)
         else:
             await self.broadcast(message)
             
-    async def send_json(self, data: dict, connection_id: str = None):
+    async def send_json(self, data: dict, connection_id: Optional[str] = None):
         """Send JSON data to connection(s)"""
         message = json.dumps(data)
         await self.send_message(message, connection_id)
         
-    async def send_status(self, status: str, progress: int = None, connection_id: str = None):
+    async def send_status(self, status: str, progress: Optional[int] = None, connection_id: Optional[str] = None):
         """Send status update"""
         data = {
             "type": "status",
@@ -82,7 +115,7 @@ class WebSocketManager:
         }
         await self.send_json(data, connection_id)
         
-    async def send_error(self, error: str, connection_id: str = None):
+    async def send_error(self, error: str, connection_id: Optional[str] = None):
         """Send error message"""
         data = {
             "type": "error",

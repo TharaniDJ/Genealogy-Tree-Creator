@@ -1,0 +1,450 @@
+[
+    {
+        "language1": "Newfoundland English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q2849615",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Canadian English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q44676",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Namlish",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q953412",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "South African English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q1156228",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "South Atlantic English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q7566064",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Nigerian English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q7033019",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "dialects of English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q12858101",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Malawian English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q6741487",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Utah Mormon English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q65082803",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Australian English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q44679",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Solomon Islands English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q7558643",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Hong Kong English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q1068863",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Trinidadian and Tobagonian English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q7842492",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Iyaric",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q3368839",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Yola",
+        "relationship": "Child of",
+        "language2": "Anglic",
+        "language1_qid": "Q56395",
+        "language2_qid": "Q1346342"
+    },
+    {
+        "language1": "Modern English",
+        "relationship": "Child of",
+        "language2": "Anglic",
+        "language1_qid": "Q1649537",
+        "language2_qid": "Q1346342"
+    },
+    {
+        "language1": "Bay Islands English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q4874023",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Zulu English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q8075191",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Indian English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q1348800",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Zimbabwean English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q104876826",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Ghanaian English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q25105912",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Solomon Islands Pidgin English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q55651630",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "South Asian English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q7566032",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Pennsylvania Dutch English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q7163723",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Hiberno-English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q665624",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Bahamian English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q4842384",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Saint Helena English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q15714765",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Pakistani English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q12859294",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Ozark English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q7116484",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Luminar English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q114591062",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Old English",
+        "relationship": "Child of",
+        "language2": "Anglic",
+        "language1_qid": "Q42365",
+        "language2_qid": "Q1346342"
+    },
+    {
+        "language1": "Maltese English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q131745798",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Palauan English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q7126883",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Gibraltarian English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q5559233",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Globish",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q1232847",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "African Nova Scotian English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q65083969",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Quebec English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q7269768",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Hebronics",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q2919292",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Hawaiian English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q1531433",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Torres Strait English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q7827064",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Ulster English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q6840826",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Manx English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q6753295",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Belizean English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q111911970",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Fingalian",
+        "relationship": "Child of",
+        "language2": "Anglic",
+        "language1_qid": "Q3072588",
+        "language2_qid": "Q1346342"
+    },
+    {
+        "language1": "American English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q7976",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "world Englishes",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q3545554",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "New Zealand English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q44661",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Channel Island English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q4327433",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Sierra Leonean English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q17081997",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "International English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q1342549",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Scottish English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q1553250",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Ugandan English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q7877674",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "North American English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q7053766",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Tinglish",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q1546608",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Tristan da Cunha English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q15714762",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Euro English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q23580217",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Singapore English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q3610939",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Brunei English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q17027001",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Falkland Islands English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q1394359",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "English",
+        "relationship": "Child of",
+        "language2": "Anglic",
+        "language1_qid": "Q1860",
+        "language2_qid": "Q1346342"
+    },
+    {
+        "language1": "Ghanaian Pidgin English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q5555465",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Zambian English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q131447992",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Welsh English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q2363292",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Ebonics",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q8013",
+        "language2_qid": "Q1860"
+    }
+]

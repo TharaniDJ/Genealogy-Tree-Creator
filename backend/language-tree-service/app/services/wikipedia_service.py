@@ -543,7 +543,7 @@ def relationships_depth1_by_qid(qid: str) -> List[Dict[str, str]]:
 	return out
 
 
-async def fetch_language_relationships(language_name: str, depth: int, websocket_manager: Optional[WebSocketManager] = None) -> List[Dict[str, str]]:
+async def fetch_language_relationships(language_name: str, depth: int, websocket_manager: Optional[WebSocketManager] = None, connection_id: Optional[str] = None) -> List[Dict[str, str]]:
 	"""Fetch genealogical relationships for a language up to `depth`.
 
 	Streams each discovered relationship via websocket (type=relationship) with
@@ -585,7 +585,7 @@ async def fetch_language_relationships(language_name: str, depth: int, websocket
 				"is_constructed": "constructed_language" in root_types,
 				"is_sign_language": "sign_language" in root_types
 			}
-		})
+		}, connection_id)
 	
 	VALID_QIDS.add(root_qid)
 
@@ -614,6 +614,11 @@ async def fetch_language_relationships(language_name: str, depth: int, websocket
 		emitted.add(rel)
 		total += 1
 		if websocket_manager:
+			# Check if connection is still active before sending
+			if connection_id and hasattr(websocket_manager, 'is_connection_active'):
+				if not websocket_manager.is_connection_active(connection_id):
+					return  # Stop processing if connection is closed
+			
 			# Derive categories (classification) from cached QIDs if available
 			cat1 = CLASSIFICATION_CACHE.get(qid1) if qid1 else None
 			cat2 = CLASSIFICATION_CACHE.get(qid2) if qid2 else None
@@ -630,7 +635,8 @@ async def fetch_language_relationships(language_name: str, depth: int, websocket
 						"language1_category": cat1,
 						"language2_category": cat2,
 					},
-				}
+				},
+				connection_id
 			)
 
 	async def recurse(entity_id: str, current_depth: int, direction: str = "both"):
@@ -642,6 +648,14 @@ async def fetch_language_relationships(language_name: str, depth: int, websocket
 			current_depth: Current traversal depth
 			direction: "up" (parents only), "down" (children only), "both" (both directions)
 		"""
+		# Check if connection is still active or task was cancelled
+		if connection_id and websocket_manager and hasattr(websocket_manager, 'is_connection_active'):
+			if not websocket_manager.is_connection_active(connection_id):
+				return
+		
+		# Allow cancellation
+		await asyncio.sleep(0)
+		
 		if entity_id in visited or len(visited) >= MAX_NODES:
 			return
 		
@@ -673,6 +687,11 @@ async def fetch_language_relationships(language_name: str, depth: int, websocket
 		# Parents (only if direction allows upward traversal)
 		if direction in ["up", "both"]:
 			for parent_id, parent_label in _get_parents(entity_id):
+				# Check cancellation in loop
+				if connection_id and websocket_manager and hasattr(websocket_manager, 'is_connection_active'):
+					if not websocket_manager.is_connection_active(connection_id):
+						return
+				
 				if parent_id in visited:
 					continue
 				valid_parent, parent_class = _validate_qid(parent_id)
@@ -728,6 +747,14 @@ async def fetch_language_relationships(language_name: str, depth: int, websocket
 	async def explore_children_with_depth(entity_id: str, current_label: str, remaining_depth: int):
 		"""Helper function to explore children of a given entity up to a specified depth.
 		Performs depth-respecting downward traversal for breadth-first search."""
+		# Check if connection is still active or task was cancelled
+		if connection_id and websocket_manager and hasattr(websocket_manager, 'is_connection_active'):
+			if not websocket_manager.is_connection_active(connection_id):
+				return
+		
+		# Allow cancellation
+		await asyncio.sleep(0)
+		
 		if remaining_depth <= 0 or len(visited) >= MAX_NODES:
 			return
 			
@@ -735,6 +762,11 @@ async def fetch_language_relationships(language_name: str, depth: int, websocket
 		
 		# Collect children by P527
 		for child_id, child_label in _get_children_by_p527(entity_id):
+			# Check cancellation in loop
+			if connection_id and websocket_manager and hasattr(websocket_manager, 'is_connection_active'):
+				if not websocket_manager.is_connection_active(connection_id):
+					return
+					
 			if child_id != entity_id and child_id not in visited:
 				valid_child, child_class = _validate_qid(child_id)
 				if not valid_child:
@@ -754,6 +786,11 @@ async def fetch_language_relationships(language_name: str, depth: int, websocket
 
 		# Collect children by reverse P279
 		for child_id, child_label in _get_children(entity_id):
+			# Check cancellation in loop
+			if connection_id and websocket_manager and hasattr(websocket_manager, 'is_connection_active'):
+				if not websocket_manager.is_connection_active(connection_id):
+					return
+					
 			if child_id != entity_id and child_id not in visited:
 				valid_child, child_class = _validate_qid(child_id)
 				if not valid_child:
@@ -773,6 +810,11 @@ async def fetch_language_relationships(language_name: str, depth: int, websocket
 
 		# Recursively explore children at the next depth level
 		for child_id, child_label in children_to_explore:
+			# Check cancellation before each recursive call
+			if connection_id and websocket_manager and hasattr(websocket_manager, 'is_connection_active'):
+				if not websocket_manager.is_connection_active(connection_id):
+					return
+					
 			if len(visited) < MAX_NODES:
 				await explore_children_with_depth(child_id, child_label, remaining_depth - 1)
 

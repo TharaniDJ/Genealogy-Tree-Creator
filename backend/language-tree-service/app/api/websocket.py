@@ -1,13 +1,11 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 import json
 import uuid
+import asyncio
 import app.services.wikipedia_service as wiki
-from app.core.websocket_manager import WebSocketManager
+from app.core.shared import websocket_manager
 
 router = APIRouter()
-
-# Create a global WebSocket manager instance
-websocket_manager = WebSocketManager()
 
 @router.websocket("/ws/relationships")
 async def websocket_language_relationships(websocket: WebSocket):
@@ -41,9 +39,9 @@ async def websocket_language_relationships(websocket: WebSocket):
                     action = parsed.get("action")
                     if action == "expand_by_qid":
                         qid = parsed.get("qid")
+                        if not qid or not isinstance(qid, str):
+                            raise ValueError("Missing or invalid 'qid' for expand_by_qid")
                         depth = int(parsed.get("depth", 1))
-                        if not qid:
-                            raise ValueError("Missing 'qid' for expand_by_qid")
                         if depth < 1 or depth > 5:
                             raise ValueError("Depth must be between 1 and 5")
 
@@ -53,40 +51,77 @@ async def websocket_language_relationships(websocket: WebSocket):
                             connection_id
                         )
 
-                        # For expand we only support depth=1 currently; ignore larger values and treat as 1
-                        rels = wiki.relationships_depth1_by_qid(qid)
+                        # Create a task for the expansion operation
+                        async def expand_task():
+                            try:
+                                # For expand we only support depth=1 currently; ignore larger values and treat as 1
+                                rels = wiki.relationships_depth1_by_qid(qid)
 
-                        # Stream each relationship to this specific connection
-                        for rel in rels:
-                            await websocket_manager.send_json({
-                                "type": "relationship",
-                                "data": rel
-                            }, connection_id)
+                                # Stream each relationship to this specific connection
+                                for rel in rels:
+                                    # Check if connection is still active before sending
+                                    if not websocket_manager.is_connection_active(connection_id):
+                                        break
+                                    await websocket_manager.send_json({
+                                        "type": "relationship",
+                                        "data": rel
+                                    }, connection_id)
 
-                        await websocket_manager.send_json({
-                            "type": "expand_complete",
-                            "data": {"qid": qid, "added": len(rels)}
-                        }, connection_id)
+                                # Send completion message if connection is still active
+                                if websocket_manager.is_connection_active(connection_id):
+                                    await websocket_manager.send_json({
+                                        "type": "expand_complete",
+                                        "data": {"qid": qid, "added": len(rels)}
+                                    }, connection_id)
+                            except asyncio.CancelledError:
+                                print(f"Expand task cancelled for connection {connection_id}")
+                                raise
+                            except Exception as e:
+                                if websocket_manager.is_connection_active(connection_id):
+                                    await websocket_manager.send_error(f"Error expanding node: {str(e)}", connection_id)
+
+                        # Start the task and register it
+                        task = asyncio.create_task(expand_task())
+                        websocket_manager.set_active_task(connection_id, task)
+                        await task
                         continue
+                        
                     elif action == "expand_by_label":
                         # Fallback: expand using a label by reusing depth-1 fetch
                         label = parsed.get("label")
-                        if not label:
-                            raise ValueError("Missing 'label' for expand_by_label")
+                        if not label or not isinstance(label, str):
+                            raise ValueError("Missing or invalid 'label' for expand_by_label")
                         await websocket_manager.send_status(
                             f"Expanding node '{label}' (depth 1)...",
                             0,
                             connection_id
                         )
-                        relationships = await wiki.fetch_language_relationships(
-                            label,
-                            1,
-                            websocket_manager
-                        )
-                        await websocket_manager.send_json({
-                            "type": "expand_complete",
-                            "data": {"label": label, "added": len(relationships)}
-                        }, connection_id)
+                        
+                        # Create a task for the expansion operation
+                        async def expand_by_label_task():
+                            try:
+                                relationships = await wiki.fetch_language_relationships(
+                                    label,
+                                    1,
+                                    websocket_manager,
+                                    connection_id
+                                )
+                                if websocket_manager.is_connection_active(connection_id):
+                                    await websocket_manager.send_json({
+                                        "type": "expand_complete",
+                                        "data": {"label": label, "added": len(relationships)}
+                                    }, connection_id)
+                            except asyncio.CancelledError:
+                                print(f"Expand by label task cancelled for connection {connection_id}")
+                                raise
+                            except Exception as e:
+                                if websocket_manager.is_connection_active(connection_id):
+                                    await websocket_manager.send_error(f"Error expanding node: {str(e)}", connection_id)
+                        
+                        # Start the task and register it
+                        task = asyncio.create_task(expand_by_label_task())
+                        websocket_manager.set_active_task(connection_id, task)
+                        await task
                         continue
 
                 # Legacy format: "language_name,depth"
@@ -109,26 +144,45 @@ async def websocket_language_relationships(websocket: WebSocket):
                     connection_id
                 )
                 
-                # Fetch relationships with real-time updates
-                relationships = await wiki.fetch_language_relationships(
-                    language_name, 
-                    depth, 
-                    websocket_manager
-                )
+                # Create a task for the main exploration
+                async def exploration_task():
+                    try:
+                        # Fetch relationships with real-time updates
+                        relationships = await wiki.fetch_language_relationships(
+                            language_name, 
+                            depth, 
+                            websocket_manager,
+                            connection_id
+                        )
+                        
+                        # Send final result if connection is still active
+                        if websocket_manager.is_connection_active(connection_id):
+                            await websocket_manager.send_json({
+                                "type": "complete",
+                                "data": {
+                                    "language": language_name,
+                                    "depth": depth,
+                                    "total_relationships": len(relationships),
+                                    "relationships": relationships
+                                }
+                            }, connection_id)
+                    except asyncio.CancelledError:
+                        print(f"Exploration task cancelled for connection {connection_id}")
+                        raise
+                    except Exception as e:
+                        if websocket_manager.is_connection_active(connection_id):
+                            await websocket_manager.send_error(f"Error processing request: {str(e)}", connection_id)
                 
-                # Send final result
-                await websocket_manager.send_json({
-                    "type": "complete",
-                    "data": {
-                        "language": language_name,
-                        "depth": depth,
-                        "total_relationships": len(relationships),
-                        "relationships": relationships
-                    }
-                }, connection_id)
+                # Start the task and register it
+                task = asyncio.create_task(exploration_task())
+                websocket_manager.set_active_task(connection_id, task)
+                await task
                 
             except ValueError as e:
                 await websocket_manager.send_error(f"Invalid request: {str(e)}", connection_id)
+            except asyncio.CancelledError:
+                print(f"WebSocket task cancelled for connection {connection_id}")
+                break
             except Exception as e:
                 print(f"Error processing WebSocket request: {e}")
                 await websocket_manager.send_error(f"Error processing request: {str(e)}", connection_id)
