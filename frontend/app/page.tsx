@@ -382,10 +382,10 @@
 //     </main>
 //   );
 // }
-
+// second code
+// 'use client';
 'use client';
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import GenealogyTree from '@/components/GenealogyTree';
 import { useWebSocket } from '@/hooks/useWebSocket';
 
@@ -418,8 +418,8 @@ export default function Home() {
     }
   };
 
-  // Handle expand node functionality
-  const handleExpandNode = (personName: string, depth: number) => {
+  // Handle expand node functionality (for initial name-based searches)
+  const handleExpandNode = useCallback((personName: string, depth: number) => {
     if (connectionStatus === 'connected') {
       sendMessage({
         action: "fetch_relationships",
@@ -427,7 +427,30 @@ export default function Home() {
         depth: depth
       });
     }
-  };
+  }, [connectionStatus, sendMessage]);
+
+  // NEW: Handle QID-based expansion (for node expansion)
+  const handleExpandNodeByQid = useCallback((qid: string, depth: number, entityName?: string) => {
+    if (connectionStatus !== 'connected') {
+      console.error('WebSocket not connected');
+      return;
+    }
+
+    try {
+      console.log(`Sending QID expansion request: ${qid}, depth: ${depth}, entity: ${entityName}`);
+      
+      // Send QID expansion request to backend
+      sendMessage({
+        action: "expand_by_qid",
+        qid: qid,
+        depth: depth,
+        entity_name: entityName
+      });
+      
+    } catch (error) {
+      console.error('Error sending QID expansion request:', error);
+    }
+  }, [connectionStatus, sendMessage]);
 
   // Auto-connect on component mount
   useEffect(() => {
@@ -566,6 +589,7 @@ export default function Home() {
           <p>Messages received: {websocketData.length}</p>
           <p>People: {websocketData.filter(m => m.type === 'personal_details').length}</p>
           <p>Relationships: {websocketData.filter(m => m.type === 'relationship').length}</p>
+          <p className="text-purple-600 font-medium">QID-based expansion enabled</p>
         </div>
 
         {/* Recent Messages (Debug) */}
@@ -581,12 +605,13 @@ export default function Home() {
         )}
       </div>
       
-      {/* Genealogy Tree - Takes full screen */}
+      {/* Genealogy Tree - Takes full screen with BOTH expansion handlers */}
       <GenealogyTree 
         websocketData={websocketData} 
-        onExpandNode={handleExpandNode}
+        onExpandNode={handleExpandNode}          // For initial name-based searches
+        onExpandNodeByQid={handleExpandNodeByQid} // For QID-based node expansion
+        expandDepth={3}                          // Default expansion depth for nodes
       />
     </main>
   );
 }
-
