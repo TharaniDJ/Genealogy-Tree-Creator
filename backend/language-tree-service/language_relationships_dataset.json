@@ -1,0 +1,6253 @@
+[
+    {
+        "language1": "Central Dravidian",
+        "relationship": "Child of",
+        "language2": "Dravidian",
+        "language1_qid": "Q12628823",
+        "language2_qid": "Q33311"
+    },
+    {
+        "language1": "Classical Arabic",
+        "relationship": "Child of",
+        "language2": "Arabic",
+        "language1_qid": "Q1654327",
+        "language2_qid": "Q13955"
+    },
+    {
+        "language1": "Gaúcho dialect",
+        "relationship": "Child of",
+        "language2": "Brazilian Portuguese",
+        "language1_qid": "Q10266001",
+        "language2_qid": "Q750553"
+    },
+    {
+        "language1": "!Kwi",
+        "relationship": "Child of",
+        "language2": "Khoisan",
+        "language1_qid": "Q12646371",
+        "language2_qid": "Q33614"
+    },
+    {
+        "language1": "New York dialect",
+        "relationship": "Child of",
+        "language2": "American English",
+        "language1_qid": "Q2741799",
+        "language2_qid": "Q7976"
+    },
+    {
+        "language1": "Phrygian",
+        "relationship": "Child of",
+        "language2": "Indo-European",
+        "language1_qid": "Q36751",
+        "language2_qid": "Q19860"
+    },
+    {
+        "language1": "Falkland Islands English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q1394359",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Sino-Bai",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q125555927",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "Meitei",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q33868",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "Coastal Colombian Spanish",
+        "relationship": "Child of",
+        "language2": "Colombian Spanish",
+        "language1_qid": "Q520272",
+        "language2_qid": "Q1115875"
+    },
+    {
+        "language1": "Muyuw",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q3502878",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Mòcheno",
+        "relationship": "Child of",
+        "language2": "Upper German",
+        "language1_qid": "Q268130",
+        "language2_qid": "Q263522"
+    },
+    {
+        "language1": "Old Ukrainian",
+        "relationship": "Child of",
+        "language2": "East Slavic",
+        "language1_qid": "Q6536321",
+        "language2_qid": "Q144713"
+    },
+    {
+        "language1": "Bofi",
+        "relationship": "Child of",
+        "language2": "Niger–Congo",
+        "language1_qid": "Q34914",
+        "language2_qid": "Q33838"
+    },
+    {
+        "language1": "Amorite",
+        "relationship": "Child of",
+        "language2": "Semitic",
+        "language1_qid": "Q35941",
+        "language2_qid": "Q34049"
+    },
+    {
+        "language1": "North Omotic",
+        "relationship": "Child of",
+        "language2": "Omotic",
+        "language1_qid": "Q456363",
+        "language2_qid": "Q33860"
+    },
+    {
+        "language1": "Jarawa",
+        "relationship": "Child of",
+        "language2": "Ongan",
+        "language1_qid": "Q2475526",
+        "language2_qid": "Q2090575"
+    },
+    {
+        "language1": "Andamanese",
+        "relationship": "Child of",
+        "language2": "human language",
+        "language1_qid": "Q32940",
+        "language2_qid": "Q20162172"
+    },
+    {
+        "language1": "Bole",
+        "relationship": "Child of",
+        "language2": "Chadic",
+        "language1_qid": "Q3436680",
+        "language2_qid": "Q33184"
+    },
+    {
+        "language1": "Irula",
+        "relationship": "Child of",
+        "language2": "Dravidian",
+        "language1_qid": "Q33363",
+        "language2_qid": "Q33311"
+    },
+    {
+        "language1": "Moscow dialect",
+        "relationship": "Child of",
+        "language2": "Russian",
+        "language1_qid": "Q4304412",
+        "language2_qid": "Q7737"
+    },
+    {
+        "language1": "Haitian French",
+        "relationship": "Child of",
+        "language2": "French",
+        "language1_qid": "Q17004144",
+        "language2_qid": "Q150"
+    },
+    {
+        "language1": "Mlap",
+        "relationship": "Child of",
+        "language2": "Nimboran",
+        "language1_qid": "Q6885683",
+        "language2_qid": "Q12638426"
+    },
+    {
+        "language1": "Austric",
+        "relationship": "Child of",
+        "language2": "human language",
+        "language1_qid": "Q783787",
+        "language2_qid": "Q20162172"
+    },
+    {
+        "language1": "Ebonics",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q8013",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Middle Frisian",
+        "relationship": "Child of",
+        "language2": "Frisian",
+        "language1_qid": "Q6841428",
+        "language2_qid": "Q25325"
+    },
+    {
+        "language1": "Administrative Late Egyptian",
+        "relationship": "Child of",
+        "language2": "Egyptian",
+        "language1_qid": "Q125153390",
+        "language2_qid": "Q50868"
+    },
+    {
+        "language1": "Zakhring",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q56996",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "São Tomean Portuguese",
+        "relationship": "Child of",
+        "language2": "Portuguese",
+        "language1_qid": "Q7665714",
+        "language2_qid": "Q5146"
+    },
+    {
+        "language1": "Berta",
+        "relationship": "Child of",
+        "language2": "Nilo-Saharan",
+        "language1_qid": "Q33178",
+        "language2_qid": "Q33705"
+    },
+    {
+        "language1": "Dhimal",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q1207648",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "Gǁana",
+        "relationship": "Child of",
+        "language2": "Khoisan",
+        "language1_qid": "Q1975199",
+        "language2_qid": "Q33614"
+    },
+    {
+        "language1": "Moabite",
+        "relationship": "Child of",
+        "language2": "Semitic",
+        "language1_qid": "Q36385",
+        "language2_qid": "Q34049"
+    },
+    {
+        "language1": "Modern English",
+        "relationship": "Child of",
+        "language2": "Anglic",
+        "language1_qid": "Q1649537",
+        "language2_qid": "Q1346342"
+    },
+    {
+        "language1": "Bougiote Arabic",
+        "relationship": "Child of",
+        "language2": "Algerian Arabic",
+        "language1_qid": "Q2859328",
+        "language2_qid": "Q56499"
+    },
+    {
+        "language1": "Burgundian",
+        "relationship": "Child of",
+        "language2": "Oïl",
+        "language1_qid": "Q508332",
+        "language2_qid": "Q37351"
+    },
+    {
+        "language1": "Eastern Turkic",
+        "relationship": "Child of",
+        "language2": "Turkic",
+        "language1_qid": "Q10782760",
+        "language2_qid": "Q34090"
+    },
+    {
+        "language1": "Wae Rana",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q7959375",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Eastern Libyan Arabic",
+        "relationship": "Child of",
+        "language2": "Libyan Arabic",
+        "language1_qid": "Q123347094",
+        "language2_qid": "Q56503"
+    },
+    {
+        "language1": "Wuhan dialect",
+        "relationship": "Child of",
+        "language2": "Mandarin",
+        "language1_qid": "Q11124731",
+        "language2_qid": "Q9192"
+    },
+    {
+        "language1": "Rajong",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q7286370",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Lusitanian",
+        "relationship": "Child of",
+        "language2": "Indo-European",
+        "language1_qid": "Q35960",
+        "language2_qid": "Q19860"
+    },
+    {
+        "language1": "North Mesopotamian Arabic",
+        "relationship": "Child of",
+        "language2": "Arabic",
+        "language1_qid": "Q56577",
+        "language2_qid": "Q13955"
+    },
+    {
+        "language1": "Yukaghir",
+        "relationship": "Child of",
+        "language2": "Uralic",
+        "language1_qid": "Q34164",
+        "language2_qid": "Q34113"
+    },
+    {
+        "language1": "Trinidadian and Tobagonian English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q7842492",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "New Zealand English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q44661",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Munggui",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q6936018",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Pannonian Rusyn",
+        "relationship": "Child of",
+        "language2": "Slavic",
+        "language1_qid": "Q35660",
+        "language2_qid": "Q23526"
+    },
+    {
+        "language1": "North Caucasian",
+        "relationship": "Child of",
+        "language2": "Dené–Caucasian",
+        "language1_qid": "Q33732",
+        "language2_qid": "Q507968"
+    },
+    {
+        "language1": "Shaozhou Tuhua",
+        "relationship": "Child of",
+        "language2": "Chinese",
+        "language1_qid": "Q1920769",
+        "language2_qid": "Q7850"
+    },
+    {
+        "language1": "Hani",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q56516",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "Madurai Tamil",
+        "relationship": "Child of",
+        "language2": "Dravidian",
+        "language1_qid": "Q6728823",
+        "language2_qid": "Q33311"
+    },
+    {
+        "language1": "Early Demotic",
+        "relationship": "Child of",
+        "language2": "Egyptian",
+        "language1_qid": "Q125175875",
+        "language2_qid": "Q50868"
+    },
+    {
+        "language1": "Alaskan English",
+        "relationship": "Child of",
+        "language2": "American English",
+        "language1_qid": "Q116603695",
+        "language2_qid": "Q7976"
+    },
+    {
+        "language1": "Hamburger Dialect",
+        "relationship": "Child of",
+        "language2": "German",
+        "language1_qid": "Q1572989",
+        "language2_qid": "Q188"
+    },
+    {
+        "language1": "Oromo",
+        "relationship": "Child of",
+        "language2": "Cushitic",
+        "language1_qid": "Q33864",
+        "language2_qid": "Q33248"
+    },
+    {
+        "language1": "Gower dialect",
+        "relationship": "Child of",
+        "language2": "Welsh English",
+        "language1_qid": "Q5590053",
+        "language2_qid": "Q2363292"
+    },
+    {
+        "language1": "Tibeto-Burman",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q34064",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "North–Central American English",
+        "relationship": "Child of",
+        "language2": "American English",
+        "language1_qid": "Q7060510",
+        "language2_qid": "Q7976"
+    },
+    {
+        "language1": "Bourbonnais",
+        "relationship": "Child of",
+        "language2": "Oïl",
+        "language1_qid": "Q2922261",
+        "language2_qid": "Q37351"
+    },
+    {
+        "language1": "Koromfe",
+        "relationship": "Child of",
+        "language2": "Niger–Congo",
+        "language1_qid": "Q35701",
+        "language2_qid": "Q33838"
+    },
+    {
+        "language1": "'Auhelawa",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q5166",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Aleppo Arabic",
+        "relationship": "Child of",
+        "language2": "Levantine Arabic",
+        "language1_qid": "Q7056921",
+        "language2_qid": "Q56593"
+    },
+    {
+        "language1": "Pequeno Português",
+        "relationship": "Child of",
+        "language2": "Portuguese",
+        "language1_qid": "Q7166577",
+        "language2_qid": "Q5146"
+    },
+    {
+        "language1": "French",
+        "relationship": "Child of",
+        "language2": "Oïl",
+        "language1_qid": "Q150",
+        "language2_qid": "Q37351"
+    },
+    {
+        "language1": "South Levantine Arabic",
+        "relationship": "Child of",
+        "language2": "Levantine Arabic",
+        "language1_qid": "Q55633582",
+        "language2_qid": "Q56593"
+    },
+    {
+        "language1": "Yola",
+        "relationship": "Child of",
+        "language2": "Anglic",
+        "language1_qid": "Q56395",
+        "language2_qid": "Q1346342"
+    },
+    {
+        "language1": "Austronesian",
+        "relationship": "Child of",
+        "language2": "Sino-Austronesian",
+        "language1_qid": "Q49228",
+        "language2_qid": "Q7524744"
+    },
+    {
+        "language1": "Old Turkic",
+        "relationship": "Child of",
+        "language2": "Turkic",
+        "language1_qid": "Q60971354",
+        "language2_qid": "Q34090"
+    },
+    {
+        "language1": "Proto-Indo-Iranian",
+        "relationship": "Child of",
+        "language2": "Indo-European",
+        "language1_qid": "Q966439",
+        "language2_qid": "Q19860"
+    },
+    {
+        "language1": "Latin American Spanish",
+        "relationship": "Child of",
+        "language2": "Spanish",
+        "language1_qid": "Q56649449",
+        "language2_qid": "Q1321"
+    },
+    {
+        "language1": "Tigrinya",
+        "relationship": "Child of",
+        "language2": "Semitic",
+        "language1_qid": "Q34124",
+        "language2_qid": "Q34049"
+    },
+    {
+        "language1": "Central Solomon",
+        "relationship": "Child of",
+        "language2": "human language",
+        "language1_qid": "Q1752140",
+        "language2_qid": "Q20162172"
+    },
+    {
+        "language1": "Meriam",
+        "relationship": "Child of",
+        "language2": "Eastern Trans-Fly",
+        "language1_qid": "Q788174",
+        "language2_qid": "Q5330530"
+    },
+    {
+        "language1": "East Scandinavian",
+        "relationship": "Child of",
+        "language2": "North Germanic",
+        "language1_qid": "Q3090263",
+        "language2_qid": "Q106085"
+    },
+    {
+        "language1": "Silesian",
+        "relationship": "Child of",
+        "language2": "Lechitic",
+        "language1_qid": "Q30319",
+        "language2_qid": "Q742782"
+    },
+    {
+        "language1": "Paleo-Arabic",
+        "relationship": "Child of",
+        "language2": "Arabic",
+        "language1_qid": "Q124683392",
+        "language2_qid": "Q13955"
+    },
+    {
+        "language1": "Kassite",
+        "relationship": "Child of",
+        "language2": "Hurro-Urartian",
+        "language1_qid": "Q35612",
+        "language2_qid": "Q1144159"
+    },
+    {
+        "language1": "Gizrra",
+        "relationship": "Child of",
+        "language2": "Eastern Trans-Fly",
+        "language1_qid": "Q5565941",
+        "language2_qid": "Q5330530"
+    },
+    {
+        "language1": "Fogaha",
+        "relationship": "Child of",
+        "language2": "Berber",
+        "language1_qid": "Q107610173",
+        "language2_qid": "Q25448"
+    },
+    {
+        "language1": "Khelma",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q37054",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "Lendu",
+        "relationship": "Child of",
+        "language2": "Nilo-Saharan",
+        "language1_qid": "Q523823",
+        "language2_qid": "Q33705"
+    },
+    {
+        "language1": "Alaskan Russian",
+        "relationship": "Child of",
+        "language2": "Russian",
+        "language1_qid": "Q27807497",
+        "language2_qid": "Q7737"
+    },
+    {
+        "language1": "Vishavan",
+        "relationship": "Child of",
+        "language2": "Dravidian",
+        "language1_qid": "Q14916908",
+        "language2_qid": "Q33311"
+    },
+    {
+        "language1": "Old French",
+        "relationship": "Child of",
+        "language2": "Oïl",
+        "language1_qid": "Q35222",
+        "language2_qid": "Q37351"
+    },
+    {
+        "language1": "Judeo-Egyptian Arabic",
+        "relationship": "Child of",
+        "language2": "Judeo-Arabic",
+        "language1_qid": "Q62388282",
+        "language2_qid": "Q37733"
+    },
+    {
+        "language1": "Old English",
+        "relationship": "Child of",
+        "language2": "Anglic",
+        "language1_qid": "Q42365",
+        "language2_qid": "Q1346342"
+    },
+    {
+        "language1": "Eastern Egyptian Arabic",
+        "relationship": "Child of",
+        "language2": "Egyptian Arabic",
+        "language1_qid": "Q136029685",
+        "language2_qid": "Q29919"
+    },
+    {
+        "language1": "Vistula German",
+        "relationship": "Child of",
+        "language2": "German",
+        "language1_qid": "Q6935750",
+        "language2_qid": "Q188"
+    },
+    {
+        "language1": "American German",
+        "relationship": "Child of",
+        "language2": "German",
+        "language1_qid": "Q65057350",
+        "language2_qid": "Q188"
+    },
+    {
+        "language1": "Graeco-Phrygian",
+        "relationship": "Child of",
+        "language2": "Indo-European",
+        "language1_qid": "Q17143217",
+        "language2_qid": "Q19860"
+    },
+    {
+        "language1": "Hassaniya Arabic",
+        "relationship": "Child of",
+        "language2": "Arabic",
+        "language1_qid": "Q56231",
+        "language2_qid": "Q13955"
+    },
+    {
+        "language1": "Friulian",
+        "relationship": "Child of",
+        "language2": "Rhaeto-Romance",
+        "language1_qid": "Q33441",
+        "language2_qid": "Q515593"
+    },
+    {
+        "language1": "Anglo-Frisian",
+        "relationship": "Child of",
+        "language2": "West Germanic",
+        "language1_qid": "Q5329170",
+        "language2_qid": "Q26721"
+    },
+    {
+        "language1": "Norwegian",
+        "relationship": "Child of",
+        "language2": "North Germanic",
+        "language1_qid": "Q9043",
+        "language2_qid": "Q106085"
+    },
+    {
+        "language1": "Najdi Arabic",
+        "relationship": "Child of",
+        "language2": "Arabic",
+        "language1_qid": "Q56574",
+        "language2_qid": "Q13955"
+    },
+    {
+        "language1": "Chinese",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q7850",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "Northern Pinghua",
+        "relationship": "Child of",
+        "language2": "Pinghua",
+        "language1_qid": "Q84302463",
+        "language2_qid": "Q2735715"
+    },
+    {
+        "language1": "Tocharian",
+        "relationship": "Child of",
+        "language2": "Indo-European",
+        "language1_qid": "Q37029",
+        "language2_qid": "Q19860"
+    },
+    {
+        "language1": "Graubünden/Grisons dialect",
+        "relationship": "Child of",
+        "language2": "Swiss German",
+        "language1_qid": "Q1020828",
+        "language2_qid": "Q387066"
+    },
+    {
+        "language1": "Chu",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q28410857",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "Zayani",
+        "relationship": "Child of",
+        "language2": "Semitic",
+        "language1_qid": "Q13145259",
+        "language2_qid": "Q34049"
+    },
+    {
+        "language1": "Belgorod Dialect",
+        "relationship": "Child of",
+        "language2": "Russian",
+        "language1_qid": "Q115632936",
+        "language2_qid": "Q7737"
+    },
+    {
+        "language1": "Balto-Slavic",
+        "relationship": "Child of",
+        "language2": "Indo-European",
+        "language1_qid": "Q147356",
+        "language2_qid": "Q19860"
+    },
+    {
+        "language1": "Yue Chinese",
+        "relationship": "Child of",
+        "language2": "Chinese",
+        "language1_qid": "Q7033959",
+        "language2_qid": "Q7850"
+    },
+    {
+        "language1": "Pacific Northwest English",
+        "relationship": "Child of",
+        "language2": "North American English",
+        "language1_qid": "Q7122582",
+        "language2_qid": "Q7053766"
+    },
+    {
+        "language1": "Himalayish",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q2700231",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "Hilalian dialects",
+        "relationship": "Child of",
+        "language2": "Arabic",
+        "language1_qid": "Q12192053",
+        "language2_qid": "Q13955"
+    },
+    {
+        "language1": "South Australian English",
+        "relationship": "Child of",
+        "language2": "Australian English",
+        "language1_qid": "Q7566108",
+        "language2_qid": "Q44679"
+    },
+    {
+        "language1": "Ulster English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q6840826",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Khuzi",
+        "relationship": "Child of",
+        "language2": "Elamite",
+        "language1_qid": "Q5957720",
+        "language2_qid": "Q35470"
+    },
+    {
+        "language1": "Gilit Mesopotamian Arabic",
+        "relationship": "Child of",
+        "language2": "Iraqi Arabic",
+        "language1_qid": "Q115978649",
+        "language2_qid": "Q56232"
+    },
+    {
+        "language1": "Philadelphia English",
+        "relationship": "Child of",
+        "language2": "American English",
+        "language1_qid": "Q16932710",
+        "language2_qid": "Q7976"
+    },
+    {
+        "language1": "Judeo-Moroccan",
+        "relationship": "Child of",
+        "language2": "Judeo-Arabic",
+        "language1_qid": "Q56595",
+        "language2_qid": "Q37733"
+    },
+    {
+        "language1": "Quebec English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q7269768",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Polabian",
+        "relationship": "Child of",
+        "language2": "Lechitic",
+        "language1_qid": "Q36741",
+        "language2_qid": "Q742782"
+    },
+    {
+        "language1": "Maban",
+        "relationship": "Child of",
+        "language2": "Nilo-Saharan",
+        "language1_qid": "Q35984",
+        "language2_qid": "Q33705"
+    },
+    {
+        "language1": "Gyami",
+        "relationship": "Child of",
+        "language2": "Mandarin",
+        "language1_qid": "Q20707813",
+        "language2_qid": "Q9192"
+    },
+    {
+        "language1": "Indo-Iranian",
+        "relationship": "Child of",
+        "language2": "Indo-European",
+        "language1_qid": "Q33514",
+        "language2_qid": "Q19860"
+    },
+    {
+        "language1": "Ainu",
+        "relationship": "Child of",
+        "language2": "human language",
+        "language1_qid": "Q50111972",
+        "language2_qid": "Q20162172"
+    },
+    {
+        "language1": "North Coast Portuguese",
+        "relationship": "Child of",
+        "language2": "Brazilian Portuguese",
+        "language1_qid": "Q10265997",
+        "language2_qid": "Q750553"
+    },
+    {
+        "language1": "Banda",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q3504147",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Eastern Berber",
+        "relationship": "Child of",
+        "language2": "Berber",
+        "language1_qid": "Q2511788",
+        "language2_qid": "Q25448"
+    },
+    {
+        "language1": "Palra d'El Rebollal",
+        "relationship": "Child of",
+        "language2": "West Iberian",
+        "language1_qid": "Q2111107",
+        "language2_qid": "Q1377152"
+    },
+    {
+        "language1": "Emesal",
+        "relationship": "Child of",
+        "language2": "Sumerian",
+        "language1_qid": "Q10482212",
+        "language2_qid": "Q36790"
+    },
+    {
+        "language1": "Spanish-based creole languages",
+        "relationship": "Child of",
+        "language2": "Castilian",
+        "language1_qid": "Q2655227",
+        "language2_qid": "Q71924"
+    },
+    {
+        "language1": "Anglic",
+        "relationship": "Child of",
+        "language2": "Anglo-Frisian",
+        "language1_qid": "Q1346342",
+        "language2_qid": "Q5329170"
+    },
+    {
+        "language1": "Ba-Shu Chinese",
+        "relationship": "Child of",
+        "language2": "Chinese",
+        "language1_qid": "Q2371409",
+        "language2_qid": "Q7850"
+    },
+    {
+        "language1": "West Scandinavian",
+        "relationship": "Child of",
+        "language2": "North Germanic",
+        "language1_qid": "Q1792570",
+        "language2_qid": "Q106085"
+    },
+    {
+        "language1": "Cimbrian",
+        "relationship": "Child of",
+        "language2": "Upper German",
+        "language1_qid": "Q37053",
+        "language2_qid": "Q263522"
+    },
+    {
+        "language1": "Aribwatsa",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q3502104",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Qin-Lian Yue",
+        "relationship": "Child of",
+        "language2": "Yue Chinese",
+        "language1_qid": "Q7267753",
+        "language2_qid": "Q7033959"
+    },
+    {
+        "language1": "Namlish",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q953412",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Wipi",
+        "relationship": "Child of",
+        "language2": "Eastern Trans-Fly",
+        "language1_qid": "Q8026711",
+        "language2_qid": "Q5330530"
+    },
+    {
+        "language1": "Lan–Yin Mandarin",
+        "relationship": "Child of",
+        "language2": "Mandarin",
+        "language1_qid": "Q662754",
+        "language2_qid": "Q9192"
+    },
+    {
+        "language1": "Cardiff English",
+        "relationship": "Child of",
+        "language2": "Welsh English",
+        "language1_qid": "Q5038493",
+        "language2_qid": "Q2363292"
+    },
+    {
+        "language1": "Nubian",
+        "relationship": "Child of",
+        "language2": "Nilo-Saharan",
+        "language1_qid": "Q1517194",
+        "language2_qid": "Q33705"
+    },
+    {
+        "language1": "Judeo-Tripolitanian Arabic",
+        "relationship": "Child of",
+        "language2": "Judeo-Arabic",
+        "language1_qid": "Q56598",
+        "language2_qid": "Q37733"
+    },
+    {
+        "language1": "East Germanic",
+        "relationship": "Child of",
+        "language2": "Germanic languages",
+        "language1_qid": "Q108662",
+        "language2_qid": "Q21200"
+    },
+    {
+        "language1": "Llanero Spanish",
+        "relationship": "Child of",
+        "language2": "Colombian Spanish",
+        "language1_qid": "Q5840060",
+        "language2_qid": "Q1115875"
+    },
+    {
+        "language1": "Austrian German",
+        "relationship": "Child of",
+        "language2": "German",
+        "language1_qid": "Q306626",
+        "language2_qid": "Q188"
+    },
+    {
+        "language1": "Numidian",
+        "relationship": "Child of",
+        "language2": "Berber",
+        "language1_qid": "Q35761",
+        "language2_qid": "Q25448"
+    },
+    {
+        "language1": "Old High German",
+        "relationship": "Child of",
+        "language2": "German",
+        "language1_qid": "Q35218",
+        "language2_qid": "Q188"
+    },
+    {
+        "language1": "Gothic",
+        "relationship": "Child of",
+        "language2": "East Germanic",
+        "language1_qid": "Q35722",
+        "language2_qid": "Q108662"
+    },
+    {
+        "language1": "Levantine Arabic",
+        "relationship": "Child of",
+        "language2": "Arabic",
+        "language1_qid": "Q56593",
+        "language2_qid": "Q13955"
+    },
+    {
+        "language1": "Iyaric",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q3368839",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Mai dialect",
+        "relationship": "Child of",
+        "language2": "Chinese",
+        "language1_qid": "Q6735199",
+        "language2_qid": "Q7850"
+    },
+    {
+        "language1": "Sino-Austronesian",
+        "relationship": "Child of",
+        "language2": "human language",
+        "language1_qid": "Q7524744",
+        "language2_qid": "Q20162172"
+    },
+    {
+        "language1": "Hurrian",
+        "relationship": "Child of",
+        "language2": "Hurro-Urartian",
+        "language1_qid": "Q35740",
+        "language2_qid": "Q1144159"
+    },
+    {
+        "language1": "Pakistani English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q12859294",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Liburnian",
+        "relationship": "Child of",
+        "language2": "Indo-European",
+        "language1_qid": "Q35835",
+        "language2_qid": "Q19860"
+    },
+    {
+        "language1": "Solothurnisch",
+        "relationship": "Child of",
+        "language2": "Swiss German",
+        "language1_qid": "Q1435171",
+        "language2_qid": "Q387066"
+    },
+    {
+        "language1": "Saint-Barthélemy French",
+        "relationship": "Child of",
+        "language2": "North American French",
+        "language1_qid": "Q7400564",
+        "language2_qid": "Q3083193"
+    },
+    {
+        "language1": "Mekmek",
+        "relationship": "Child of",
+        "language2": "Yuat",
+        "language1_qid": "Q6810592",
+        "language2_qid": "Q8060096"
+    },
+    {
+        "language1": "Samay",
+        "relationship": "Child of",
+        "language2": "Niger–Congo",
+        "language1_qid": "Q7408415",
+        "language2_qid": "Q33838"
+    },
+    {
+        "language1": "Karluk-Kipchak",
+        "relationship": "Child of",
+        "language2": "Turkic",
+        "language1_qid": "Q4215326",
+        "language2_qid": "Q34090"
+    },
+    {
+        "language1": "Indian French",
+        "relationship": "Child of",
+        "language2": "French",
+        "language1_qid": "Q17056078",
+        "language2_qid": "Q150"
+    },
+    {
+        "language1": "Melogna",
+        "relationship": "Child of",
+        "language2": "Omotic",
+        "language1_qid": "Q13143510",
+        "language2_qid": "Q33860"
+    },
+    {
+        "language1": "Berrichon",
+        "relationship": "Child of",
+        "language2": "Oïl",
+        "language1_qid": "Q2899128",
+        "language2_qid": "Q37351"
+    },
+    {
+        "language1": "Miji",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q61965015",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "Sri Lankan English",
+        "relationship": "Child of",
+        "language2": "South Asian English",
+        "language1_qid": "Q3610306",
+        "language2_qid": "Q7566032"
+    },
+    {
+        "language1": "Solong",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q7558834",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Judeo-Arabic",
+        "relationship": "Child of",
+        "language2": "Arabic",
+        "language1_qid": "Q37733",
+        "language2_qid": "Q13955"
+    },
+    {
+        "language1": "Ngangam",
+        "relationship": "Child of",
+        "language2": "Niger–Congo",
+        "language1_qid": "Q35888",
+        "language2_qid": "Q33838"
+    },
+    {
+        "language1": "Siberian Russian dialects",
+        "relationship": "Child of",
+        "language2": "Russian",
+        "language1_qid": "Q4418262",
+        "language2_qid": "Q7737"
+    },
+    {
+        "language1": "Kwadi",
+        "relationship": "Child of",
+        "language2": "Khoisan",
+        "language1_qid": "Q2364661",
+        "language2_qid": "Q33614"
+    },
+    {
+        "language1": "Waxiang Chinese",
+        "relationship": "Child of",
+        "language2": "Chinese",
+        "language1_qid": "Q2252191",
+        "language2_qid": "Q7850"
+    },
+    {
+        "language1": "Barossa German",
+        "relationship": "Child of",
+        "language2": "German",
+        "language1_qid": "Q35031",
+        "language2_qid": "Q188"
+    },
+    {
+        "language1": "Classical French",
+        "relationship": "Child of",
+        "language2": "French",
+        "language1_qid": "Q3100376",
+        "language2_qid": "Q150"
+    },
+    {
+        "language1": "Khamseh Arabic",
+        "relationship": "Child of",
+        "language2": "Gulf Arabic",
+        "language1_qid": "Q134777703",
+        "language2_qid": "Q56385"
+    },
+    {
+        "language1": "Ozark English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q7116484",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Daur",
+        "relationship": "Child of",
+        "language2": "Mongolic",
+        "language1_qid": "Q32430",
+        "language2_qid": "Q33750"
+    },
+    {
+        "language1": "Dravidian",
+        "relationship": "Child of",
+        "language2": "human language",
+        "language1_qid": "Q33311",
+        "language2_qid": "Q20162172"
+    },
+    {
+        "language1": "Pennsylvania Dutch English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q7163723",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Portuguese dialects",
+        "relationship": "Child of",
+        "language2": "Portuguese",
+        "language1_qid": "Q3306983",
+        "language2_qid": "Q5146"
+    },
+    {
+        "language1": "Juba Arabic",
+        "relationship": "Child of",
+        "language2": "Arabic",
+        "language1_qid": "Q1262143",
+        "language2_qid": "Q13955"
+    },
+    {
+        "language1": "Australian English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q44679",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Saint Pierre French",
+        "relationship": "Child of",
+        "language2": "French",
+        "language1_qid": "Q133980120",
+        "language2_qid": "Q150"
+    },
+    {
+        "language1": "Illyrian",
+        "relationship": "Child of",
+        "language2": "Indo-European",
+        "language1_qid": "Q35976",
+        "language2_qid": "Q19860"
+    },
+    {
+        "language1": "Central Sudanic",
+        "relationship": "Child of",
+        "language2": "Nilo-Saharan",
+        "language1_qid": "Q190822",
+        "language2_qid": "Q33705"
+    },
+    {
+        "language1": "Yem",
+        "relationship": "Child of",
+        "language2": "Omotic",
+        "language1_qid": "Q36873",
+        "language2_qid": "Q33860"
+    },
+    {
+        "language1": "Tourangeau",
+        "relationship": "Child of",
+        "language2": "Oïl",
+        "language1_qid": "Q30742253",
+        "language2_qid": "Q37351"
+    },
+    {
+        "language1": "Mugom",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q6932210",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "Koman",
+        "relationship": "Child of",
+        "language2": "Nilo-Saharan",
+        "language1_qid": "Q1781084",
+        "language2_qid": "Q33705"
+    },
+    {
+        "language1": "Sarthois",
+        "relationship": "Child of",
+        "language2": "Oïl",
+        "language1_qid": "Q3365567",
+        "language2_qid": "Q37351"
+    },
+    {
+        "language1": "Bahamian English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q4842384",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Frisian",
+        "relationship": "Child of",
+        "language2": "Anglo-Frisian",
+        "language1_qid": "Q25325",
+        "language2_qid": "Q5329170"
+    },
+    {
+        "language1": "Elbe Germanic",
+        "relationship": "Child of",
+        "language2": "West Germanic",
+        "language1_qid": "Q48767687",
+        "language2_qid": "Q26721"
+    },
+    {
+        "language1": "Slavonic-Serbian",
+        "relationship": "Child of",
+        "language2": "South Slavic",
+        "language1_qid": "Q1639124",
+        "language2_qid": "Q146665"
+    },
+    {
+        "language1": "East Semitic",
+        "relationship": "Child of",
+        "language2": "Semitic",
+        "language1_qid": "Q164273",
+        "language2_qid": "Q34049"
+    },
+    {
+        "language1": "Ongan",
+        "relationship": "Child of",
+        "language2": "human language",
+        "language1_qid": "Q2090575",
+        "language2_qid": "Q20162172"
+    },
+    {
+        "language1": "Eteocypriot",
+        "relationship": "Child of",
+        "language2": "human language",
+        "language1_qid": "Q35309",
+        "language2_qid": "Q20162172"
+    },
+    {
+        "language1": "Burgundian",
+        "relationship": "Child of",
+        "language2": "East Germanic",
+        "language1_qid": "Q47625",
+        "language2_qid": "Q108662"
+    },
+    {
+        "language1": "Castilian",
+        "relationship": "Child of",
+        "language2": "West Iberian",
+        "language1_qid": "Q71924",
+        "language2_qid": "Q1377152"
+    },
+    {
+        "language1": "Pre-Islamic Arabic",
+        "relationship": "Child of",
+        "language2": "Old Arabic",
+        "language1_qid": "Q64685183",
+        "language2_qid": "Q21661186"
+    },
+    {
+        "language1": "Agutaynen",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q3399717",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Central Palawano",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q12953795",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Singaporean Mandarin",
+        "relationship": "Child of",
+        "language2": "Standard Chinese",
+        "language1_qid": "Q1048980",
+        "language2_qid": "Q727694"
+    },
+    {
+        "language1": "Sherbro",
+        "relationship": "Child of",
+        "language2": "Niger–Congo",
+        "language1_qid": "Q36339",
+        "language2_qid": "Q33838"
+    },
+    {
+        "language1": "Miju",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q56332",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "Northwest Caucasian",
+        "relationship": "Child of",
+        "language2": "North Caucasian",
+        "language1_qid": "Q33852",
+        "language2_qid": "Q33732"
+    },
+    {
+        "language1": "Shandong dialect",
+        "relationship": "Child of",
+        "language2": "Mandarin",
+        "language1_qid": "Q3285432",
+        "language2_qid": "Q9192"
+    },
+    {
+        "language1": "Oïl",
+        "relationship": "Child of",
+        "language2": "Gallo-Rhaetian",
+        "language1_qid": "Q37351",
+        "language2_qid": "Q97646466"
+    },
+    {
+        "language1": "Yeniseian",
+        "relationship": "Child of",
+        "language2": "Dené–Yeniseian",
+        "language1_qid": "Q27639",
+        "language2_qid": "Q21103"
+    },
+    {
+        "language1": "Sandawe",
+        "relationship": "Child of",
+        "language2": "Khoisan",
+        "language1_qid": "Q34016",
+        "language2_qid": "Q33614"
+    },
+    {
+        "language1": "Germanic languages",
+        "relationship": "Child of",
+        "language2": "Indo-European",
+        "language1_qid": "Q21200",
+        "language2_qid": "Q19860"
+    },
+    {
+        "language1": "Huilliche",
+        "relationship": "Child of",
+        "language2": "Araucanian",
+        "language1_qid": "Q35531",
+        "language2_qid": "Q626630"
+    },
+    {
+        "language1": "Zhoutun",
+        "relationship": "Child of",
+        "language2": "Mandarin",
+        "language1_qid": "Q128202996",
+        "language2_qid": "Q9192"
+    },
+    {
+        "language1": "Poitevin-Saintongeais",
+        "relationship": "Child of",
+        "language2": "Oïl",
+        "language1_qid": "Q514123",
+        "language2_qid": "Q37351"
+    },
+    {
+        "language1": "Ostthüringisch",
+        "relationship": "Child of",
+        "language2": "Indo-European",
+        "language1_qid": "Q545908",
+        "language2_qid": "Q19860"
+    },
+    {
+        "language1": "Australian Aboriginal English",
+        "relationship": "Child of",
+        "language2": "Australian English",
+        "language1_qid": "Q783347",
+        "language2_qid": "Q44679"
+    },
+    {
+        "language1": "Western Algerian Arabic",
+        "relationship": "Child of",
+        "language2": "Algerian Arabic",
+        "language1_qid": "Q2859333",
+        "language2_qid": "Q56499"
+    },
+    {
+        "language1": "Central American Spanish",
+        "relationship": "Child of",
+        "language2": "Latin American Spanish",
+        "language1_qid": "Q430047",
+        "language2_qid": "Q56649449"
+    },
+    {
+        "language1": "African Nova Scotian English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q65083969",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "English",
+        "relationship": "Child of",
+        "language2": "Anglic",
+        "language1_qid": "Q1860",
+        "language2_qid": "Q1346342"
+    },
+    {
+        "language1": "Manitoban French",
+        "relationship": "Child of",
+        "language2": "French",
+        "language1_qid": "Q15974879",
+        "language2_qid": "Q150"
+    },
+    {
+        "language1": "Baltic German",
+        "relationship": "Child of",
+        "language2": "German",
+        "language1_qid": "Q15785413",
+        "language2_qid": "Q188"
+    },
+    {
+        "language1": "Hadza",
+        "relationship": "Child of",
+        "language2": "Khoisan",
+        "language1_qid": "Q33411",
+        "language2_qid": "Q33614"
+    },
+    {
+        "language1": "Standard Arabic",
+        "relationship": "Child of",
+        "language2": "Arabic",
+        "language1_qid": "Q122602987",
+        "language2_qid": "Q13955"
+    },
+    {
+        "language1": "Malimpung",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q12473435",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Lechitic",
+        "relationship": "Child of",
+        "language2": "Slavic",
+        "language1_qid": "Q742782",
+        "language2_qid": "Q23526"
+    },
+    {
+        "language1": "Lugbarati",
+        "relationship": "Child of",
+        "language2": "Nilo-Saharan",
+        "language1_qid": "Q3272737",
+        "language2_qid": "Q33705"
+    },
+    {
+        "language1": "Japonic",
+        "relationship": "Child of",
+        "language2": "human language",
+        "language1_qid": "Q33612",
+        "language2_qid": "Q20162172"
+    },
+    {
+        "language1": "Berber",
+        "relationship": "Child of",
+        "language2": "Afroasiatic",
+        "language1_qid": "Q25448",
+        "language2_qid": "Q25268"
+    },
+    {
+        "language1": "South Cushitic",
+        "relationship": "Child of",
+        "language2": "Cushitic",
+        "language1_qid": "Q56525",
+        "language2_qid": "Q33248"
+    },
+    {
+        "language1": "Northwest Germanic",
+        "relationship": "Child of",
+        "language2": "Germanic languages",
+        "language1_qid": "Q13137302",
+        "language2_qid": "Q21200"
+    },
+    {
+        "language1": "Tujia",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q2512084",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "Hurro-Urartian",
+        "relationship": "Child of",
+        "language2": "Dené–Caucasian",
+        "language1_qid": "Q1144159",
+        "language2_qid": "Q507968"
+    },
+    {
+        "language1": "Western Berber",
+        "relationship": "Child of",
+        "language2": "Berber",
+        "language1_qid": "Q15102747",
+        "language2_qid": "Q25448"
+    },
+    {
+        "language1": "Equatoguinean Spanish",
+        "relationship": "Child of",
+        "language2": "Spanish",
+        "language1_qid": "Q820569",
+        "language2_qid": "Q1321"
+    },
+    {
+        "language1": "Changriwa",
+        "relationship": "Child of",
+        "language2": "Yuat",
+        "language1_qid": "Q5072105",
+        "language2_qid": "Q8060096"
+    },
+    {
+        "language1": "Scottish English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q1553250",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Khoibu",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q21481876",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "Common Turkic",
+        "relationship": "Child of",
+        "language2": "Turkic",
+        "language1_qid": "Q1126028",
+        "language2_qid": "Q34090"
+    },
+    {
+        "language1": "Algerian Saharan Arabic",
+        "relationship": "Child of",
+        "language2": "Arabic",
+        "language1_qid": "Q56725",
+        "language2_qid": "Q13955"
+    },
+    {
+        "language1": "Mongolic",
+        "relationship": "Child of",
+        "language2": "human language",
+        "language1_qid": "Q33750",
+        "language2_qid": "Q20162172"
+    },
+    {
+        "language1": "Dimasa",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q56664",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "Taa",
+        "relationship": "Child of",
+        "language2": "Khoisan",
+        "language1_qid": "Q13229",
+        "language2_qid": "Q33614"
+    },
+    {
+        "language1": "Northeastern Mandarin",
+        "relationship": "Child of",
+        "language2": "Mandarin",
+        "language1_qid": "Q1064504",
+        "language2_qid": "Q9192"
+    },
+    {
+        "language1": "Old Polish",
+        "relationship": "Child of",
+        "language2": "West Slavic",
+        "language1_qid": "Q149838",
+        "language2_qid": "Q145852"
+    },
+    {
+        "language1": "Kadu",
+        "relationship": "Child of",
+        "language2": "Nilo-Saharan",
+        "language1_qid": "Q1720989",
+        "language2_qid": "Q33705"
+    },
+    {
+        "language1": "Kanufi",
+        "relationship": "Child of",
+        "language2": "Niger–Congo",
+        "language1_qid": "Q3913297",
+        "language2_qid": "Q33838"
+    },
+    {
+        "language1": "Dullay",
+        "relationship": "Child of",
+        "language2": "Cushitic",
+        "language1_qid": "Q56780",
+        "language2_qid": "Q33248"
+    },
+    {
+        "language1": "Alemannic",
+        "relationship": "Child of",
+        "language2": "Upper German",
+        "language1_qid": "Q131339",
+        "language2_qid": "Q263522"
+    },
+    {
+        "language1": "Cushitic",
+        "relationship": "Child of",
+        "language2": "Afroasiatic",
+        "language1_qid": "Q33248",
+        "language2_qid": "Q25268"
+    },
+    {
+        "language1": "Hijazi Arabic",
+        "relationship": "Child of",
+        "language2": "Arabic",
+        "language1_qid": "Q56608",
+        "language2_qid": "Q13955"
+    },
+    {
+        "language1": "Central Turkic",
+        "relationship": "Child of",
+        "language2": "Turkic",
+        "language1_qid": "Q4053660",
+        "language2_qid": "Q34090"
+    },
+    {
+        "language1": "West Polesian",
+        "relationship": "Child of",
+        "language2": "East Slavic",
+        "language1_qid": "Q36952",
+        "language2_qid": "Q144713"
+    },
+    {
+        "language1": "Yurats",
+        "relationship": "Child of",
+        "language2": "Uralic",
+        "language1_qid": "Q34252",
+        "language2_qid": "Q34113"
+    },
+    {
+        "language1": "Adap",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q3512402",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "Toura",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q7829037",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Judeo-Syrian Arabic",
+        "relationship": "Child of",
+        "language2": "Judeo-Arabic",
+        "language1_qid": "Q124474689",
+        "language2_qid": "Q37733"
+    },
+    {
+        "language1": "Middle Egyptian",
+        "relationship": "Child of",
+        "language2": "Egyptian",
+        "language1_qid": "Q657330",
+        "language2_qid": "Q50868"
+    },
+    {
+        "language1": "Badong Yao",
+        "relationship": "Child of",
+        "language2": "Chinese",
+        "language1_qid": "Q48731935",
+        "language2_qid": "Q7850"
+    },
+    {
+        "language1": "Belarusian",
+        "relationship": "Child of",
+        "language2": "East Slavic",
+        "language1_qid": "Q9091",
+        "language2_qid": "Q144713"
+    },
+    {
+        "language1": "Ruthenian",
+        "relationship": "Child of",
+        "language2": "East Slavic",
+        "language1_qid": "Q13211",
+        "language2_qid": "Q144713"
+    },
+    {
+        "language1": "Kho-Bwa",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q6401917",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "North American French",
+        "relationship": "Child of",
+        "language2": "French",
+        "language1_qid": "Q3083193",
+        "language2_qid": "Q150"
+    },
+    {
+        "language1": "Central Delta Nile Arabic",
+        "relationship": "Child of",
+        "language2": "Egyptian Arabic",
+        "language1_qid": "Q136029682",
+        "language2_qid": "Q29919"
+    },
+    {
+        "language1": "Fur",
+        "relationship": "Child of",
+        "language2": "Nilo-Saharan",
+        "language1_qid": "Q2989512",
+        "language2_qid": "Q33705"
+    },
+    {
+        "language1": "Önge",
+        "relationship": "Child of",
+        "language2": "Ongan",
+        "language1_qid": "Q2475551",
+        "language2_qid": "Q2090575"
+    },
+    {
+        "language1": "Sirenik",
+        "relationship": "Child of",
+        "language2": "Inuit–Yupik–Unangan",
+        "language1_qid": "Q28156",
+        "language2_qid": "Q25946"
+    },
+    {
+        "language1": "Hamburgisch dialect",
+        "relationship": "Child of",
+        "language2": "Hamburger Dialect",
+        "language1_qid": "Q487930",
+        "language2_qid": "Q1572989"
+    },
+    {
+        "language1": "New England English",
+        "relationship": "Child of",
+        "language2": "American English",
+        "language1_qid": "Q7007228",
+        "language2_qid": "Q7976"
+    },
+    {
+        "language1": "!Xu",
+        "relationship": "Child of",
+        "language2": "Khoisan",
+        "language1_qid": "Q55087169",
+        "language2_qid": "Q33614"
+    },
+    {
+        "language1": "Semitic",
+        "relationship": "Child of",
+        "language2": "Afroasiatic",
+        "language1_qid": "Q34049",
+        "language2_qid": "Q25268"
+    },
+    {
+        "language1": "Central Tibeto-Burman",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q55606848",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "Turkic",
+        "relationship": "Child of",
+        "language2": "human language",
+        "language1_qid": "Q34090",
+        "language2_qid": "Q20162172"
+    },
+    {
+        "language1": "Malawian English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q6741487",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Walloon",
+        "relationship": "Child of",
+        "language2": "Oïl",
+        "language1_qid": "Q34219",
+        "language2_qid": "Q37351"
+    },
+    {
+        "language1": "North Levantine Arabic",
+        "relationship": "Child of",
+        "language2": "Levantine Arabic",
+        "language1_qid": "Q22809485",
+        "language2_qid": "Q56593"
+    },
+    {
+        "language1": "Biwat",
+        "relationship": "Child of",
+        "language2": "Yuat",
+        "language1_qid": "Q56352",
+        "language2_qid": "Q8060096"
+    },
+    {
+        "language1": "Mukha-Dora",
+        "relationship": "Child of",
+        "language2": "Dravidian",
+        "language1_qid": "Q6933447",
+        "language2_qid": "Q33311"
+    },
+    {
+        "language1": "Northern Transylvanian Saxon",
+        "relationship": "Child of",
+        "language2": "Transylvanian Saxon",
+        "language1_qid": "Q1275928",
+        "language2_qid": "Q260942"
+    },
+    {
+        "language1": "Maghrebi Arabic",
+        "relationship": "Child of",
+        "language2": "Arabic",
+        "language1_qid": "Q1194795",
+        "language2_qid": "Q13955"
+    },
+    {
+        "language1": "Tungusic",
+        "relationship": "Child of",
+        "language2": "human language",
+        "language1_qid": "Q34230",
+        "language2_qid": "Q20162172"
+    },
+    {
+        "language1": "Low Rhenish",
+        "relationship": "Child of",
+        "language2": "Indo-European",
+        "language1_qid": "Q1988372",
+        "language2_qid": "Q19860"
+    },
+    {
+        "language1": "North Sea Germanic",
+        "relationship": "Child of",
+        "language2": "West Germanic",
+        "language1_qid": "Q30134",
+        "language2_qid": "Q26721"
+    },
+    {
+        "language1": "Allar",
+        "relationship": "Child of",
+        "language2": "Dravidian",
+        "language1_qid": "Q3393634",
+        "language2_qid": "Q33311"
+    },
+    {
+        "language1": "Picard",
+        "relationship": "Child of",
+        "language2": "Oïl",
+        "language1_qid": "Q34024",
+        "language2_qid": "Q37351"
+    },
+    {
+        "language1": "Bernese German",
+        "relationship": "Child of",
+        "language2": "Swiss German",
+        "language1_qid": "Q8077088",
+        "language2_qid": "Q387066"
+    },
+    {
+        "language1": "Morom",
+        "relationship": "Child of",
+        "language2": "Nilo-Saharan",
+        "language1_qid": "Q759770",
+        "language2_qid": "Q33705"
+    },
+    {
+        "language1": "Tocodede",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q36863",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Baka",
+        "relationship": "Child of",
+        "language2": "Chadic",
+        "language1_qid": "Q50934484",
+        "language2_qid": "Q33184"
+    },
+    {
+        "language1": "Naish",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q25047956",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "North Caucasian",
+        "relationship": "Child of",
+        "language2": "Ibero-Caucasian",
+        "language1_qid": "Q33732",
+        "language2_qid": "Q169921"
+    },
+    {
+        "language1": "Standard Spanish",
+        "relationship": "Child of",
+        "language2": "Spanish",
+        "language1_qid": "Q21074990",
+        "language2_qid": "Q1321"
+    },
+    {
+        "language1": "Nanping dialect",
+        "relationship": "Child of",
+        "language2": "Mandarin",
+        "language1_qid": "Q19855021",
+        "language2_qid": "Q9192"
+    },
+    {
+        "language1": "Iraqw",
+        "relationship": "Child of",
+        "language2": "Cushitic",
+        "language1_qid": "Q33595",
+        "language2_qid": "Q33248"
+    },
+    {
+        "language1": "European Portuguese",
+        "relationship": "Child of",
+        "language2": "Portuguese",
+        "language1_qid": "Q922399",
+        "language2_qid": "Q5146"
+    },
+    {
+        "language1": "Frenchville French",
+        "relationship": "Child of",
+        "language2": "French",
+        "language1_qid": "Q30590120",
+        "language2_qid": "Q150"
+    },
+    {
+        "language1": "Proto-Japonic",
+        "relationship": "Child of",
+        "language2": "Japonic",
+        "language1_qid": "Q3924309",
+        "language2_qid": "Q33612"
+    },
+    {
+        "language1": "Lengue",
+        "relationship": "Child of",
+        "language2": "Niger–Congo",
+        "language1_qid": "Q13345",
+        "language2_qid": "Q33838"
+    },
+    {
+        "language1": "Proto-Ainu",
+        "relationship": "Child of",
+        "language2": "Ainu",
+        "language1_qid": "Q122906529",
+        "language2_qid": "Q50111972"
+    },
+    {
+        "language1": "Karenic",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q1364815",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "Eastern Sudanic",
+        "relationship": "Child of",
+        "language2": "Nilo-Saharan",
+        "language1_qid": "Q2036148",
+        "language2_qid": "Q33705"
+    },
+    {
+        "language1": "Northeast Caucasian",
+        "relationship": "Child of",
+        "language2": "Ibero-Caucasian",
+        "language1_qid": "Q27387",
+        "language2_qid": "Q169921"
+    },
+    {
+        "language1": "Sicel",
+        "relationship": "Child of",
+        "language2": "Indo-European",
+        "language1_qid": "Q36667",
+        "language2_qid": "Q19860"
+    },
+    {
+        "language1": "Yuehai Yue",
+        "relationship": "Child of",
+        "language2": "Yue Chinese",
+        "language1_qid": "Q8060260",
+        "language2_qid": "Q7033959"
+    },
+    {
+        "language1": "Rung",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q7379849",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "Zurich German",
+        "relationship": "Child of",
+        "language2": "Swiss German",
+        "language1_qid": "Q248682",
+        "language2_qid": "Q387066"
+    },
+    {
+        "language1": "Nemadi",
+        "relationship": "Child of",
+        "language2": "Hassaniya Arabic",
+        "language1_qid": "Q6990895",
+        "language2_qid": "Q56231"
+    },
+    {
+        "language1": "Ezgana",
+        "relationship": "Child of",
+        "language2": "Semitic",
+        "language1_qid": "Q13144955",
+        "language2_qid": "Q34049"
+    },
+    {
+        "language1": "Sino-Tibetan-Indo-European",
+        "relationship": "Child of",
+        "language2": "human language",
+        "language1_qid": "Q97690709",
+        "language2_qid": "Q20162172"
+    },
+    {
+        "language1": "Modern Greek",
+        "relationship": "Child of",
+        "language2": "Southern European language",
+        "language1_qid": "Q36510",
+        "language2_qid": "Q85380120"
+    },
+    {
+        "language1": "Wu-Hua Yue",
+        "relationship": "Child of",
+        "language2": "Yue Chinese",
+        "language1_qid": "Q8038858",
+        "language2_qid": "Q7033959"
+    },
+    {
+        "language1": "Serbian",
+        "relationship": "Child of",
+        "language2": "South Slavic",
+        "language1_qid": "Q9299",
+        "language2_qid": "Q146665"
+    },
+    {
+        "language1": "Gresi",
+        "relationship": "Child of",
+        "language2": "Nimboran",
+        "language1_qid": "Q5607612",
+        "language2_qid": "Q12638426"
+    },
+    {
+        "language1": "Na-Dene",
+        "relationship": "Child of",
+        "language2": "Dené–Yeniseian",
+        "language1_qid": "Q26986",
+        "language2_qid": "Q21103"
+    },
+    {
+        "language1": "West Semitic",
+        "relationship": "Child of",
+        "language2": "Semitic",
+        "language1_qid": "Q124901",
+        "language2_qid": "Q34049"
+    },
+    {
+        "language1": "Bandi",
+        "relationship": "Child of",
+        "language2": "Niger–Congo",
+        "language1_qid": "Q34912",
+        "language2_qid": "Q33838"
+    },
+    {
+        "language1": "Taiyuan dialect",
+        "relationship": "Child of",
+        "language2": "Jin",
+        "language1_qid": "Q10941068",
+        "language2_qid": "Q56479"
+    },
+    {
+        "language1": "Ninilchik Russian",
+        "relationship": "Child of",
+        "language2": "Alaskan Russian",
+        "language1_qid": "Q24699010",
+        "language2_qid": "Q27807497"
+    },
+    {
+        "language1": "Hmong–Mien",
+        "relationship": "Child of",
+        "language2": "human language",
+        "language1_qid": "Q33322",
+        "language2_qid": "Q20162172"
+    },
+    {
+        "language1": "Gayil",
+        "relationship": "Child of",
+        "language2": "Omotic",
+        "language1_qid": "Q5528771",
+        "language2_qid": "Q33860"
+    },
+    {
+        "language1": "Uruguayan Portuguese",
+        "relationship": "Child of",
+        "language2": "Portuguese",
+        "language1_qid": "Q3265815",
+        "language2_qid": "Q5146"
+    },
+    {
+        "language1": "Balachka",
+        "relationship": "Child of",
+        "language2": "East Slavic",
+        "language1_qid": "Q2494699",
+        "language2_qid": "Q144713"
+    },
+    {
+        "language1": "Chu",
+        "relationship": "Child of",
+        "language2": "Hmong–Mien",
+        "language1_qid": "Q28410857",
+        "language2_qid": "Q33322"
+    },
+    {
+        "language1": "Buryat",
+        "relationship": "Child of",
+        "language2": "Mongolic",
+        "language1_qid": "Q33120",
+        "language2_qid": "Q33750"
+    },
+    {
+        "language1": "Mande",
+        "relationship": "Child of",
+        "language2": "Niger–Congo",
+        "language1_qid": "Q33681",
+        "language2_qid": "Q33838"
+    },
+    {
+        "language1": "Dahalo",
+        "relationship": "Child of",
+        "language2": "Cushitic",
+        "language1_qid": "Q35143",
+        "language2_qid": "Q33248"
+    },
+    {
+        "language1": "Mansfeld German",
+        "relationship": "Child of",
+        "language2": "German",
+        "language1_qid": "Q662516",
+        "language2_qid": "Q188"
+    },
+    {
+        "language1": "Central Plains Mandarin",
+        "relationship": "Child of",
+        "language2": "Mandarin",
+        "language1_qid": "Q3048775",
+        "language2_qid": "Q9192"
+    },
+    {
+        "language1": "Alexandrian dialect",
+        "relationship": "Child of",
+        "language2": "Egyptian Arabic",
+        "language1_qid": "Q12237464",
+        "language2_qid": "Q29919"
+    },
+    {
+        "language1": "Araucanian",
+        "relationship": "Child of",
+        "language2": "human language",
+        "language1_qid": "Q626630",
+        "language2_qid": "Q20162172"
+    },
+    {
+        "language1": "Saharan Spanish",
+        "relationship": "Child of",
+        "language2": "Spanish",
+        "language1_qid": "Q5840069",
+        "language2_qid": "Q1321"
+    },
+    {
+        "language1": "East Slavic",
+        "relationship": "Child of",
+        "language2": "Slavic",
+        "language1_qid": "Q144713",
+        "language2_qid": "Q23526"
+    },
+    {
+        "language1": "Latin",
+        "relationship": "Child of",
+        "language2": "Southern European language",
+        "language1_qid": "Q397",
+        "language2_qid": "Q85380120"
+    },
+    {
+        "language1": "Aargauian",
+        "relationship": "Child of",
+        "language2": "Swiss German",
+        "language1_qid": "Q4068780",
+        "language2_qid": "Q387066"
+    },
+    {
+        "language1": "Tringgus",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q7842365",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Momuna",
+        "relationship": "Child of",
+        "language2": "Somahai",
+        "language1_qid": "Q6897518",
+        "language2_qid": "Q7559126"
+    },
+    {
+        "language1": "Goulou Yue",
+        "relationship": "Child of",
+        "language2": "Yue Chinese",
+        "language1_qid": "Q5588322",
+        "language2_qid": "Q7033959"
+    },
+    {
+        "language1": "Lower Yangtze Mandarin",
+        "relationship": "Child of",
+        "language2": "Mandarin",
+        "language1_qid": "Q2128953",
+        "language2_qid": "Q9192"
+    },
+    {
+        "language1": "Jōmon",
+        "relationship": "Child of",
+        "language2": "Ainu",
+        "language1_qid": "Q120487727",
+        "language2_qid": "Q50111972"
+    },
+    {
+        "language1": "French language in French Guiana",
+        "relationship": "Child of",
+        "language2": "French",
+        "language1_qid": "Q48746093",
+        "language2_qid": "Q150"
+    },
+    {
+        "language1": "Oghuric",
+        "relationship": "Child of",
+        "language2": "Turkic",
+        "language1_qid": "Q1422731",
+        "language2_qid": "Q34090"
+    },
+    {
+        "language1": "Tuoba",
+        "relationship": "Child of",
+        "language2": "Mongolic",
+        "language1_qid": "Q48816629",
+        "language2_qid": "Q33750"
+    },
+    {
+        "language1": "Montenegrin",
+        "relationship": "Child of",
+        "language2": "South Slavic",
+        "language1_qid": "Q8821",
+        "language2_qid": "Q146665"
+    },
+    {
+        "language1": "Pomor dialects",
+        "relationship": "Child of",
+        "language2": "Russian",
+        "language1_qid": "Q2371178",
+        "language2_qid": "Q7737"
+    },
+    {
+        "language1": "Lachoudisch",
+        "relationship": "Child of",
+        "language2": "German",
+        "language1_qid": "Q6597928",
+        "language2_qid": "Q188"
+    },
+    {
+        "language1": "Réunion French",
+        "relationship": "Child of",
+        "language2": "French",
+        "language1_qid": "Q3083199",
+        "language2_qid": "Q150"
+    },
+    {
+        "language1": "Graeco-Aryan",
+        "relationship": "Child of",
+        "language2": "Indo-European",
+        "language1_qid": "Q5592168",
+        "language2_qid": "Q19860"
+    },
+    {
+        "language1": "Nabataean Arabic",
+        "relationship": "Child of",
+        "language2": "Arabic",
+        "language1_qid": "Q30130163",
+        "language2_qid": "Q13955"
+    },
+    {
+        "language1": "East Cushitic",
+        "relationship": "Child of",
+        "language2": "Cushitic",
+        "language1_qid": "Q56568",
+        "language2_qid": "Q33248"
+    },
+    {
+        "language1": "Shelta",
+        "relationship": "Child of",
+        "language2": "Hiberno-English",
+        "language1_qid": "Q36705",
+        "language2_qid": "Q665624"
+    },
+    {
+        "language1": "Orleanais",
+        "relationship": "Child of",
+        "language2": "Oïl",
+        "language1_qid": "Q28497058",
+        "language2_qid": "Q37351"
+    },
+    {
+        "language1": "Maltese English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q131745798",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Yenish",
+        "relationship": "Child of",
+        "language2": "West Germanic",
+        "language1_qid": "Q1365342",
+        "language2_qid": "Q26721"
+    },
+    {
+        "language1": "Taman",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q15616518",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "Inuit–Yupik–Unangan",
+        "relationship": "Child of",
+        "language2": "human language",
+        "language1_qid": "Q25946",
+        "language2_qid": "Q20162172"
+    },
+    {
+        "language1": "Hawaiian English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q1531433",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Northeast Nile Delta Arabic",
+        "relationship": "Child of",
+        "language2": "Egyptian Arabic",
+        "language1_qid": "Q136031360",
+        "language2_qid": "Q29919"
+    },
+    {
+        "language1": "Emirati Arabic",
+        "relationship": "Child of",
+        "language2": "Gulf Arabic",
+        "language1_qid": "Q20394601",
+        "language2_qid": "Q56385"
+    },
+    {
+        "language1": "Old Mandarin",
+        "relationship": "Child of",
+        "language2": "Chinese",
+        "language1_qid": "Q837169",
+        "language2_qid": "Q7850"
+    },
+    {
+        "language1": "Molbog",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q6895718",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Ottawa Valley English",
+        "relationship": "Child of",
+        "language2": "Canadian English",
+        "language1_qid": "Q7109268",
+        "language2_qid": "Q44676"
+    },
+    {
+        "language1": "Doukhobor Russian",
+        "relationship": "Child of",
+        "language2": "Russian",
+        "language1_qid": "Q4161005",
+        "language2_qid": "Q7737"
+    },
+    {
+        "language1": "Konkomba",
+        "relationship": "Child of",
+        "language2": "Niger–Congo",
+        "language1_qid": "Q35674",
+        "language2_qid": "Q33838"
+    },
+    {
+        "language1": "Aleut",
+        "relationship": "Child of",
+        "language2": "Inuit–Yupik–Unangan",
+        "language1_qid": "Q11850745",
+        "language2_qid": "Q25946"
+    },
+    {
+        "language1": "Turku Arabic",
+        "relationship": "Child of",
+        "language2": "Bimbashi Arabic",
+        "language1_qid": "Q126915359",
+        "language2_qid": "Q4913707"
+    },
+    {
+        "language1": "Ji-Lu Mandarin",
+        "relationship": "Child of",
+        "language2": "Mandarin",
+        "language1_qid": "Q516721",
+        "language2_qid": "Q9192"
+    },
+    {
+        "language1": "Guanche",
+        "relationship": "Child of",
+        "language2": "Berber",
+        "language1_qid": "Q35762",
+        "language2_qid": "Q25448"
+    },
+    {
+        "language1": "Anatolian Arabic",
+        "relationship": "Child of",
+        "language2": "North Mesopotamian Arabic",
+        "language1_qid": "Q97353934",
+        "language2_qid": "Q56577"
+    },
+    {
+        "language1": "North Western Swiss German",
+        "relationship": "Child of",
+        "language2": "Swiss German",
+        "language1_qid": "Q25625560",
+        "language2_qid": "Q387066"
+    },
+    {
+        "language1": "Etruscan",
+        "relationship": "Child of",
+        "language2": "Tyrsenian",
+        "language1_qid": "Q35726",
+        "language2_qid": "Q1344038"
+    },
+    {
+        "language1": "Bavarian",
+        "relationship": "Child of",
+        "language2": "Upper German",
+        "language1_qid": "Q29540",
+        "language2_qid": "Q263522"
+    },
+    {
+        "language1": "Mbili-Mbui",
+        "relationship": "Child of",
+        "language2": "Niger–Congo",
+        "language1_qid": "Q34880",
+        "language2_qid": "Q33838"
+    },
+    {
+        "language1": "Austroasiatic",
+        "relationship": "Child of",
+        "language2": "Austric",
+        "language1_qid": "Q33199",
+        "language2_qid": "Q783787"
+    },
+    {
+        "language1": "Rhaeto-Romance",
+        "relationship": "Child of",
+        "language2": "Gallo-Rhaetian",
+        "language1_qid": "Q515593",
+        "language2_qid": "Q97646466"
+    },
+    {
+        "language1": "Cape Flats English",
+        "relationship": "Child of",
+        "language2": "South African English",
+        "language1_qid": "Q30680570",
+        "language2_qid": "Q1156228"
+    },
+    {
+        "language1": "Nilo-Saharan",
+        "relationship": "Child of",
+        "language2": "human language",
+        "language1_qid": "Q33705",
+        "language2_qid": "Q20162172"
+    },
+    {
+        "language1": "Estremenho",
+        "relationship": "Child of",
+        "language2": "Portuguese",
+        "language1_qid": "Q5401836",
+        "language2_qid": "Q5146"
+    },
+    {
+        "language1": "Hellenic",
+        "relationship": "Child of",
+        "language2": "Indo-European",
+        "language1_qid": "Q2042538",
+        "language2_qid": "Q19860"
+    },
+    {
+        "language1": "Astrakhan Russian",
+        "relationship": "Child of",
+        "language2": "Russian",
+        "language1_qid": "Q65083191",
+        "language2_qid": "Q7737"
+    },
+    {
+        "language1": "South Germanic",
+        "relationship": "Child of",
+        "language2": "West Germanic",
+        "language1_qid": "Q106937689",
+        "language2_qid": "Q26721"
+    },
+    {
+        "language1": "Moroccan Arabic",
+        "relationship": "Child of",
+        "language2": "Arabic",
+        "language1_qid": "Q56426",
+        "language2_qid": "Q13955"
+    },
+    {
+        "language1": "Tagol",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q7675300",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Sudanese Arabic",
+        "relationship": "Child of",
+        "language2": "Arabic",
+        "language1_qid": "Q56573",
+        "language2_qid": "Q13955"
+    },
+    {
+        "language1": "Mosiro",
+        "relationship": "Child of",
+        "language2": "Nilo-Saharan",
+        "language1_qid": "Q6916288",
+        "language2_qid": "Q33705"
+    },
+    {
+        "language1": "German-Dutch languages",
+        "relationship": "Child of",
+        "language2": "West Germanic",
+        "language1_qid": "Q986800",
+        "language2_qid": "Q26721"
+    },
+    {
+        "language1": "Missouri French",
+        "relationship": "Child of",
+        "language2": "North American French",
+        "language1_qid": "Q3083210",
+        "language2_qid": "Q3083193"
+    },
+    {
+        "language1": "Egyptien de tradition",
+        "relationship": "Child of",
+        "language2": "Egyptian",
+        "language1_qid": "Q123735278",
+        "language2_qid": "Q50868"
+    },
+    {
+        "language1": "Old Frisian",
+        "relationship": "Child of",
+        "language2": "Frisian",
+        "language1_qid": "Q35133",
+        "language2_qid": "Q25325"
+    },
+    {
+        "language1": "Western Egyptian Bedawi Arabic",
+        "relationship": "Child of",
+        "language2": "Libyan Arabic",
+        "language1_qid": "Q116044950",
+        "language2_qid": "Q56503"
+    },
+    {
+        "language1": "Sino-Tibetan",
+        "relationship": "Child of",
+        "language2": "Dené–Caucasian",
+        "language1_qid": "Q45961",
+        "language2_qid": "Q507968"
+    },
+    {
+        "language1": "Proto-Maluku Tengah",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q24283510",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Shinasha",
+        "relationship": "Child of",
+        "language2": "Omotic",
+        "language1_qid": "Q56260",
+        "language2_qid": "Q33860"
+    },
+    {
+        "language1": "South-West Irish English",
+        "relationship": "Child of",
+        "language2": "Hiberno-English",
+        "language1_qid": "Q85802209",
+        "language2_qid": "Q665624"
+    },
+    {
+        "language1": "Tuu",
+        "relationship": "Child of",
+        "language2": "Khoisan",
+        "language1_qid": "Q631046",
+        "language2_qid": "Q33614"
+    },
+    {
+        "language1": "Midzu",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q6843504",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "Kariya",
+        "relationship": "Child of",
+        "language2": "Chadic",
+        "language1_qid": "Q3438708",
+        "language2_qid": "Q33184"
+    },
+    {
+        "language1": "South Atlantic English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q7566064",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Jijel Arabic",
+        "relationship": "Child of",
+        "language2": "Algerian Arabic",
+        "language1_qid": "Q3032956",
+        "language2_qid": "Q56499"
+    },
+    {
+        "language1": "Bimbashi Arabic",
+        "relationship": "Child of",
+        "language2": "Arabic",
+        "language1_qid": "Q4913707",
+        "language2_qid": "Q13955"
+    },
+    {
+        "language1": "Azorean Portuguese",
+        "relationship": "Child of",
+        "language2": "Portuguese",
+        "language1_qid": "Q10265988",
+        "language2_qid": "Q5146"
+    },
+    {
+        "language1": "Madras Bashai",
+        "relationship": "Child of",
+        "language2": "Dravidian",
+        "language1_qid": "Q3033314",
+        "language2_qid": "Q33311"
+    },
+    {
+        "language1": "Miami English",
+        "relationship": "Child of",
+        "language2": "American English",
+        "language1_qid": "Q17048362",
+        "language2_qid": "Q7976"
+    },
+    {
+        "language1": "Pre-Classical Arabic",
+        "relationship": "Child of",
+        "language2": "Arabic",
+        "language1_qid": "Q25110469",
+        "language2_qid": "Q13955"
+    },
+    {
+        "language1": "Caribbean Spanish",
+        "relationship": "Child of",
+        "language2": "Latin American Spanish",
+        "language1_qid": "Q772345",
+        "language2_qid": "Q56649449"
+    },
+    {
+        "language1": "Old Church Slavonic",
+        "relationship": "Child of",
+        "language2": "South Slavic",
+        "language1_qid": "Q35499",
+        "language2_qid": "Q146665"
+    },
+    {
+        "language1": "Yiddish",
+        "relationship": "Child of",
+        "language2": "West Germanic",
+        "language1_qid": "Q8641",
+        "language2_qid": "Q26721"
+    },
+    {
+        "language1": "Yeheni",
+        "relationship": "Child of",
+        "language2": "Chinese",
+        "language1_qid": "Q48731939",
+        "language2_qid": "Q7850"
+    },
+    {
+        "language1": "Luminar English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q114591062",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Central Flores",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q85751218",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Singapore English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q3610939",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Lun Bawang",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q13479839",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Slovincian",
+        "relationship": "Child of",
+        "language2": "Lechitic",
+        "language1_qid": "Q36822",
+        "language2_qid": "Q742782"
+    },
+    {
+        "language1": "Podlachian",
+        "relationship": "Child of",
+        "language2": "Slavic",
+        "language1_qid": "Q164854",
+        "language2_qid": "Q23526"
+    },
+    {
+        "language1": "Gur",
+        "relationship": "Child of",
+        "language2": "Niger–Congo",
+        "language1_qid": "Q33536",
+        "language2_qid": "Q33838"
+    },
+    {
+        "language1": "Nigerian Arabic",
+        "relationship": "Child of",
+        "language2": "Shuwa",
+        "language1_qid": "Q1217976",
+        "language2_qid": "Q56497"
+    },
+    {
+        "language1": "Indo-European",
+        "relationship": "Child of",
+        "language2": "human language",
+        "language1_qid": "Q19860",
+        "language2_qid": "Q20162172"
+    },
+    {
+        "language1": "French language in Cambodia",
+        "relationship": "Child of",
+        "language2": "French",
+        "language1_qid": "Q5025153",
+        "language2_qid": "Q150"
+    },
+    {
+        "language1": "Kartvelian",
+        "relationship": "Child of",
+        "language2": "Ibero-Caucasian",
+        "language1_qid": "Q34030",
+        "language2_qid": "Q169921"
+    },
+    {
+        "language1": "Tarascan",
+        "relationship": "Child of",
+        "language2": "human language",
+        "language1_qid": "Q33127629",
+        "language2_qid": "Q20162172"
+    },
+    {
+        "language1": "South Dravidian",
+        "relationship": "Child of",
+        "language2": "Dravidian",
+        "language1_qid": "Q128886618",
+        "language2_qid": "Q33311"
+    },
+    {
+        "language1": "Malaysian Mandarin",
+        "relationship": "Child of",
+        "language2": "Standard Chinese",
+        "language1_qid": "Q13646143",
+        "language2_qid": "Q727694"
+    },
+    {
+        "language1": "Kagoshima dialect",
+        "relationship": "Child of",
+        "language2": "Kyūshū Japanese",
+        "language1_qid": "Q3191866",
+        "language2_qid": "Q10878817"
+    },
+    {
+        "language1": "Hong Kong English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q1068863",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Ligurian",
+        "relationship": "Child of",
+        "language2": "Indo-European",
+        "language1_qid": "Q36104",
+        "language2_qid": "Q19860"
+    },
+    {
+        "language1": "Shuwa",
+        "relationship": "Child of",
+        "language2": "Arabic",
+        "language1_qid": "Q56497",
+        "language2_qid": "Q13955"
+    },
+    {
+        "language1": "South Dravidian",
+        "relationship": "Child of",
+        "language2": "Dravidian",
+        "language1_qid": "Q16112843",
+        "language2_qid": "Q33311"
+    },
+    {
+        "language1": "Phoenician",
+        "relationship": "Child of",
+        "language2": "Semitic",
+        "language1_qid": "Q36734",
+        "language2_qid": "Q34049"
+    },
+    {
+        "language1": "Old Coptic",
+        "relationship": "Child of",
+        "language2": "Egyptian",
+        "language1_qid": "Q115518040",
+        "language2_qid": "Q50868"
+    },
+    {
+        "language1": "Proto-Slavic",
+        "relationship": "Child of",
+        "language2": "Slavic",
+        "language1_qid": "Q747537",
+        "language2_qid": "Q23526"
+    },
+    {
+        "language1": "Nimboran",
+        "relationship": "Child of",
+        "language2": "Nimboran",
+        "language1_qid": "Q301116",
+        "language2_qid": "Q12638426"
+    },
+    {
+        "language1": "Elamite",
+        "relationship": "Child of",
+        "language2": "human language",
+        "language1_qid": "Q35470",
+        "language2_qid": "Q20162172"
+    },
+    {
+        "language1": "Galician–Portuguese",
+        "relationship": "Child of",
+        "language2": "Galician–Portuguese",
+        "language1_qid": "Q1072111",
+        "language2_qid": "Q9080204"
+    },
+    {
+        "language1": "Cafundó",
+        "relationship": "Child of",
+        "language2": "Galician–Portuguese",
+        "language1_qid": "Q3331506",
+        "language2_qid": "Q9080204"
+    },
+    {
+        "language1": "French",
+        "relationship": "Child of",
+        "language2": "Southern European language",
+        "language1_qid": "Q150",
+        "language2_qid": "Q85380120"
+    },
+    {
+        "language1": "Mineiro",
+        "relationship": "Child of",
+        "language2": "Brazilian Portuguese",
+        "language1_qid": "Q3706614",
+        "language2_qid": "Q750553"
+    },
+    {
+        "language1": "Manx English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q6753295",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Lombardic",
+        "relationship": "Child of",
+        "language2": "West Germanic",
+        "language1_qid": "Q35972",
+        "language2_qid": "Q26721"
+    },
+    {
+        "language1": "Neo-Nyungar",
+        "relationship": "Child of",
+        "language2": "Australian English",
+        "language1_qid": "Q125997320",
+        "language2_qid": "Q44679"
+    },
+    {
+        "language1": "Egypto-Sudanic Arabic",
+        "relationship": "Child of",
+        "language2": "Arabic",
+        "language1_qid": "Q135994328",
+        "language2_qid": "Q13955"
+    },
+    {
+        "language1": "Eastern Yugur",
+        "relationship": "Child of",
+        "language2": "Mongolic",
+        "language1_qid": "Q29902",
+        "language2_qid": "Q33750"
+    },
+    {
+        "language1": "Taz",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q3516511",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "Mashriqi Arabic",
+        "relationship": "Child of",
+        "language2": "Arabic",
+        "language1_qid": "Q5329979",
+        "language2_qid": "Q13955"
+    },
+    {
+        "language1": "varieties of Chinese",
+        "relationship": "Child of",
+        "language2": "Chinese",
+        "language1_qid": "Q2748296",
+        "language2_qid": "Q7850"
+    },
+    {
+        "language1": "Upper German",
+        "relationship": "Child of",
+        "language2": "German",
+        "language1_qid": "Q263522",
+        "language2_qid": "Q188"
+    },
+    {
+        "language1": "Dorze",
+        "relationship": "Child of",
+        "language2": "Omotic",
+        "language1_qid": "Q56336",
+        "language2_qid": "Q33860"
+    },
+    {
+        "language1": "Caipira dialect",
+        "relationship": "Child of",
+        "language2": "Brazilian Portuguese",
+        "language1_qid": "Q10265994",
+        "language2_qid": "Q750553"
+    },
+    {
+        "language1": "Celtic languages",
+        "relationship": "Child of",
+        "language2": "Indo-European",
+        "language1_qid": "Q25293",
+        "language2_qid": "Q19860"
+    },
+    {
+        "language1": "Sino-Tibetan",
+        "relationship": "Child of",
+        "language2": "Sino-Austronesian",
+        "language1_qid": "Q45961",
+        "language2_qid": "Q7524744"
+    },
+    {
+        "language1": "Gallo",
+        "relationship": "Child of",
+        "language2": "Oïl",
+        "language1_qid": "Q37300",
+        "language2_qid": "Q37351"
+    },
+    {
+        "language1": "South Slavic",
+        "relationship": "Child of",
+        "language2": "Slavic",
+        "language1_qid": "Q146665",
+        "language2_qid": "Q23526"
+    },
+    {
+        "language1": "Thraco-Illyrian",
+        "relationship": "Child of",
+        "language2": "Indo-European",
+        "language1_qid": "Q17033020",
+        "language2_qid": "Q19860"
+    },
+    {
+        "language1": "Lemko",
+        "relationship": "Child of",
+        "language2": "Slavic",
+        "language1_qid": "Q12117586",
+        "language2_qid": "Q23526"
+    },
+    {
+        "language1": "Moyon",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q6927748",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "Ongota",
+        "relationship": "Child of",
+        "language2": "Cushitic",
+        "language1_qid": "Q36344",
+        "language2_qid": "Q33248"
+    },
+    {
+        "language1": "Mbugu",
+        "relationship": "Child of",
+        "language2": "Cushitic",
+        "language1_qid": "Q36152",
+        "language2_qid": "Q33248"
+    },
+    {
+        "language1": "Zimbabwean English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q104876826",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Singapore-Malaya Mandarin",
+        "relationship": "Child of",
+        "language2": "Standard Chinese",
+        "language1_qid": "Q11084544",
+        "language2_qid": "Q727694"
+    },
+    {
+        "language1": "Bedouin Hijazi Arabic",
+        "relationship": "Child of",
+        "language2": "Hijazi Arabic",
+        "language1_qid": "Q20394637",
+        "language2_qid": "Q56608"
+    },
+    {
+        "language1": "Tinglish",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q1546608",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Southern American English",
+        "relationship": "Child of",
+        "language2": "American English",
+        "language1_qid": "Q6144345",
+        "language2_qid": "Q7976"
+    },
+    {
+        "language1": "Tajiki Arabic",
+        "relationship": "Child of",
+        "language2": "Arabic",
+        "language1_qid": "Q56833",
+        "language2_qid": "Q13955"
+    },
+    {
+        "language1": "Uzbeki Arabic",
+        "relationship": "Child of",
+        "language2": "Arabic",
+        "language1_qid": "Q3399507",
+        "language2_qid": "Q13955"
+    },
+    {
+        "language1": "Meridional French",
+        "relationship": "Child of",
+        "language2": "French",
+        "language1_qid": "Q28818299",
+        "language2_qid": "Q150"
+    },
+    {
+        "language1": "Mayennais",
+        "relationship": "Child of",
+        "language2": "Oïl",
+        "language1_qid": "Q3302952",
+        "language2_qid": "Q37351"
+    },
+    {
+        "language1": "Brazilian Portuguese",
+        "relationship": "Child of",
+        "language2": "Portuguese",
+        "language1_qid": "Q750553",
+        "language2_qid": "Q5146"
+    },
+    {
+        "language1": "Ugandan English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q7877674",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Raji–Raute",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q7286250",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "Taafien",
+        "relationship": "Child of",
+        "language2": "French",
+        "language1_qid": "Q3512668",
+        "language2_qid": "Q150"
+    },
+    {
+        "language1": "Mozambican Portuguese",
+        "relationship": "Child of",
+        "language2": "Portuguese",
+        "language1_qid": "Q4373398",
+        "language2_qid": "Q5146"
+    },
+    {
+        "language1": "Taiwan Mandarin (academic concept)",
+        "relationship": "Child of",
+        "language2": "Standard Chinese",
+        "language1_qid": "Q15927842",
+        "language2_qid": "Q727694"
+    },
+    {
+        "language1": "Mannan",
+        "relationship": "Child of",
+        "language2": "Dravidian",
+        "language1_qid": "Q3286037",
+        "language2_qid": "Q33311"
+    },
+    {
+        "language1": "South Asian English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q7566032",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Vandalic",
+        "relationship": "Child of",
+        "language2": "East Germanic",
+        "language1_qid": "Q36835",
+        "language2_qid": "Q108662"
+    },
+    {
+        "language1": "Champenois",
+        "relationship": "Child of",
+        "language2": "Oïl",
+        "language1_qid": "Q430018",
+        "language2_qid": "Q37351"
+    },
+    {
+        "language1": "Northern Portuguese",
+        "relationship": "Child of",
+        "language2": "Portuguese",
+        "language1_qid": "Q7058864",
+        "language2_qid": "Q5146"
+    },
+    {
+        "language1": "New Orleans English",
+        "relationship": "Child of",
+        "language2": "American English",
+        "language1_qid": "Q8050140",
+        "language2_qid": "Q7976"
+    },
+    {
+        "language1": "Alentejan Portuguese",
+        "relationship": "Child of",
+        "language2": "Portuguese",
+        "language1_qid": "Q6083261",
+        "language2_qid": "Q5146"
+    },
+    {
+        "language1": "Proto-Austronesian",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q49230",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Tetouan dialect of Moroccan Darija",
+        "relationship": "Child of",
+        "language2": "Moroccan Arabic",
+        "language1_qid": "Q100376291",
+        "language2_qid": "Q56426"
+    },
+    {
+        "language1": "Libyan Arabic",
+        "relationship": "Child of",
+        "language2": "Arabic",
+        "language1_qid": "Q56503",
+        "language2_qid": "Q13955"
+    },
+    {
+        "language1": "Momina",
+        "relationship": "Child of",
+        "language2": "Somahai",
+        "language1_qid": "Q6897297",
+        "language2_qid": "Q7559126"
+    },
+    {
+        "language1": "Angevin",
+        "relationship": "Child of",
+        "language2": "Oïl",
+        "language1_qid": "Q56782",
+        "language2_qid": "Q37351"
+    },
+    {
+        "language1": "Proto-West Germanic",
+        "relationship": "Child of",
+        "language2": "Proto-Germanic",
+        "language1_qid": "Q13138608",
+        "language2_qid": "Q669623"
+    },
+    {
+        "language1": "Mid-Atlantic accent",
+        "relationship": "Child of",
+        "language2": "American English",
+        "language1_qid": "Q646536",
+        "language2_qid": "Q7976"
+    },
+    {
+        "language1": "Dazawa",
+        "relationship": "Child of",
+        "language2": "Chadic",
+        "language1_qid": "Q3914922",
+        "language2_qid": "Q33184"
+    },
+    {
+        "language1": "Standard Australian English",
+        "relationship": "Child of",
+        "language2": "Australian English",
+        "language1_qid": "Q67135665",
+        "language2_qid": "Q44679"
+    },
+    {
+        "language1": "American English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q7976",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Beja",
+        "relationship": "Child of",
+        "language2": "Cushitic",
+        "language1_qid": "Q33025",
+        "language2_qid": "Q33248"
+    },
+    {
+        "language1": "Nigerian English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q7033019",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Pannonian Slavic",
+        "relationship": "Child of",
+        "language2": "South Slavic",
+        "language1_qid": "Q55664049",
+        "language2_qid": "Q146665"
+    },
+    {
+        "language1": "Egyptian Arabic",
+        "relationship": "Child of",
+        "language2": "Arabic",
+        "language1_qid": "Q29919",
+        "language2_qid": "Q13955"
+    },
+    {
+        "language1": "Lake Peipus dialect",
+        "relationship": "Child of",
+        "language2": "Russian",
+        "language1_qid": "Q40064494",
+        "language2_qid": "Q7737"
+    },
+    {
+        "language1": "Judeo-Iraqi Arabic",
+        "relationship": "Child of",
+        "language2": "Judeo-Arabic",
+        "language1_qid": "Q56599",
+        "language2_qid": "Q37733"
+    },
+    {
+        "language1": "Legal Japanese",
+        "relationship": "Child of",
+        "language2": "Japanese",
+        "language1_qid": "Q116969960",
+        "language2_qid": "Q5287"
+    },
+    {
+        "language1": "Formosan",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q715278",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Middle French",
+        "relationship": "Child of",
+        "language2": "French",
+        "language1_qid": "Q1473289",
+        "language2_qid": "Q150"
+    },
+    {
+        "language1": "Kuwaiti Arabic",
+        "relationship": "Child of",
+        "language2": "Gulf Arabic",
+        "language1_qid": "Q6448936",
+        "language2_qid": "Q56385"
+    },
+    {
+        "language1": "Torres Strait English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q7827064",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "dialect of Basel-Landschaft",
+        "relationship": "Child of",
+        "language2": "Swiss German",
+        "language1_qid": "Q4075226",
+        "language2_qid": "Q387066"
+    },
+    {
+        "language1": "Peninsular Japonic",
+        "relationship": "Child of",
+        "language2": "Japonic",
+        "language1_qid": "Q7495165",
+        "language2_qid": "Q33612"
+    },
+    {
+        "language1": "Yunfu Cantonese",
+        "relationship": "Child of",
+        "language2": "Yue Chinese",
+        "language1_qid": "Q98099074",
+        "language2_qid": "Q7033959"
+    },
+    {
+        "language1": "Bun",
+        "relationship": "Child of",
+        "language2": "Yuat",
+        "language1_qid": "Q56351",
+        "language2_qid": "Q8060096"
+    },
+    {
+        "language1": "Kayeli",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q4207444",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Old Aramaic",
+        "relationship": "Child of",
+        "language2": "Semitic",
+        "language1_qid": "Q3398392",
+        "language2_qid": "Q34049"
+    },
+    {
+        "language1": "Dacian",
+        "relationship": "Child of",
+        "language2": "Indo-European",
+        "language1_qid": "Q682547",
+        "language2_qid": "Q19860"
+    },
+    {
+        "language1": "Nimboran",
+        "relationship": "Child of",
+        "language2": "human language",
+        "language1_qid": "Q12638426",
+        "language2_qid": "Q20162172"
+    },
+    {
+        "language1": "Gepidian",
+        "relationship": "Child of",
+        "language2": "East Germanic",
+        "language1_qid": "Q135437872",
+        "language2_qid": "Q108662"
+    },
+    {
+        "language1": "Sierra Leonean English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q17081997",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Early and Classic Middle Egyptian",
+        "relationship": "Child of",
+        "language2": "Egyptian",
+        "language1_qid": "Q125138128",
+        "language2_qid": "Q50868"
+    },
+    {
+        "language1": "Efik",
+        "relationship": "Child of",
+        "language2": "Niger–Congo",
+        "language1_qid": "Q35377",
+        "language2_qid": "Q33838"
+    },
+    {
+        "language1": "Abercraf English",
+        "relationship": "Child of",
+        "language2": "Welsh English",
+        "language1_qid": "Q55603076",
+        "language2_qid": "Q2363292"
+    },
+    {
+        "language1": "Boro",
+        "relationship": "Child of",
+        "language2": "Niger–Congo",
+        "language1_qid": "Q16844787",
+        "language2_qid": "Q33838"
+    },
+    {
+        "language1": "Wolayttattuwa",
+        "relationship": "Child of",
+        "language2": "Omotic",
+        "language1_qid": "Q36943",
+        "language2_qid": "Q33860"
+    },
+    {
+        "language1": "New Jersey English",
+        "relationship": "Child of",
+        "language2": "American English",
+        "language1_qid": "Q7009198",
+        "language2_qid": "Q7976"
+    },
+    {
+        "language1": "Mruic",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q16908870",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "Shinasa",
+        "relationship": "Child of",
+        "language2": "Omotic",
+        "language1_qid": "Q13143772",
+        "language2_qid": "Q33860"
+    },
+    {
+        "language1": "Bobat",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q24265552",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Uneapa",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q7884126",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Sanʽani Arabic",
+        "relationship": "Child of",
+        "language2": "Arabic",
+        "language1_qid": "Q56578",
+        "language2_qid": "Q13955"
+    },
+    {
+        "language1": "Ghanaian English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q25105912",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Slavic",
+        "relationship": "Child of",
+        "language2": "Indo-European",
+        "language1_qid": "Q23526",
+        "language2_qid": "Q19860"
+    },
+    {
+        "language1": "Madeiran Portuguese",
+        "relationship": "Child of",
+        "language2": "European Portuguese",
+        "language1_qid": "Q10266005",
+        "language2_qid": "Q922399"
+    },
+    {
+        "language1": "Sinaugoro",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q4170719",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Bahraini Gulf Arabic",
+        "relationship": "Child of",
+        "language2": "Gulf Arabic",
+        "language1_qid": "Q12237465",
+        "language2_qid": "Q56385"
+    },
+    {
+        "language1": "Nepali English",
+        "relationship": "Child of",
+        "language2": "South Asian English",
+        "language1_qid": "Q16974834",
+        "language2_qid": "Q7566032"
+    },
+    {
+        "language1": "Koro",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q36162",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "Gong",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q3448919",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "Pennsylvania German",
+        "relationship": "Child of",
+        "language2": "German",
+        "language1_qid": "Q22711",
+        "language2_qid": "Q188"
+    },
+    {
+        "language1": "Somahai",
+        "relationship": "Child of",
+        "language2": "human language",
+        "language1_qid": "Q7559126",
+        "language2_qid": "Q20162172"
+    },
+    {
+        "language1": "General American English",
+        "relationship": "Child of",
+        "language2": "American English",
+        "language1_qid": "Q3308526",
+        "language2_qid": "Q7976"
+    },
+    {
+        "language1": "Watubela",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q7975070",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Utah Mormon English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q65082803",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Demotic Egyptian",
+        "relationship": "Child of",
+        "language2": "Egyptian",
+        "language1_qid": "Q36765",
+        "language2_qid": "Q50868"
+    },
+    {
+        "language1": "Zayse-Zergulla",
+        "relationship": "Child of",
+        "language2": "Omotic",
+        "language1_qid": "Q673895",
+        "language2_qid": "Q33860"
+    },
+    {
+        "language1": "Khoisan",
+        "relationship": "Child of",
+        "language2": "human language",
+        "language1_qid": "Q33614",
+        "language2_qid": "Q20162172"
+    },
+    {
+        "language1": "Masa",
+        "relationship": "Child of",
+        "language2": "Chadic",
+        "language1_qid": "Q2136092",
+        "language2_qid": "Q33184"
+    },
+    {
+        "language1": "Ugric",
+        "relationship": "Child of",
+        "language2": "Uralic",
+        "language1_qid": "Q156631",
+        "language2_qid": "Q34113"
+    },
+    {
+        "language1": "Central Cordilleran",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q96374656",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Kyūshū Japanese",
+        "relationship": "Child of",
+        "language2": "Japanese",
+        "language1_qid": "Q10878817",
+        "language2_qid": "Q5287"
+    },
+    {
+        "language1": "Boontling",
+        "relationship": "Child of",
+        "language2": "American English",
+        "language1_qid": "Q4943708",
+        "language2_qid": "Q7976"
+    },
+    {
+        "language1": "Hruso",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q1632501",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "Standard Chinese",
+        "relationship": "Child of",
+        "language2": "Chinese",
+        "language1_qid": "Q727694",
+        "language2_qid": "Q7850"
+    },
+    {
+        "language1": "Angolan Portuguese",
+        "relationship": "Child of",
+        "language2": "Portuguese",
+        "language1_qid": "Q2994901",
+        "language2_qid": "Q5146"
+    },
+    {
+        "language1": "Sundic languages",
+        "relationship": "Child of",
+        "language2": "human language",
+        "language1_qid": "Q116181036",
+        "language2_qid": "Q20162172"
+    },
+    {
+        "language1": "Vasconic",
+        "relationship": "Child of",
+        "language2": "human language",
+        "language1_qid": "Q4669240",
+        "language2_qid": "Q20162172"
+    },
+    {
+        "language1": "Zo",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q1521245",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "Lucerne German",
+        "relationship": "Child of",
+        "language2": "Swiss German",
+        "language1_qid": "Q4272428",
+        "language2_qid": "Q387066"
+    },
+    {
+        "language1": "Judaeo-Portuguese",
+        "relationship": "Child of",
+        "language2": "Galician–Portuguese",
+        "language1_qid": "Q56982",
+        "language2_qid": "Q9080204"
+    },
+    {
+        "language1": "Stodse",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q25559440",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "Egyptian",
+        "relationship": "Child of",
+        "language2": "Afroasiatic",
+        "language1_qid": "Q34610803",
+        "language2_qid": "Q25268"
+    },
+    {
+        "language1": "Aquitanian",
+        "relationship": "Child of",
+        "language2": "Vasconic",
+        "language1_qid": "Q500522",
+        "language2_qid": "Q4669240"
+    },
+    {
+        "language1": "N’Djamena Arabic",
+        "relationship": "Child of",
+        "language2": "Shuwa",
+        "language1_qid": "Q131427215",
+        "language2_qid": "Q56497"
+    },
+    {
+        "language1": "Indian English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q1348800",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Dagba",
+        "relationship": "Child of",
+        "language2": "Nilo-Saharan",
+        "language1_qid": "Q12952357",
+        "language2_qid": "Q33705"
+    },
+    {
+        "language1": "Chara",
+        "relationship": "Child of",
+        "language2": "Omotic",
+        "language1_qid": "Q13146490",
+        "language2_qid": "Q33860"
+    },
+    {
+        "language1": "Gao-Yang Yue",
+        "relationship": "Child of",
+        "language2": "Yue Chinese",
+        "language1_qid": "Q2812583",
+        "language2_qid": "Q7033959"
+    },
+    {
+        "language1": "Muna",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q6935584",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Shirongolic",
+        "relationship": "Child of",
+        "language2": "Mongolic",
+        "language1_qid": "Q107539435",
+        "language2_qid": "Q33750"
+    },
+    {
+        "language1": "Andalusi Arabic",
+        "relationship": "Child of",
+        "language2": "Maghrebi Arabic",
+        "language1_qid": "Q1137945",
+        "language2_qid": "Q1194795"
+    },
+    {
+        "language1": "Modern Norwegian",
+        "relationship": "Child of",
+        "language2": "North Germanic",
+        "language1_qid": "Q6888794",
+        "language2_qid": "Q106085"
+    },
+    {
+        "language1": "Old Chinese",
+        "relationship": "Child of",
+        "language2": "Chinese",
+        "language1_qid": "Q35137",
+        "language2_qid": "Q7850"
+    },
+    {
+        "language1": "East Central German",
+        "relationship": "Child of",
+        "language2": "Central German",
+        "language1_qid": "Q499344",
+        "language2_qid": "Q704841"
+    },
+    {
+        "language1": "Lemko",
+        "relationship": "Child of",
+        "language2": "Slavic",
+        "language1_qid": "Q2159476",
+        "language2_qid": "Q23526"
+    },
+    {
+        "language1": "Guinean Portuguese",
+        "relationship": "Child of",
+        "language2": "Portuguese",
+        "language1_qid": "Q5616512",
+        "language2_qid": "Q5146"
+    },
+    {
+        "language1": "Spanish-based creole languages",
+        "relationship": "Child of",
+        "language2": "Spanish",
+        "language1_qid": "Q2655227",
+        "language2_qid": "Q1321"
+    },
+    {
+        "language1": "Nara",
+        "relationship": "Child of",
+        "language2": "Nilo-Saharan",
+        "language1_qid": "Q36179",
+        "language2_qid": "Q33705"
+    },
+    {
+        "language1": "Archaic Egyptian",
+        "relationship": "Child of",
+        "language2": "Egyptian",
+        "language1_qid": "Q35384",
+        "language2_qid": "Q50868"
+    },
+    {
+        "language1": "Cairene Arabic",
+        "relationship": "Child of",
+        "language2": "Egyptian Arabic",
+        "language1_qid": "Q18216074",
+        "language2_qid": "Q29919"
+    },
+    {
+        "language1": "Akkadian",
+        "relationship": "Child of",
+        "language2": "Semitic",
+        "language1_qid": "Q35518",
+        "language2_qid": "Q34049"
+    },
+    {
+        "language1": "Algerian Arabic",
+        "relationship": "Child of",
+        "language2": "Arabic",
+        "language1_qid": "Q56499",
+        "language2_qid": "Q13955"
+    },
+    {
+        "language1": "Taaw't Bato",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q60787662",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Tela’a",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q7695666",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Junjiahua",
+        "relationship": "Child of",
+        "language2": "Mandarin",
+        "language1_qid": "Q10895019",
+        "language2_qid": "Q9192"
+    },
+    {
+        "language1": "Bumthang",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q2786408",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "Transylvanian Saxon",
+        "relationship": "Child of",
+        "language2": "German",
+        "language1_qid": "Q260942",
+        "language2_qid": "Q188"
+    },
+    {
+        "language1": "Swiss German",
+        "relationship": "Child of",
+        "language2": "German",
+        "language1_qid": "Q387066",
+        "language2_qid": "Q188"
+    },
+    {
+        "language1": "Cajun English",
+        "relationship": "Child of",
+        "language2": "American English",
+        "language1_qid": "Q2849611",
+        "language2_qid": "Q7976"
+    },
+    {
+        "language1": "Solomon Islands English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q7558643",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Carioca dialect",
+        "relationship": "Child of",
+        "language2": "Brazilian Portuguese",
+        "language1_qid": "Q10265995",
+        "language2_qid": "Q750553"
+    },
+    {
+        "language1": "Kordofanian",
+        "relationship": "Child of",
+        "language2": "Niger–Congo",
+        "language1_qid": "Q1139349",
+        "language2_qid": "Q33838"
+    },
+    {
+        "language1": "Ancient Belgian",
+        "relationship": "Child of",
+        "language2": "Indo-European",
+        "language1_qid": "Q792316",
+        "language2_qid": "Q19860"
+    },
+    {
+        "language1": "Iberian",
+        "relationship": "Child of",
+        "language2": "human language",
+        "language1_qid": "Q855215",
+        "language2_qid": "Q20162172"
+    },
+    {
+        "language1": "Coastal Min",
+        "relationship": "Child of",
+        "language2": "Min Chinese",
+        "language1_qid": "Q20667215",
+        "language2_qid": "Q56504"
+    },
+    {
+        "language1": "Western Pennsylvania English",
+        "relationship": "Child of",
+        "language2": "American English",
+        "language1_qid": "Q5061640",
+        "language2_qid": "Q7976"
+    },
+    {
+        "language1": "Northern Tungusic",
+        "relationship": "Child of",
+        "language2": "Tungusic",
+        "language1_qid": "Q105889448",
+        "language2_qid": "Q34230"
+    },
+    {
+        "language1": "Malgbe",
+        "relationship": "Child of",
+        "language2": "Chadic",
+        "language1_qid": "Q3502224",
+        "language2_qid": "Q33184"
+    },
+    {
+        "language1": "Judeo-Malay",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q120847304",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Carpathian Rusyn",
+        "relationship": "Child of",
+        "language2": "East Slavic",
+        "language1_qid": "Q37019",
+        "language2_qid": "Q144713"
+    },
+    {
+        "language1": "Omotic",
+        "relationship": "Child of",
+        "language2": "Afroasiatic",
+        "language1_qid": "Q33860",
+        "language2_qid": "Q25268"
+    },
+    {
+        "language1": "Dongping dialect",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q30156140",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "Saʽidi Arabic",
+        "relationship": "Child of",
+        "language2": "Arabic",
+        "language1_qid": "Q56592",
+        "language2_qid": "Q13955"
+    },
+    {
+        "language1": "Northern Berber languages",
+        "relationship": "Child of",
+        "language2": "Berber",
+        "language1_qid": "Q2741732",
+        "language2_qid": "Q25448"
+    },
+    {
+        "language1": "Keliko",
+        "relationship": "Child of",
+        "language2": "Nilo-Saharan",
+        "language1_qid": "Q11275553",
+        "language2_qid": "Q33705"
+    },
+    {
+        "language1": "Yenisei-Kipchak",
+        "relationship": "Child of",
+        "language2": "Turkic",
+        "language1_qid": "Q56313784",
+        "language2_qid": "Q34090"
+    },
+    {
+        "language1": "Moghol",
+        "relationship": "Child of",
+        "language2": "Mongolic",
+        "language1_qid": "Q13336",
+        "language2_qid": "Q33750"
+    },
+    {
+        "language1": "Wampur",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q7966957",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Gongduk",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q2669221",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "Ancient Egyptian, pre-demotic",
+        "relationship": "Child of",
+        "language2": "Egyptian",
+        "language1_qid": "Q125136649",
+        "language2_qid": "Q50868"
+    },
+    {
+        "language1": "Western Turkic",
+        "relationship": "Child of",
+        "language2": "Turkic",
+        "language1_qid": "Q163320",
+        "language2_qid": "Q34090"
+    },
+    {
+        "language1": "Proto-Berber",
+        "relationship": "Child of",
+        "language2": "Berber",
+        "language1_qid": "Q2855698",
+        "language2_qid": "Q25448"
+    },
+    {
+        "language1": "Purépecha",
+        "relationship": "Child of",
+        "language2": "Tarascan",
+        "language1_qid": "Q36803",
+        "language2_qid": "Q33127629"
+    },
+    {
+        "language1": "Adaeseño Spanish",
+        "relationship": "Child of",
+        "language2": "Spanish",
+        "language1_qid": "Q99527013",
+        "language2_qid": "Q1321"
+    },
+    {
+        "language1": "West Chadic",
+        "relationship": "Child of",
+        "language2": "Chadic",
+        "language1_qid": "Q2447774",
+        "language2_qid": "Q33184"
+    },
+    {
+        "language1": "High Franconian German",
+        "relationship": "Child of",
+        "language2": "Upper German",
+        "language1_qid": "Q635271",
+        "language2_qid": "Q263522"
+    },
+    {
+        "language1": "Central Tungusic",
+        "relationship": "Child of",
+        "language2": "Tungusic",
+        "language1_qid": "Q105889183",
+        "language2_qid": "Q34230"
+    },
+    {
+        "language1": "Inland Northern American English",
+        "relationship": "Child of",
+        "language2": "American English",
+        "language1_qid": "Q7057961",
+        "language2_qid": "Q7976"
+    },
+    {
+        "language1": "Coptic",
+        "relationship": "Child of",
+        "language2": "Egyptian",
+        "language1_qid": "Q36155",
+        "language2_qid": "Q50868"
+    },
+    {
+        "language1": "Louisiana French",
+        "relationship": "Child of",
+        "language2": "North American French",
+        "language1_qid": "Q3083213",
+        "language2_qid": "Q3083193"
+    },
+    {
+        "language1": "Ptolemaic Egyptian",
+        "relationship": "Child of",
+        "language2": "Egyptian",
+        "language1_qid": "Q1668296",
+        "language2_qid": "Q50868"
+    },
+    {
+        "language1": "Old East Slavic",
+        "relationship": "Child of",
+        "language2": "East Slavic",
+        "language1_qid": "Q35228",
+        "language2_qid": "Q144713"
+    },
+    {
+        "language1": "Iberian Romance",
+        "relationship": "Child of",
+        "language2": "Southern European language",
+        "language1_qid": "Q749533",
+        "language2_qid": "Q85380120"
+    },
+    {
+        "language1": "Solomon Islands Pidgin English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q55651630",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Galician",
+        "relationship": "Child of",
+        "language2": "Galician–Portuguese",
+        "language1_qid": "Q9307",
+        "language2_qid": "Q9080204"
+    },
+    {
+        "language1": "Bedawi Arabic",
+        "relationship": "Child of",
+        "language2": "Arabic",
+        "language1_qid": "Q56714",
+        "language2_qid": "Q13955"
+    },
+    {
+        "language1": "Ptolemaic Demotic",
+        "relationship": "Child of",
+        "language2": "Egyptian",
+        "language1_qid": "Q125175909",
+        "language2_qid": "Q50868"
+    },
+    {
+        "language1": "Appalachian English",
+        "relationship": "Child of",
+        "language2": "American English",
+        "language1_qid": "Q3802476",
+        "language2_qid": "Q7976"
+    },
+    {
+        "language1": "Romblomanon",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q13202",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Southern Cordilleran",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q96406098",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Portuguese",
+        "relationship": "Child of",
+        "language2": "Galician–Portuguese",
+        "language1_qid": "Q5146",
+        "language2_qid": "Q9080204"
+    },
+    {
+        "language1": "Atlantic–Congo",
+        "relationship": "Child of",
+        "language2": "Niger–Congo",
+        "language1_qid": "Q771124",
+        "language2_qid": "Q33838"
+    },
+    {
+        "language1": "Qatari Arabic",
+        "relationship": "Child of",
+        "language2": "Gulf Arabic",
+        "language1_qid": "Q116201717",
+        "language2_qid": "Q56385"
+    },
+    {
+        "language1": "Bay Islands English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q4874023",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Western American English",
+        "relationship": "Child of",
+        "language2": "American English",
+        "language1_qid": "Q17041575",
+        "language2_qid": "Q7976"
+    },
+    {
+        "language1": "Terebu",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q7701797",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Samoyedic",
+        "relationship": "Child of",
+        "language2": "Uralic",
+        "language1_qid": "Q34005",
+        "language2_qid": "Q34113"
+    },
+    {
+        "language1": "Indonesian languages",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q38638470",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Macro-Oghuz",
+        "relationship": "Child of",
+        "language2": "Turkic",
+        "language1_qid": "Q4053643",
+        "language2_qid": "Q34090"
+    },
+    {
+        "language1": "Tunisian Arabic",
+        "relationship": "Child of",
+        "language2": "Arabic",
+        "language1_qid": "Q56240",
+        "language2_qid": "Q13955"
+    },
+    {
+        "language1": "Lambichhong",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q6481472",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "Sinitic",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q33857",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "Mizo",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q36147",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "Arabic",
+        "relationship": "Child of",
+        "language2": "Semitic",
+        "language1_qid": "Q13955",
+        "language2_qid": "Q34049"
+    },
+    {
+        "language1": "Tristan da Cunha English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q15714762",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Mexican English",
+        "relationship": "Child of",
+        "language2": "North American English",
+        "language1_qid": "Q116603700",
+        "language2_qid": "Q7053766"
+    },
+    {
+        "language1": "Ghanaian Pidgin English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q5555465",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Sunam",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q11002210",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "Bulgarian",
+        "relationship": "Child of",
+        "language2": "South Slavic",
+        "language1_qid": "Q7918",
+        "language2_qid": "Q146665"
+    },
+    {
+        "language1": "Florianopolitan dialect",
+        "relationship": "Child of",
+        "language2": "Brazilian Portuguese",
+        "language1_qid": "Q1296487",
+        "language2_qid": "Q750553"
+    },
+    {
+        "language1": "Old Egyptian",
+        "relationship": "Child of",
+        "language2": "Egyptian",
+        "language1_qid": "Q447117",
+        "language2_qid": "Q50868"
+    },
+    {
+        "language1": "Judeo-Tunisian Arabic",
+        "relationship": "Child of",
+        "language2": "Judeo-Arabic",
+        "language1_qid": "Q56597",
+        "language2_qid": "Q37733"
+    },
+    {
+        "language1": "Highland English",
+        "relationship": "Child of",
+        "language2": "Scottish English",
+        "language1_qid": "Q5758768",
+        "language2_qid": "Q1553250"
+    },
+    {
+        "language1": "Zhangjiakou–Hohhot dialect",
+        "relationship": "Child of",
+        "language2": "Jin",
+        "language1_qid": "Q8070470",
+        "language2_qid": "Q56479"
+    },
+    {
+        "language1": "Tongdao Pinghua",
+        "relationship": "Child of",
+        "language2": "Pinghua",
+        "language1_qid": "Q21005894",
+        "language2_qid": "Q2735715"
+    },
+    {
+        "language1": "Sewa Bay",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q7458126",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Finno-Permic",
+        "relationship": "Child of",
+        "language2": "Uralic",
+        "language1_qid": "Q161240",
+        "language2_qid": "Q34113"
+    },
+    {
+        "language1": "Oghuz-Kipchak",
+        "relationship": "Child of",
+        "language2": "Turkic",
+        "language1_qid": "Q56313778",
+        "language2_qid": "Q34090"
+    },
+    {
+        "language1": "Bangladeshi English",
+        "relationship": "Child of",
+        "language2": "South Asian English",
+        "language1_qid": "Q19570975",
+        "language2_qid": "Q7566032"
+    },
+    {
+        "language1": "world Englishes",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q3545554",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "South Omotic",
+        "relationship": "Child of",
+        "language2": "Omotic",
+        "language1_qid": "Q3699526",
+        "language2_qid": "Q33860"
+    },
+    {
+        "language1": "Anatolian",
+        "relationship": "Child of",
+        "language2": "Indo-European",
+        "language1_qid": "Q147085",
+        "language2_qid": "Q19860"
+    },
+    {
+        "language1": "International English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q1342549",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Fur",
+        "relationship": "Child of",
+        "language2": "Nilo-Saharan",
+        "language1_qid": "Q33364",
+        "language2_qid": "Q33705"
+    },
+    {
+        "language1": "Canadian French",
+        "relationship": "Child of",
+        "language2": "North American French",
+        "language1_qid": "Q1450506",
+        "language2_qid": "Q3083193"
+    },
+    {
+        "language1": "Berlin-Brandenburg dialect",
+        "relationship": "Child of",
+        "language2": "Central German",
+        "language1_qid": "Q4085008",
+        "language2_qid": "Q704841"
+    },
+    {
+        "language1": "Šokac",
+        "relationship": "Child of",
+        "language2": "South Slavic",
+        "language1_qid": "Q1289760",
+        "language2_qid": "Q146665"
+    },
+    {
+        "language1": "Bermudian English",
+        "relationship": "Child of",
+        "language2": "North American English",
+        "language1_qid": "Q4892725",
+        "language2_qid": "Q7053766"
+    },
+    {
+        "language1": "Chamdo",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q85751406",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "Literary Late Egyptian",
+        "relationship": "Child of",
+        "language2": "Egyptian",
+        "language1_qid": "Q125152972",
+        "language2_qid": "Q50868"
+    },
+    {
+        "language1": "Brunei English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q17027001",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Da–Bao",
+        "relationship": "Child of",
+        "language2": "Jin",
+        "language1_qid": "Q10933770",
+        "language2_qid": "Q56479"
+    },
+    {
+        "language1": "Beijing Mandarin",
+        "relationship": "Child of",
+        "language2": "Mandarin",
+        "language1_qid": "Q2169652",
+        "language2_qid": "Q9192"
+    },
+    {
+        "language1": "Dime",
+        "relationship": "Child of",
+        "language2": "Omotic",
+        "language1_qid": "Q35311",
+        "language2_qid": "Q33860"
+    },
+    {
+        "language1": "Cheboksary regional dialect of the Russian language",
+        "relationship": "Child of",
+        "language2": "Russian",
+        "language1_qid": "Q117476029",
+        "language2_qid": "Q7737"
+    },
+    {
+        "language1": "Old Novgorodian",
+        "relationship": "Child of",
+        "language2": "East Slavic",
+        "language1_qid": "Q162013",
+        "language2_qid": "Q144713"
+    },
+    {
+        "language1": "Kusaal",
+        "relationship": "Child of",
+        "language2": "Niger–Congo",
+        "language1_qid": "Q35708",
+        "language2_qid": "Q33838"
+    },
+    {
+        "language1": "Mampruli",
+        "relationship": "Child of",
+        "language2": "Niger–Congo",
+        "language1_qid": "Q35804",
+        "language2_qid": "Q33838"
+    },
+    {
+        "language1": "Palauan English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q7126883",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Mandarin",
+        "relationship": "Child of",
+        "language2": "Chinese",
+        "language1_qid": "Q9192",
+        "language2_qid": "Q7850"
+    },
+    {
+        "language1": "Balkh Arabic",
+        "relationship": "Child of",
+        "language2": "Central Asian Arabic",
+        "language1_qid": "Q21661404",
+        "language2_qid": "Q50948445"
+    },
+    {
+        "language1": "Khorasan Arabic",
+        "relationship": "Child of",
+        "language2": "Central Asian Arabic",
+        "language1_qid": "Q10858115",
+        "language2_qid": "Q50948445"
+    },
+    {
+        "language1": "Rashad",
+        "relationship": "Child of",
+        "language2": "Niger–Congo",
+        "language1_qid": "Q3401986",
+        "language2_qid": "Q33838"
+    },
+    {
+        "language1": "Mount Iriga Agta",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q6921432",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Amazofonia",
+        "relationship": "Child of",
+        "language2": "Brazilian Portuguese",
+        "language1_qid": "Q14986561",
+        "language2_qid": "Q750553"
+    },
+    {
+        "language1": "Cypriot Arabic",
+        "relationship": "Child of",
+        "language2": "Arabic",
+        "language1_qid": "Q56416",
+        "language2_qid": "Q13955"
+    },
+    {
+        "language1": "French language in Laos",
+        "relationship": "Child of",
+        "language2": "French",
+        "language1_qid": "Q6487768",
+        "language2_qid": "Q150"
+    },
+    {
+        "language1": "Nubi",
+        "relationship": "Child of",
+        "language2": "Arabic",
+        "language1_qid": "Q36388",
+        "language2_qid": "Q13955"
+    },
+    {
+        "language1": "North Germanic",
+        "relationship": "Child of",
+        "language2": "Germanic languages",
+        "language1_qid": "Q106085",
+        "language2_qid": "Q21200"
+    },
+    {
+        "language1": "African-American English",
+        "relationship": "Child of",
+        "language2": "American English",
+        "language1_qid": "Q48767245",
+        "language2_qid": "Q7976"
+    },
+    {
+        "language1": "Old Norse",
+        "relationship": "Child of",
+        "language2": "North Germanic",
+        "language1_qid": "Q35505",
+        "language2_qid": "Q106085"
+    },
+    {
+        "language1": "Yong-Xun Yue",
+        "relationship": "Child of",
+        "language2": "Yue Chinese",
+        "language1_qid": "Q8054950",
+        "language2_qid": "Q7033959"
+    },
+    {
+        "language1": "Multicultural Toronto English",
+        "relationship": "Child of",
+        "language2": "Canadian English",
+        "language1_qid": "Q111951340",
+        "language2_qid": "Q44676"
+    },
+    {
+        "language1": "Early Modern Spanish",
+        "relationship": "Child of",
+        "language2": "Spanish",
+        "language1_qid": "Q5364419",
+        "language2_qid": "Q1321"
+    },
+    {
+        "language1": "Fingalian",
+        "relationship": "Child of",
+        "language2": "Anglic",
+        "language1_qid": "Q3072588",
+        "language2_qid": "Q1346342"
+    },
+    {
+        "language1": "Paisa dialect",
+        "relationship": "Child of",
+        "language2": "Colombian Spanish",
+        "language1_qid": "Q5840034",
+        "language2_qid": "Q1115875"
+    },
+    {
+        "language1": "Brazilian German",
+        "relationship": "Child of",
+        "language2": "German",
+        "language1_qid": "Q4958736",
+        "language2_qid": "Q188"
+    },
+    {
+        "language1": "Italic",
+        "relationship": "Child of",
+        "language2": "Indo-European",
+        "language1_qid": "Q131848",
+        "language2_qid": "Q19860"
+    },
+    {
+        "language1": "West Frisian",
+        "relationship": "Child of",
+        "language2": "Frisian",
+        "language1_qid": "Q85815016",
+        "language2_qid": "Q25325"
+    },
+    {
+        "language1": "Sino-Tibetan",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan-Indo-European",
+        "language1_qid": "Q45961",
+        "language2_qid": "Q97690709"
+    },
+    {
+        "language1": "Port Talbot English",
+        "relationship": "Child of",
+        "language2": "Welsh English",
+        "language1_qid": "Q48785410",
+        "language2_qid": "Q2363292"
+    },
+    {
+        "language1": "Burji",
+        "relationship": "Child of",
+        "language2": "Cushitic",
+        "language1_qid": "Q34999",
+        "language2_qid": "Q33248"
+    },
+    {
+        "language1": "South African English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q1156228",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Urartian",
+        "relationship": "Child of",
+        "language2": "Hurro-Urartian",
+        "language1_qid": "Q36934",
+        "language2_qid": "Q1144159"
+    },
+    {
+        "language1": "Zande",
+        "relationship": "Child of",
+        "language2": "Niger–Congo",
+        "language1_qid": "Q8066072",
+        "language2_qid": "Q33838"
+    },
+    {
+        "language1": "Weser-Rhine Germanic",
+        "relationship": "Child of",
+        "language2": "West Germanic",
+        "language1_qid": "Q2742615",
+        "language2_qid": "Q26721"
+    },
+    {
+        "language1": "Malayo-Polynesian",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q143158",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Low Franconian",
+        "relationship": "Child of",
+        "language2": "Rhinelandic",
+        "language1_qid": "Q153050",
+        "language2_qid": "Q2147820"
+    },
+    {
+        "language1": "Aboriginal English",
+        "relationship": "Child of",
+        "language2": "Canadian English",
+        "language1_qid": "Q4668330",
+        "language2_qid": "Q44676"
+    },
+    {
+        "language1": "Sladkoyazychiye",
+        "relationship": "Child of",
+        "language2": "Russian",
+        "language1_qid": "Q104737002",
+        "language2_qid": "Q7737"
+    },
+    {
+        "language1": "Franc-Comtois",
+        "relationship": "Child of",
+        "language2": "Oïl",
+        "language1_qid": "Q510561",
+        "language2_qid": "Q37351"
+    },
+    {
+        "language1": "Riung",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q7336938",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Huizhou Chinese",
+        "relationship": "Child of",
+        "language2": "Chinese",
+        "language1_qid": "Q56546",
+        "language2_qid": "Q7850"
+    },
+    {
+        "language1": "Khamnigan Mongol",
+        "relationship": "Child of",
+        "language2": "Mongolic",
+        "language1_qid": "Q3196052",
+        "language2_qid": "Q33750"
+    },
+    {
+        "language1": "Chinese in Macau",
+        "relationship": "Child of",
+        "language2": "Chinese",
+        "language1_qid": "Q64427357",
+        "language2_qid": "Q7850"
+    },
+    {
+        "language1": "Yuat",
+        "relationship": "Child of",
+        "language2": "human language",
+        "language1_qid": "Q8060096",
+        "language2_qid": "Q20162172"
+    },
+    {
+        "language1": "Digaro",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q56409",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "Middle Bulgarian",
+        "relationship": "Child of",
+        "language2": "South Slavic",
+        "language1_qid": "Q12294897",
+        "language2_qid": "Q146665"
+    },
+    {
+        "language1": "Dublin English",
+        "relationship": "Child of",
+        "language2": "Hiberno-English",
+        "language1_qid": "Q85757791",
+        "language2_qid": "Q665624"
+    },
+    {
+        "language1": "Roman Demotic",
+        "relationship": "Child of",
+        "language2": "Egyptian",
+        "language1_qid": "Q125175932",
+        "language2_qid": "Q50868"
+    },
+    {
+        "language1": "Yamna",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q8048083",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Dayak",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q3057743",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Saint Helena English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q15714765",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Central northeastern dialect",
+        "relationship": "Child of",
+        "language2": "Brazilian Portuguese",
+        "language1_qid": "Q10266014",
+        "language2_qid": "Q750553"
+    },
+    {
+        "language1": "Macro-Bai",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q16963847",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "Standard Taiwanese Mandarin",
+        "relationship": "Child of",
+        "language2": "Standard Chinese",
+        "language1_qid": "Q262828",
+        "language2_qid": "Q727694"
+    },
+    {
+        "language1": "Selaru",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q7447500",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Afroasiatic",
+        "relationship": "Child of",
+        "language2": "human language",
+        "language1_qid": "Q25268",
+        "language2_qid": "Q20162172"
+    },
+    {
+        "language1": "Basque languages",
+        "relationship": "Child of",
+        "language2": "Vasconic",
+        "language1_qid": "Q129256519",
+        "language2_qid": "Q4669240"
+    },
+    {
+        "language1": "Southern Tungusic",
+        "relationship": "Child of",
+        "language2": "Tungusic",
+        "language1_qid": "Q107300646",
+        "language2_qid": "Q34230"
+    },
+    {
+        "language1": "Kyenele",
+        "relationship": "Child of",
+        "language2": "Yuat",
+        "language1_qid": "Q11732453",
+        "language2_qid": "Q8060096"
+    },
+    {
+        "language1": "Great Andamanese",
+        "relationship": "Child of",
+        "language2": "Andamanese",
+        "language1_qid": "Q3515103",
+        "language2_qid": "Q32940"
+    },
+    {
+        "language1": "Austronesian",
+        "relationship": "Child of",
+        "language2": "Austric",
+        "language1_qid": "Q49228",
+        "language2_qid": "Q783787"
+    },
+    {
+        "language1": "Yooper dialect",
+        "relationship": "Child of",
+        "language2": "American English",
+        "language1_qid": "Q8055233",
+        "language2_qid": "Q7976"
+    },
+    {
+        "language1": "Santanderean Spanish",
+        "relationship": "Child of",
+        "language2": "Colombian Spanish",
+        "language1_qid": "Q5840071",
+        "language2_qid": "Q1115875"
+    },
+    {
+        "language1": "Cape Verdean Portuguese",
+        "relationship": "Child of",
+        "language2": "Portuguese",
+        "language1_qid": "Q5035141",
+        "language2_qid": "Q5146"
+    },
+    {
+        "language1": "Gutnish",
+        "relationship": "Child of",
+        "language2": "North Germanic",
+        "language1_qid": "Q1256646",
+        "language2_qid": "Q106085"
+    },
+    {
+        "language1": "Jebli",
+        "relationship": "Child of",
+        "language2": "Moroccan Arabic",
+        "language1_qid": "Q3176333",
+        "language2_qid": "Q56426"
+    },
+    {
+        "language1": "High German",
+        "relationship": "Child of",
+        "language2": "West Germanic",
+        "language1_qid": "Q52040",
+        "language2_qid": "Q26721"
+    },
+    {
+        "language1": "Russian",
+        "relationship": "Child of",
+        "language2": "East Slavic",
+        "language1_qid": "Q7737",
+        "language2_qid": "Q144713"
+    },
+    {
+        "language1": "Ancient Russian",
+        "relationship": "Child of",
+        "language2": "East Slavic",
+        "language1_qid": "Q114309485",
+        "language2_qid": "Q144713"
+    },
+    {
+        "language1": "Chari-Nile",
+        "relationship": "Child of",
+        "language2": "Nilo-Saharan",
+        "language1_qid": "Q1010922",
+        "language2_qid": "Q33705"
+    },
+    {
+        "language1": "Himyaritic",
+        "relationship": "Child of",
+        "language2": "Semitic",
+        "language1_qid": "Q35604",
+        "language2_qid": "Q34049"
+    },
+    {
+        "language1": "Western Highland Purepecha",
+        "relationship": "Child of",
+        "language2": "Tarascan",
+        "language1_qid": "Q16114351",
+        "language2_qid": "Q33127629"
+    },
+    {
+        "language1": "Central German",
+        "relationship": "Child of",
+        "language2": "German",
+        "language1_qid": "Q704841",
+        "language2_qid": "Q188"
+    },
+    {
+        "language1": "Proto-Dravidian",
+        "relationship": "Child of",
+        "language2": "Dravidian",
+        "language1_qid": "Q1702853",
+        "language2_qid": "Q33311"
+    },
+    {
+        "language1": "Amazonic Spanish",
+        "relationship": "Child of",
+        "language2": "Castilian",
+        "language1_qid": "Q72256",
+        "language2_qid": "Q71924"
+    },
+    {
+        "language1": "Min Chinese",
+        "relationship": "Child of",
+        "language2": "Chinese",
+        "language1_qid": "Q56504",
+        "language2_qid": "Q7850"
+    },
+    {
+        "language1": "Galician–Portuguese",
+        "relationship": "Child of",
+        "language2": "West Iberian",
+        "language1_qid": "Q9080204",
+        "language2_qid": "Q1377152"
+    },
+    {
+        "language1": "Eastern South Slavic",
+        "relationship": "Child of",
+        "language2": "South Slavic",
+        "language1_qid": "Q10686790",
+        "language2_qid": "Q146665"
+    },
+    {
+        "language1": "Early New High German",
+        "relationship": "Child of",
+        "language2": "German",
+        "language1_qid": "Q1472199",
+        "language2_qid": "Q188"
+    },
+    {
+        "language1": "Soyot",
+        "relationship": "Child of",
+        "language2": "Uralic",
+        "language1_qid": "Q4426876",
+        "language2_qid": "Q34113"
+    },
+    {
+        "language1": "Spanish",
+        "relationship": "Child of",
+        "language2": "Castilian",
+        "language1_qid": "Q1321",
+        "language2_qid": "Q71924"
+    },
+    {
+        "language1": "Fujian Mandarin",
+        "relationship": "Child of",
+        "language2": "Standard Chinese",
+        "language1_qid": "Q15941421",
+        "language2_qid": "Q727694"
+    },
+    {
+        "language1": "Sankethi",
+        "relationship": "Child of",
+        "language2": "Dravidian",
+        "language1_qid": "Q3030315",
+        "language2_qid": "Q33311"
+    },
+    {
+        "language1": "Barranquenho",
+        "relationship": "Child of",
+        "language2": "Castilian",
+        "language1_qid": "Q2982964",
+        "language2_qid": "Q71924"
+    },
+    {
+        "language1": "South Semitic",
+        "relationship": "Child of",
+        "language2": "Semitic",
+        "language1_qid": "Q38890",
+        "language2_qid": "Q34049"
+    },
+    {
+        "language1": "East Frisian",
+        "relationship": "Child of",
+        "language2": "Frisian",
+        "language1_qid": "Q494355",
+        "language2_qid": "Q25325"
+    },
+    {
+        "language1": "Western Morocco Arabic",
+        "relationship": "Child of",
+        "language2": "Hilalian dialects",
+        "language1_qid": "Q21029722",
+        "language2_qid": "Q12192053"
+    },
+    {
+        "language1": "Satinese",
+        "relationship": "Child of",
+        "language2": "Chinese",
+        "language1_qid": "Q20688708",
+        "language2_qid": "Q7850"
+    },
+    {
+        "language1": "Putoh",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q12953832",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Euro English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q23580217",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Bongor Arabic",
+        "relationship": "Child of",
+        "language2": "Arabic",
+        "language1_qid": "Q126928420",
+        "language2_qid": "Q13955"
+    },
+    {
+        "language1": "Kongfu dialect",
+        "relationship": "Child of",
+        "language2": "varieties of Chinese",
+        "language1_qid": "Q108909192",
+        "language2_qid": "Q2748296"
+    },
+    {
+        "language1": "Shirvani Arabic",
+        "relationship": "Child of",
+        "language2": "Arabic",
+        "language1_qid": "Q846157",
+        "language2_qid": "Q13955"
+    },
+    {
+        "language1": "Minderico",
+        "relationship": "Child of",
+        "language2": "Galician–Portuguese",
+        "language1_qid": "Q6863806",
+        "language2_qid": "Q9080204"
+    },
+    {
+        "language1": "Sorbian",
+        "relationship": "Child of",
+        "language2": "West Slavic",
+        "language1_qid": "Q25442",
+        "language2_qid": "Q145852"
+    },
+    {
+        "language1": "Canadian English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q44676",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Central Asian Arabic",
+        "relationship": "Child of",
+        "language2": "Arabic",
+        "language1_qid": "Q50948445",
+        "language2_qid": "Q13955"
+    },
+    {
+        "language1": "Danzhou dialect",
+        "relationship": "Child of",
+        "language2": "Chinese",
+        "language1_qid": "Q2578935",
+        "language2_qid": "Q7850"
+    },
+    {
+        "language1": "Rhinelandic",
+        "relationship": "Child of",
+        "language2": "German",
+        "language1_qid": "Q2147820",
+        "language2_qid": "Q188"
+    },
+    {
+        "language1": "Welsh English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q2363292",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Luo-Guang Yue",
+        "relationship": "Child of",
+        "language2": "Yue Chinese",
+        "language1_qid": "Q6704497",
+        "language2_qid": "Q7033959"
+    },
+    {
+        "language1": "Swiss High German",
+        "relationship": "Child of",
+        "language2": "German",
+        "language1_qid": "Q1366643",
+        "language2_qid": "Q188"
+    },
+    {
+        "language1": "Shihhi Arabic",
+        "relationship": "Child of",
+        "language2": "Arabic",
+        "language1_qid": "Q56571",
+        "language2_qid": "Q13955"
+    },
+    {
+        "language1": "Paulistano dialect",
+        "relationship": "Child of",
+        "language2": "Brazilian Portuguese",
+        "language1_qid": "Q10266007",
+        "language2_qid": "Q750553"
+    },
+    {
+        "language1": "Belizean English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q111911970",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Pinghua",
+        "relationship": "Child of",
+        "language2": "Chinese",
+        "language1_qid": "Q2735715",
+        "language2_qid": "Q7850"
+    },
+    {
+        "language1": "Spanish",
+        "relationship": "Child of",
+        "language2": "West Iberian",
+        "language1_qid": "Q1321",
+        "language2_qid": "Q1377152"
+    },
+    {
+        "language1": "Kyowa-go",
+        "relationship": "Child of",
+        "language2": "Japonic",
+        "language1_qid": "Q701884",
+        "language2_qid": "Q33612"
+    },
+    {
+        "language1": "Sundanic",
+        "relationship": "Child of",
+        "language2": "human language",
+        "language1_qid": "Q117841657",
+        "language2_qid": "Q20162172"
+    },
+    {
+        "language1": "Eastern Trans-Fly",
+        "relationship": "Child of",
+        "language2": "human language",
+        "language1_qid": "Q5330530",
+        "language2_qid": "Q20162172"
+    },
+    {
+        "language1": "Zambian English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q131447992",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Eastern Morocco Arabic",
+        "relationship": "Child of",
+        "language2": "Arabic",
+        "language1_qid": "Q97353822",
+        "language2_qid": "Q13955"
+    },
+    {
+        "language1": "Tsouic",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q716659",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Ladin",
+        "relationship": "Child of",
+        "language2": "Rhaeto-Romance",
+        "language1_qid": "Q36202",
+        "language2_qid": "Q515593"
+    },
+    {
+        "language1": "Western Australian English",
+        "relationship": "Child of",
+        "language2": "Australian English",
+        "language1_qid": "Q7987514",
+        "language2_qid": "Q44679"
+    },
+    {
+        "language1": "German",
+        "relationship": "Child of",
+        "language2": "West Germanic",
+        "language1_qid": "Q188",
+        "language2_qid": "Q26721"
+    },
+    {
+        "language1": "dialects of English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q12858101",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Mienic",
+        "relationship": "Child of",
+        "language2": "Hmong–Mien",
+        "language1_qid": "Q7992695",
+        "language2_qid": "Q33322"
+    },
+    {
+        "language1": "Songhay",
+        "relationship": "Child of",
+        "language2": "Nilo-Saharan",
+        "language1_qid": "Q505198",
+        "language2_qid": "Q33705"
+    },
+    {
+        "language1": "Tyrsenian",
+        "relationship": "Child of",
+        "language2": "human language",
+        "language1_qid": "Q1344038",
+        "language2_qid": "Q20162172"
+    },
+    {
+        "language1": "Classical Mongolian",
+        "relationship": "Child of",
+        "language2": "Mongolic",
+        "language1_qid": "Q5128303",
+        "language2_qid": "Q33750"
+    },
+    {
+        "language1": "Hiberno-English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q665624",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Duri",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q3915414",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Kuliak",
+        "relationship": "Child of",
+        "language2": "Nilo-Saharan",
+        "language1_qid": "Q1791476",
+        "language2_qid": "Q33705"
+    },
+    {
+        "language1": "Saharan",
+        "relationship": "Child of",
+        "language2": "Nilo-Saharan",
+        "language1_qid": "Q1757661",
+        "language2_qid": "Q33705"
+    },
+    {
+        "language1": "Austro-Tai",
+        "relationship": "Child of",
+        "language2": "human language",
+        "language1_qid": "Q783816",
+        "language2_qid": "Q20162172"
+    },
+    {
+        "language1": "Ryukyuan",
+        "relationship": "Child of",
+        "language2": "Japonic",
+        "language1_qid": "Q56393",
+        "language2_qid": "Q33612"
+    },
+    {
+        "language1": "Wampar",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q7966946",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Proto-Min",
+        "relationship": "Child of",
+        "language2": "Min Chinese",
+        "language1_qid": "Q19646347",
+        "language2_qid": "Q56504"
+    },
+    {
+        "language1": "Letti",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q24265566",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Egyptian",
+        "relationship": "Child of",
+        "language2": "Afroasiatic",
+        "language1_qid": "Q50868",
+        "language2_qid": "Q25268"
+    },
+    {
+        "language1": "Mvuba",
+        "relationship": "Child of",
+        "language2": "Nilo-Saharan",
+        "language1_qid": "Q6944591",
+        "language2_qid": "Q33705"
+    },
+    {
+        "language1": "Colombian Spanish",
+        "relationship": "Child of",
+        "language2": "Spanish",
+        "language1_qid": "Q1115875",
+        "language2_qid": "Q1321"
+    },
+    {
+        "language1": "Sal",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q889900",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "Sorothaptic",
+        "relationship": "Child of",
+        "language2": "Indo-European",
+        "language1_qid": "Q2762254",
+        "language2_qid": "Q19860"
+    },
+    {
+        "language1": "Newfoundland English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q2849615",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Channel Island English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q4327433",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Mannheim German",
+        "relationship": "Child of",
+        "language2": "German",
+        "language1_qid": "Q1890682",
+        "language2_qid": "Q188"
+    },
+    {
+        "language1": "Eupen dialect",
+        "relationship": "Child of",
+        "language2": "German",
+        "language1_qid": "Q21008798",
+        "language2_qid": "Q188"
+    },
+    {
+        "language1": "Dené–Yeniseian",
+        "relationship": "Child of",
+        "language2": "Dené–Caucasian",
+        "language1_qid": "Q21103",
+        "language2_qid": "Q507968"
+    },
+    {
+        "language1": "East Chadic",
+        "relationship": "Child of",
+        "language2": "Chadic",
+        "language1_qid": "Q2276221",
+        "language2_qid": "Q33184"
+    },
+    {
+        "language1": "Sumerian",
+        "relationship": "Child of",
+        "language2": "human language",
+        "language1_qid": "Q36790",
+        "language2_qid": "Q20162172"
+    },
+    {
+        "language1": "Pomeranian",
+        "relationship": "Child of",
+        "language2": "Lechitic",
+        "language1_qid": "Q149588",
+        "language2_qid": "Q742782"
+    },
+    {
+        "language1": "Prague German",
+        "relationship": "Child of",
+        "language2": "German",
+        "language1_qid": "Q2107464",
+        "language2_qid": "Q188"
+    },
+    {
+        "language1": "Paeonian",
+        "relationship": "Child of",
+        "language2": "Indo-European",
+        "language1_qid": "Q2705672",
+        "language2_qid": "Q19860"
+    },
+    {
+        "language1": "Proto-Anglo-Frisian",
+        "relationship": "Child of",
+        "language2": "Anglo-Frisian",
+        "language1_qid": "Q134603379",
+        "language2_qid": "Q5329170"
+    },
+    {
+        "language1": "Italo-Celtic",
+        "relationship": "Child of",
+        "language2": "Indo-European",
+        "language1_qid": "Q913431",
+        "language2_qid": "Q19860"
+    },
+    {
+        "language1": "West Slavic",
+        "relationship": "Child of",
+        "language2": "Slavic",
+        "language1_qid": "Q145852",
+        "language2_qid": "Q23526"
+    },
+    {
+        "language1": "New England French",
+        "relationship": "Child of",
+        "language2": "North American French",
+        "language1_qid": "Q7007251",
+        "language2_qid": "Q3083193"
+    },
+    {
+        "language1": "Lango",
+        "relationship": "Child of",
+        "language2": "Nilo-Saharan",
+        "language1_qid": "Q35670",
+        "language2_qid": "Q33705"
+    },
+    {
+        "language1": "Akoko",
+        "relationship": "Child of",
+        "language2": "Niger–Congo",
+        "language1_qid": "Q34829",
+        "language2_qid": "Q33838"
+    },
+    {
+        "language1": "Medieval Arabic",
+        "relationship": "Child of",
+        "language2": "Arabic",
+        "language1_qid": "Q99457246",
+        "language2_qid": "Q13955"
+    },
+    {
+        "language1": "Jiao-Liao Mandarin",
+        "relationship": "Child of",
+        "language2": "Mandarin",
+        "language1_qid": "Q2597550",
+        "language2_qid": "Q9192"
+    },
+    {
+        "language1": "Proto-Norse",
+        "relationship": "Child of",
+        "language2": "North Germanic",
+        "language1_qid": "Q1671294",
+        "language2_qid": "Q106085"
+    },
+    {
+        "language1": "Kipanawa",
+        "relationship": "Child of",
+        "language2": "Niger–Congo",
+        "language1_qid": "Q13123500",
+        "language2_qid": "Q33838"
+    },
+    {
+        "language1": "Linguajar cuiabano",
+        "relationship": "Child of",
+        "language2": "Brazilian Portuguese",
+        "language1_qid": "Q125747791",
+        "language2_qid": "Q750553"
+    },
+    {
+        "language1": "Western South Slavic",
+        "relationship": "Child of",
+        "language2": "South Slavic",
+        "language1_qid": "Q10686779",
+        "language2_qid": "Q146665"
+    },
+    {
+        "language1": "Zarphatic",
+        "relationship": "Child of",
+        "language2": "Oïl",
+        "language1_qid": "Q36994",
+        "language2_qid": "Q37351"
+    },
+    {
+        "language1": "Old Arabic",
+        "relationship": "Child of",
+        "language2": "Arabic",
+        "language1_qid": "Q21661186",
+        "language2_qid": "Q13955"
+    },
+    {
+        "language1": "Wisconsin German",
+        "relationship": "Child of",
+        "language2": "American German",
+        "language1_qid": "Q24061939",
+        "language2_qid": "Q65057350"
+    },
+    {
+        "language1": "North Dravidian",
+        "relationship": "Child of",
+        "language2": "Dravidian",
+        "language1_qid": "Q16110967",
+        "language2_qid": "Q33311"
+    },
+    {
+        "language1": "Kra–Dai",
+        "relationship": "Child of",
+        "language2": "Austric",
+        "language1_qid": "Q34171",
+        "language2_qid": "Q783787"
+    },
+    {
+        "language1": "California English",
+        "relationship": "Child of",
+        "language2": "American English",
+        "language1_qid": "Q1026812",
+        "language2_qid": "Q7976"
+    },
+    {
+        "language1": "Standard Canadian English",
+        "relationship": "Child of",
+        "language2": "Canadian English",
+        "language1_qid": "Q47007403",
+        "language2_qid": "Q44676"
+    },
+    {
+        "language1": "West Germanic",
+        "relationship": "Child of",
+        "language2": "Germanic languages",
+        "language1_qid": "Q26721",
+        "language2_qid": "Q21200"
+    },
+    {
+        "language1": "Silesian accents",
+        "relationship": "Child of",
+        "language2": "German",
+        "language1_qid": "Q12054775",
+        "language2_qid": "Q188"
+    },
+    {
+        "language1": "East Timorese Portuguese",
+        "relationship": "Child of",
+        "language2": "Portuguese",
+        "language1_qid": "Q4373396",
+        "language2_qid": "Q5146"
+    },
+    {
+        "language1": "Macanese Portuguese",
+        "relationship": "Child of",
+        "language2": "Portuguese",
+        "language1_qid": "Q9290867",
+        "language2_qid": "Q5146"
+    },
+    {
+        "language1": "Gulf Arabic",
+        "relationship": "Child of",
+        "language2": "Arabic",
+        "language1_qid": "Q56385",
+        "language2_qid": "Q13955"
+    },
+    {
+        "language1": "Lunfardo",
+        "relationship": "Child of",
+        "language2": "Spanish",
+        "language1_qid": "Q1401612",
+        "language2_qid": "Q1321"
+    },
+    {
+        "language1": "Khoe–Kwadi",
+        "relationship": "Child of",
+        "language2": "Khoisan",
+        "language1_qid": "Q60785084",
+        "language2_qid": "Q33614"
+    },
+    {
+        "language1": "Moru",
+        "relationship": "Child of",
+        "language2": "Nilo-Saharan",
+        "language1_qid": "Q6915014",
+        "language2_qid": "Q33705"
+    },
+    {
+        "language1": "Eastern Mongolic",
+        "relationship": "Child of",
+        "language2": "Mongolic",
+        "language1_qid": "Q13012661",
+        "language2_qid": "Q33750"
+    },
+    {
+        "language1": "Globish",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q1232847",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Iraqi Arabic",
+        "relationship": "Child of",
+        "language2": "Arabic",
+        "language1_qid": "Q56232",
+        "language2_qid": "Q13955"
+    },
+    {
+        "language1": "Chadic",
+        "relationship": "Child of",
+        "language2": "Afroasiatic",
+        "language1_qid": "Q33184",
+        "language2_qid": "Q25268"
+    },
+    {
+        "language1": "Bambukae",
+        "relationship": "Child of",
+        "language2": "Niger–Congo",
+        "language1_qid": "Q35653",
+        "language2_qid": "Q33838"
+    },
+    {
+        "language1": "Iraqi Arabic of Alzubair",
+        "relationship": "Child of",
+        "language2": "Iraqi Arabic",
+        "language1_qid": "Q110412898",
+        "language2_qid": "Q56232"
+    },
+    {
+        "language1": "Lamba",
+        "relationship": "Child of",
+        "language2": "Niger–Congo",
+        "language1_qid": "Q36098",
+        "language2_qid": "Q33838"
+    },
+    {
+        "language1": "Kehek language",
+        "relationship": "Child of",
+        "language2": "Afroasiatic",
+        "language1_qid": "Q135037948",
+        "language2_qid": "Q25268"
+    },
+    {
+        "language1": "North American English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q7053766",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "West Central German",
+        "relationship": "Child of",
+        "language2": "Central German",
+        "language1_qid": "Q690982",
+        "language2_qid": "Q704841"
+    },
+    {
+        "language1": "South-Central Dravidian",
+        "relationship": "Child of",
+        "language2": "Dravidian",
+        "language1_qid": "Q12633975",
+        "language2_qid": "Q33311"
+    },
+    {
+        "language1": "Massa",
+        "relationship": "Child of",
+        "language2": "Chadic",
+        "language1_qid": "Q56668",
+        "language2_qid": "Q33184"
+    },
+    {
+        "language1": "Judeo-Yemeni Arabic",
+        "relationship": "Child of",
+        "language2": "Judeo-Arabic",
+        "language1_qid": "Q56596",
+        "language2_qid": "Q37733"
+    },
+    {
+        "language1": "Biu–Mandara",
+        "relationship": "Child of",
+        "language2": "Chadic",
+        "language1_qid": "Q2251547",
+        "language2_qid": "Q33184"
+    },
+    {
+        "language1": "Haiǁom",
+        "relationship": "Child of",
+        "language2": "Khoisan",
+        "language1_qid": "Q2658760",
+        "language2_qid": "Q33614"
+    },
+    {
+        "language1": "Ibero-Caucasian",
+        "relationship": "Child of",
+        "language2": "human language",
+        "language1_qid": "Q169921",
+        "language2_qid": "Q20162172"
+    },
+    {
+        "language1": "Antarctic English",
+        "relationship": "Child of",
+        "language2": "International English",
+        "language1_qid": "Q121693871",
+        "language2_qid": "Q1342549"
+    },
+    {
+        "language1": "Jin",
+        "relationship": "Child of",
+        "language2": "Chinese",
+        "language1_qid": "Q56479",
+        "language2_qid": "Q7850"
+    },
+    {
+        "language1": "Niger–Congo",
+        "relationship": "Child of",
+        "language2": "human language",
+        "language1_qid": "Q33838",
+        "language2_qid": "Q20162172"
+    },
+    {
+        "language1": "Fribourg German dialect",
+        "relationship": "Child of",
+        "language2": "Swiss German",
+        "language1_qid": "Q13142595",
+        "language2_qid": "Q387066"
+    },
+    {
+        "language1": "Brooke's Point Palawano",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q12953796",
+        "language2_qid": "Q49228"
+    },
+    {
+        "language1": "Nam",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q17052493",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "Kumarbhag Paharia",
+        "relationship": "Child of",
+        "language2": "Dravidian",
+        "language1_qid": "Q3130374",
+        "language2_qid": "Q33311"
+    },
+    {
+        "language1": "Kx'a",
+        "relationship": "Child of",
+        "language2": "Khoisan",
+        "language1_qid": "Q6450587",
+        "language2_qid": "Q33614"
+    },
+    {
+        "language1": "Bench",
+        "relationship": "Child of",
+        "language2": "Omotic",
+        "language1_qid": "Q35108",
+        "language2_qid": "Q33860"
+    },
+    {
+        "language1": "Macedonian",
+        "relationship": "Child of",
+        "language2": "South Slavic",
+        "language1_qid": "Q9296",
+        "language2_qid": "Q146665"
+    },
+    {
+        "language1": "Proto-Germanic",
+        "relationship": "Child of",
+        "language2": "Germanic languages",
+        "language1_qid": "Q669623",
+        "language2_qid": "Q21200"
+    },
+    {
+        "language1": "Old Gan",
+        "relationship": "Child of",
+        "language2": "Chinese",
+        "language1_qid": "Q3408030",
+        "language2_qid": "Q7850"
+    },
+    {
+        "language1": "Agaw",
+        "relationship": "Child of",
+        "language2": "Cushitic",
+        "language1_qid": "Q56569",
+        "language2_qid": "Q33248"
+    },
+    {
+        "language1": "Nanyang dialect",
+        "relationship": "Child of",
+        "language2": "varieties of Chinese",
+        "language1_qid": "Q10909237",
+        "language2_qid": "Q2748296"
+    },
+    {
+        "language1": "Messapian",
+        "relationship": "Child of",
+        "language2": "Indo-European",
+        "language1_qid": "Q36383",
+        "language2_qid": "Q19860"
+    },
+    {
+        "language1": "Finno-Ugric",
+        "relationship": "Child of",
+        "language2": "Uralic",
+        "language1_qid": "Q79890",
+        "language2_qid": "Q34113"
+    },
+    {
+        "language1": "Benue–Congo",
+        "relationship": "Child of",
+        "language2": "Niger–Congo",
+        "language1_qid": "Q33253",
+        "language2_qid": "Q33838"
+    },
+    {
+        "language1": "Siyi dialect",
+        "relationship": "Child of",
+        "language2": "Yue Chinese",
+        "language1_qid": "Q2391679",
+        "language2_qid": "Q7033959"
+    },
+    {
+        "language1": "Belgian German",
+        "relationship": "Child of",
+        "language2": "German",
+        "language1_qid": "Q125258960",
+        "language2_qid": "Q188"
+    },
+    {
+        "language1": "Chicano English",
+        "relationship": "Child of",
+        "language2": "American English",
+        "language1_qid": "Q5095935",
+        "language2_qid": "Q7976"
+    },
+    {
+        "language1": "Koore",
+        "relationship": "Child of",
+        "language2": "Omotic",
+        "language1_qid": "Q6430753",
+        "language2_qid": "Q33860"
+    },
+    {
+        "language1": "Mississippi Gulf Coast French",
+        "relationship": "Child of",
+        "language2": "French",
+        "language1_qid": "Q123475280",
+        "language2_qid": "Q150"
+    },
+    {
+        "language1": "Mandarin dialects",
+        "relationship": "Child of",
+        "language2": "Mandarin",
+        "language1_qid": "Q19952336",
+        "language2_qid": "Q9192"
+    },
+    {
+        "language1": "Shakacho",
+        "relationship": "Child of",
+        "language2": "Omotic",
+        "language1_qid": "Q56827",
+        "language2_qid": "Q33860"
+    },
+    {
+        "language1": "Armenian languages",
+        "relationship": "Child of",
+        "language2": "Indo-European",
+        "language1_qid": "Q12627235",
+        "language2_qid": "Q19860"
+    },
+    {
+        "language1": "Proto-Indo-European",
+        "relationship": "Child of",
+        "language2": "Indo-European",
+        "language1_qid": "Q37178",
+        "language2_qid": "Q19860"
+    },
+    {
+        "language1": "Inland Min",
+        "relationship": "Child of",
+        "language2": "Min Chinese",
+        "language1_qid": "Q20667237",
+        "language2_qid": "Q56504"
+    },
+    {
+        "language1": "Japanese dialect",
+        "relationship": "Child of",
+        "language2": "Japanese",
+        "language1_qid": "Q1246128",
+        "language2_qid": "Q5287"
+    },
+    {
+        "language1": "Middle Polish",
+        "relationship": "Child of",
+        "language2": "West Slavic",
+        "language1_qid": "Q402878",
+        "language2_qid": "Q145852"
+    },
+    {
+        "language1": "Awjila–Sokna",
+        "relationship": "Child of",
+        "language2": "Berber",
+        "language1_qid": "Q4830091",
+        "language2_qid": "Q25448"
+    },
+    {
+        "language1": "Zulu English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q8075191",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Southwestern Mandarin",
+        "relationship": "Child of",
+        "language2": "Mandarin",
+        "language1_qid": "Q2609239",
+        "language2_qid": "Q9192"
+    },
+    {
+        "language1": "Burmo-Qiangic",
+        "relationship": "Child of",
+        "language2": "Sino-Tibetan",
+        "language1_qid": "Q16056278",
+        "language2_qid": "Q45961"
+    },
+    {
+        "language1": "Western Nile Delta Arabic",
+        "relationship": "Child of",
+        "language2": "Egyptian Arabic",
+        "language1_qid": "Q136031379",
+        "language2_qid": "Q29919"
+    },
+    {
+        "language1": "Standard French",
+        "relationship": "Child of",
+        "language2": "French",
+        "language1_qid": "Q1400216",
+        "language2_qid": "Q150"
+    },
+    {
+        "language1": "Uralic",
+        "relationship": "Child of",
+        "language2": "human language",
+        "language1_qid": "Q34113",
+        "language2_qid": "Q20162172"
+    },
+    {
+        "language1": "Modern Japanese",
+        "relationship": "Child of",
+        "language2": "Japanese",
+        "language1_qid": "Q109361777",
+        "language2_qid": "Q5287"
+    },
+    {
+        "language1": "Maridi Arabic",
+        "relationship": "Child of",
+        "language2": "Arabic",
+        "language1_qid": "Q17068289",
+        "language2_qid": "Q13955"
+    },
+    {
+        "language1": "Hunsrückisch",
+        "relationship": "Child of",
+        "language2": "Central German",
+        "language1_qid": "Q699680",
+        "language2_qid": "Q704841"
+    },
+    {
+        "language1": "Japanese",
+        "relationship": "Child of",
+        "language2": "Japonic",
+        "language1_qid": "Q5287",
+        "language2_qid": "Q33612"
+    },
+    {
+        "language1": "Aegean Macedonian",
+        "relationship": "Child of",
+        "language2": "South Slavic",
+        "language1_qid": "Q35952",
+        "language2_qid": "Q146665"
+    },
+    {
+        "language1": "Historical Chinese",
+        "relationship": "Child of",
+        "language2": "Chinese",
+        "language1_qid": "Q10913056",
+        "language2_qid": "Q7850"
+    },
+    {
+        "language1": "Hebronics",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q2919292",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "Late Egyptian",
+        "relationship": "Child of",
+        "language2": "Egyptian",
+        "language1_qid": "Q1852329",
+        "language2_qid": "Q50868"
+    },
+    {
+        "language1": "Southern Pinghua",
+        "relationship": "Child of",
+        "language2": "Pinghua",
+        "language1_qid": "Q84302019",
+        "language2_qid": "Q2735715"
+    },
+    {
+        "language1": "Hmongic",
+        "relationship": "Child of",
+        "language2": "Hmong–Mien",
+        "language1_qid": "Q9040772",
+        "language2_qid": "Q33322"
+    },
+    {
+        "language1": "Gibraltarian English",
+        "relationship": "Child of",
+        "language2": "English",
+        "language1_qid": "Q5559233",
+        "language2_qid": "Q1860"
+    },
+    {
+        "language1": "ǀXam",
+        "relationship": "Child of",
+        "language2": "Khoisan",
+        "language1_qid": "Q2086145",
+        "language2_qid": "Q33614"
+    },
+    {
+        "language1": "Sundanese-Baduy",
+        "relationship": "Child of",
+        "language2": "Sundanic",
+        "language1_qid": "Q114715799",
+        "language2_qid": "Q117841657"
+    },
+    {
+        "language1": "Mamuju",
+        "relationship": "Child of",
+        "language2": "Austronesian",
+        "language1_qid": "Q6746004",
+        "language2_qid": "Q49228"
+    }
+]

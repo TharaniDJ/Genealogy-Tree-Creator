@@ -3,9 +3,20 @@ from typing import List, Optional
 
 class LanguageRelationship(BaseModel):
     """Model for language relationships"""
-    entity1: str
+    language1: str
     relationship: str
-    entity2: str
+    language2: str
+    language1_qid: Optional[str] = None
+    language2_qid: Optional[str] = None
+    # Optional categories (used by save feature)
+    language1_category: Optional[str] = None
+    language2_category: Optional[str] = None
+
+class DistributionMapResponse(BaseModel):
+    """Model for distribution map image response"""
+    qid: str
+    image_url: Optional[str] = None
+    found: bool
 
 class LanguageTreeData(BaseModel):
     """Model for complete language tree data"""
@@ -16,14 +27,9 @@ class LanguageTreeData(BaseModel):
 
 class LanguageInfo(BaseModel):
     """Model for detailed language information"""
-    name: str
-    language_family: Optional[str] = None
     speakers: Optional[str] = None
-    writing_system: Optional[str] = None
     iso_code: Optional[str] = None
-    region: Optional[str] = None
-    status: Optional[str] = None  # e.g., "living", "extinct", "constructed"
-    image_url: Optional[str] = None
+    distribution_map_url: Optional[str] = None
 
 class UserInput(BaseModel):
     """Model for user input"""
