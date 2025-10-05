@@ -1,41 +1,56 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import router as api_router
-from app.api.websocket import router as websocket_router
-from app.core.websocket_manager import WebSocketManager
+from app.core.config import config
 
-app = FastAPI(title='Species Tree Creator', 
-              description='A service for exploring biological taxonomy and evolutionary relationships',
-              version='1.0.0')
+# Create FastAPI instance
+app = FastAPI(
+    title=config.SERVICE_NAME,
+    version=config.VERSION,
+    description="A FastAPI service for exploring taxonomic relationships and species hierarchies",
+    docs_url="/docs",
+    redoc_url="/redoc"
+)
 
+# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # In production, replace with specific origins
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-websocket_manager = WebSocketManager()
-
 @app.on_event("startup")
 async def startup_event():
     """Startup event handler"""
-    pass
+    print(f"🌟 {config.SERVICE_NAME} v{config.VERSION} is starting up...")
+    print(f"🔬 Ready to explore taxonomic relationships!")
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Shutdown event handler"""
-    pass
+    print(f"🛑 {config.SERVICE_NAME} is shutting down...")
 
-app.include_router(api_router)
-app.include_router(websocket_router)
+# Include API routes
+app.include_router(api_router, prefix=config.API_PREFIX)
 
-@app.get('/')
+@app.get("/")
 async def root():
-    """Health check endpoint"""
-    return {"message": "Species Tree Service is Running", "service": "species-tree"}
+    """Root endpoint"""
+    return {
+        "message": f"{config.SERVICE_NAME} is running",
+        "version": config.VERSION,
+        "docs": "/docs",
+        "redoc": "/redoc",
+        "status": "healthy"
+    }
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8002)
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {
+        "status": "healthy",
+        "service": config.SERVICE_NAME,
+        "version": config.VERSION
+    }

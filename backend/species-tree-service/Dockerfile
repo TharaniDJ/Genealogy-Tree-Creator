@@ -1,29 +1,21 @@
-# Single-stage Dockerfile for development mode
 FROM python:3.11-slim
 
-# Set working directory
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
 # Install uv
-RUN pip install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 
-# Copy project files
-COPY pyproject.toml ./
-COPY uv.lock ./
+# Copy dependency files
+COPY pyproject.toml uv.lock* ./
 
-# Install all dependencies (including dev dependencies)
-RUN uv sync --frozen --all-extras
+# Install dependencies
+RUN uv sync --frozen
 
 # Copy application code
-COPY app/ ./app/
+COPY app/ app/
 
 # Expose port
-EXPOSE 8002
+EXPOSE 8003
 
-# Run with auto-reload for development
-CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8002", "--reload"]
+# Run the application
+CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8003"]

@@ -1,100 +1,172 @@
 from fastapi import APIRouter, HTTPException
-from typing import List
-from app.services.wikipedia_service import fetch_species_relationships, get_species_details, get_taxonomic_classification
-from app.models.species import TaxonomicRelationship, SpeciesInfo, TaxonomicClassification
+from typing import List, Optional
+from app.models.taxonomy import (
+    TaxonomyResponse, 
+    TaxonomyTuplesResponse, 
+    ExpansionResponse, 
+    ExpansionRequest,
+    ErrorResponse
+)
+from app.services.taxonomy_extractor import TaxonomyExtractor
+from app.services.taxonomy_expander import TaxonomyExpander
 
 router = APIRouter()
 
-@router.get("/relationships/{species_name}/{depth}", response_model=List[TaxonomicRelationship])
-async def get_species_relationships(species_name: str, depth: int):
-    """
-    Get taxonomic relationships for a given species and depth.
-    
-    - **species_name**: Name of the species (e.g., "Panthera leo", "Tiger", "Oak tree")
-    - **depth**: How many levels deep to explore (1-6)
-    """
-    if depth < 1 or depth > 6:
-        raise HTTPException(status_code=400, detail="Depth must be between 1 and 6")
-    
-    print(f"Fetching relationships for {species_name} with depth {depth}")
-    try:
-        relationships = await fetch_species_relationships(species_name, depth)
-        if not relationships:
-            raise HTTPException(status_code=404, detail=f"No taxonomic data found for '{species_name}'")
-        return relationships
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"Error fetching relationships: {e}")
-        raise HTTPException(status_code=500, detail=f"Error fetching relationships: {str(e)}")
+# Initialize services
+taxonomy_extractor = TaxonomyExtractor()
+taxonomy_expander = TaxonomyExpander()
 
-@router.get('/info/{species_name}', response_model=SpeciesInfo)
-async def get_species_info(species_name: str):
+@router.get("/taxonomy/{scientific_name}", response_model=TaxonomyTuplesResponse)
+async def get_taxonomies(scientific_name: str):
     """
-    Get detailed information about a specific species.
+    Get complete taxonomic hierarchy for a species in tuple format.
     
-    - **species_name**: Name of the species (e.g., "Panthera leo", "Tiger", "Oak tree")
-    """
-    print(f"Fetching info for {species_name}")
-    try:
-        species_info = await get_species_details(species_name)
-        if not species_info:
-            raise HTTPException(status_code=404, detail=f"Species '{species_name}' not found")
-        return species_info
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"Error fetching species info: {e}")
-        raise HTTPException(status_code=500, detail=f"Error fetching species info: {str(e)}")
-
-@router.get('/taxonomy/{species_name}', response_model=TaxonomicClassification)
-async def get_taxonomic_classification_endpoint(species_name: str):
-    """
-    Get complete taxonomic classification for a species.
+    - **scientific_name**: Scientific name of the species (e.g., "Homo sapiens", "Panthera leo")
     
-    - **species_name**: Name of the species (e.g., "Panthera leo", "Tiger", "Oak tree")
+    Returns taxonomic relationships as tuples (parent_taxon, has_child, child_taxon)
     """
-    print(f"Fetching taxonomic classification for {species_name}")
+    print(f"📊 Extracting taxonomy tuples for: {scientific_name}")
+    
     try:
-        from app.services.wikipedia_service import get_species_qid
-        qid = get_species_qid(species_name)
-        if not qid:
-            raise HTTPException(status_code=404, detail=f"Species '{species_name}' not found")
+        result = taxonomy_extractor.extract_as_tuples(scientific_name)
         
-        classification = await get_taxonomic_classification(qid)
-        if not classification:
-            raise HTTPException(status_code=404, detail=f"No taxonomic classification found for '{species_name}'")
-        return classification
+        if not result:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Could not extract taxonomic information for '{scientific_name}'. Please check the scientific name and try again."
+            )
+        
+        print(f"✅ Successfully extracted {result.total_relationships} taxonomic relationships")
+        return result
+        
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Error fetching taxonomic classification: {e}")
-        raise HTTPException(status_code=500, detail=f"Error fetching taxonomic classification: {str(e)}")
+        print(f"❌ Error extracting taxonomy: {e}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Internal error while extracting taxonomy: {str(e)}"
+        )
 
-@router.get('/health')
-async def health_check():
-    """Health check endpoint"""
-    return {"status": "healthy", "service": "species-tree-service"}
+# @router.get("/taxonomy/{scientific_name}/detailed", response_model=TaxonomyResponse)
+# async def get_detailed_taxonomy(scientific_name: str):
+#     """
+#     Get detailed taxonomic hierarchy for a species with full information.
+    
+#     - **scientific_name**: Scientific name of the species (e.g., "Homo sapiens", "Panthera leo")
+    
+#     Returns complete taxonomic information including ranks, names, and Wikipedia links
+#     """
+#     print(f"📊 Extracting detailed taxonomy for: {scientific_name}")
+    
+#     try:
+#         result = taxonomy_extractor.extract_taxonomy_realtime(scientific_name)
+        
+#         if not result:
+#             raise HTTPException(
+#                 status_code=404, 
+#                 detail=f"Could not extract taxonomic information for '{scientific_name}'. Please check the scientific name and try again."
+#             )
+        
+#         print(f"✅ Successfully extracted {result.total_taxa_found} taxonomic entries")
+#         return result
+        
+#     except HTTPException:
+#         raise
+#     except Exception as e:
+#         print(f"❌ Error extracting detailed taxonomy: {e}")
+#         raise HTTPException(
+#             status_code=500, 
+#             detail=f"Internal error while extracting taxonomy: {str(e)}"
+#         )
 
-@router.get('/stats')
-async def get_service_stats():
-    """Get service statistics"""
-    return {
-        "service": "species-tree-service",
-        "version": "1.0.0",
-        "endpoints": [
-            "/relationships/{species_name}/{depth}",
-            "/info/{species_name}",
-            "/taxonomy/{species_name}",
-            "/health",
-            "/stats"
-        ],
-        "supported_taxa": [
-            "Animals (Kingdom Animalia)",
-            "Plants (Kingdom Plantae)", 
-            "Fungi (Kingdom Fungi)",
-            "Bacteria (Kingdom Bacteria)",
-            "Archaea (Kingdom Archaea)",
-            "Protists (various kingdoms)"
-        ]
-    }
+@router.get("/expand/{taxon_name}/{rank}", response_model=ExpansionResponse)
+async def expand_taxonomies(taxon_name: str, rank: str, target_rank: Optional[str] = None):
+    """
+    Expand taxonomic tree from a given taxon and rank to show children.
+    
+    - **taxon_name**: Name of the taxonomic entity (e.g., "Mammalia", "Carnivora")
+    - **rank**: Current taxonomic rank (e.g., "class", "order", "family")
+    - **target_rank**: Optional target rank to expand to (e.g., "order", "family", "genus")
+    
+    Returns children of the given taxon in tuple format (parent_taxon, has_child, child_taxon)
+    """
+    print(f"🔍 Expanding taxonomy from {taxon_name} ({rank}) to {target_rank or 'next rank'}")
+    
+    try:
+        # Validate rank
+        valid_ranks = taxonomy_expander.taxonomic_ranks
+        if rank.lower() not in valid_ranks:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid rank '{rank}'. Valid ranks are: {', '.join(valid_ranks)}"
+            )
+        
+        if target_rank and target_rank.lower() not in valid_ranks:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid target rank '{target_rank}'. Valid ranks are: {', '.join(valid_ranks)}"
+            )
+        
+        result = taxonomy_expander.expand_taxonomy(taxon_name, rank, target_rank)
+        
+        print(f"✅ Successfully found {result.total_children} children")
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error expanding taxonomy: {e}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Internal error while expanding taxonomy: {str(e)}"
+        )
+
+@router.get("/expand/domains", response_model=List[str])
+async def get_domains():
+    """
+    Get all biological domains.
+    
+    Returns list of domain names
+    """
+    try:
+        domains = taxonomy_expander.get_domain()
+        return domains
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error getting domains: {str(e)}"
+        )
+
+@router.get("/expand/kingdoms", response_model=List[str])
+async def get_kingdoms(domain: Optional[str] = None):
+    """
+    Get kingdoms, optionally filtered by domain.
+    
+    - **domain**: Optional domain name to filter by (e.g., "Eukarya", "Bacteria", "Archaea")
+    
+    Returns list of kingdom names
+    """
+    try:
+        kingdoms = taxonomy_expander.get_kingdom(domain)
+        return kingdoms
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error getting kingdoms: {str(e)}"
+        )
+
+@router.get("/ranks", response_model=List[str])
+async def get_taxonomic_ranks():
+    """
+    Get all available taxonomic ranks in hierarchical order.
+    
+    Returns list of taxonomic ranks from domain to strain
+    """
+    try:
+        return taxonomy_expander.taxonomic_ranks
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error getting taxonomic ranks: {str(e)}"
+        )
