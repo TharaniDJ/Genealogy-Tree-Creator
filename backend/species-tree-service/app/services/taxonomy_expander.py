@@ -176,6 +176,58 @@ class TaxonomyExpander:
         else:
             return ["Animalia", "Plantae", "Fungi", "Protista"]
     
+    def detect_taxonomic_rank(self, taxon_name: str) -> Optional[str]:
+        """
+        Auto-detect the taxonomic rank of a given taxon name.
+        Returns the rank as a string or None if not found.
+        """
+        query = f"""
+        SELECT DISTINCT ?rankLabel WHERE {{
+          ?taxon wdt:P225 "{taxon_name}" ;
+                 wdt:P105 ?rank .
+          ?rank rdfs:label ?rankLabel .
+          FILTER(LANG(?rankLabel) = "en")
+        }}
+        LIMIT 1
+        """
+        
+        results = self._execute_query(query, f"rank_{taxon_name}")
+        if results and results.get("results", {}).get("bindings"):
+            rank_label = results["results"]["bindings"][0]["rankLabel"]["value"].lower()
+            # Map common rank names to our standard names
+            rank_mapping = {
+                "taxonomic class": "class",
+                "taxonomic order": "order", 
+                "taxonomic family": "family",
+                "taxonomic genus": "genus",
+                "taxonomic species": "species",
+                "biological kingdom": "kingdom",
+                "phylum": "phylum"
+            }
+            return rank_mapping.get(rank_label, rank_label)
+        
+        return None
+    
+    def expand_auto_detect(self, taxon_name: str, target_rank: str = None) -> ExpansionResponse:
+        """
+        Expand taxonomy with automatic rank detection.
+        Auto-detects the current rank and expands to the next level or target rank.
+        """
+        # Auto-detect current rank
+        current_rank = self.detect_taxonomic_rank(taxon_name)
+        
+        if current_rank is None:
+            return ExpansionResponse(
+                parent_taxon=taxon_name,
+                parent_rank="unknown",
+                children=[],
+                child_rank="",
+                tuples=[],
+                total_children=0
+            )
+        
+        return self.expand_taxonomy(taxon_name, current_rank, target_rank)
+
     def expand_from_rank(self, taxon_name: str, rank: str) -> ExpansionResponse:
         """Convenience method to expand from any rank to the next level"""
         return self.expand_taxonomy(taxon_name, rank)

@@ -80,6 +80,41 @@ async def get_taxonomies(scientific_name: str):
 #             detail=f"Internal error while extracting taxonomy: {str(e)}"
 #         )
 
+@router.get("/expand/{taxon_name}", response_model=ExpansionResponse)
+async def expand_taxonomy_auto(taxon_name: str, target_rank: Optional[str] = None):
+    """
+    Expand taxonomic tree from a given taxon with automatic rank detection.
+    
+    - **taxon_name**: Name of the taxonomic entity (e.g., "Homo sapiens", "Mammalia", "Carnivora")
+    - **target_rank**: Optional target rank to expand to (e.g., "order", "family", "genus")
+    
+    Returns children of the given taxon in tuple format (parent_taxon, has_child, child_taxon)
+    """
+    print(f"🔍 Expanding taxonomy from {taxon_name} (auto-detecting rank) to {target_rank or 'next rank'}")
+    
+    try:
+        if target_rank:
+            valid_ranks = taxonomy_expander.taxonomic_ranks
+            if target_rank.lower() not in valid_ranks:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid target rank '{target_rank}'. Valid ranks are: {', '.join(valid_ranks)}"
+                )
+        
+        result = taxonomy_expander.expand_auto_detect(taxon_name, target_rank)
+        
+        print(f"✅ Successfully found {result.total_children} children")
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error expanding taxonomy: {e}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Internal error while expanding taxonomy: {str(e)}"
+        )
+
 @router.get("/expand/{taxon_name}/{rank}", response_model=ExpansionResponse)
 async def expand_taxonomies(taxon_name: str, rank: str, target_rank: Optional[str] = None):
     """
