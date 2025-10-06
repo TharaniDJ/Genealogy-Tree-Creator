@@ -452,6 +452,25 @@ export default function Home() {
     }
   }, [connectionStatus, sendMessage]);
 
+  // Add this handler in page.tsx, after handleExpandNodeByQid
+const handleClassifyRelationships = useCallback((relationships: any[]) => {
+  if (connectionStatus !== 'connected') {
+    console.error('WebSocket not connected');
+    return;
+  }
+
+  try {
+    console.log(`Sending classification request for ${relationships.length} relationships`);
+    
+    sendMessage({
+      action: "classify_relationships",
+      relationships: relationships
+    });
+    
+  } catch (error) {
+    console.error('Error sending classification request:', error);
+  }
+}, [connectionStatus, sendMessage]);
   // Auto-connect on component mount
   useEffect(() => {
     connect();
@@ -610,6 +629,7 @@ export default function Home() {
         websocketData={websocketData} 
         onExpandNode={handleExpandNode}          // For initial name-based searches
         onExpandNodeByQid={handleExpandNodeByQid} // For QID-based node expansion
+        onClassifyRelationships={handleClassifyRelationships}  // ADD THIS LINE
         expandDepth={3}                          // Default expansion depth for nodes
       />
     </main>

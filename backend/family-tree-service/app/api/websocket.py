@@ -302,6 +302,7 @@ import json
 from app.core.websocket_manager import WebSocketManager
 from app.services.wikipedia_service import fetch_relationships, fetch_relationships_by_qid
 from app.services.template_tree_extractor import extract_relationships_from_page, extract_relationships_from_page_streaming
+from app.services.relationship_classifier import classify_relationships
 
 router = APIRouter()
 manager = WebSocketManager()
@@ -381,6 +382,40 @@ async def websocket_endpoint(websocket: WebSocket):
                             "data": {"message": "page_title is required"}
                         }))
 
+                elif action == "classify_relationships":
+                    relationships = message.get("relationships", [])
+
+                    if not relationships:
+                        await manager.send_message(json.dumps({
+                            "type": "error",
+                            "data": {"message": "No relationships provided"}
+                        }))
+                    else:
+                        await manager.send_status("Starting relationship classification...", 0)
+        
+                        try:
+                            # Your classify_relationships is already async, so just await it
+                            classified_relationships = await classify_relationships(relationships)
+
+                            # Send back classified relationships
+                            await manager.send_message(json.dumps({
+                                "type": "classified_relationships",
+                                "data": {
+                                    "relationships": classified_relationships,
+                                    "total": len(classified_relationships)
+                                }
+                            }))
+
+                            await manager.send_status("Classification complete!", 100)
+            
+                        except Exception as e:
+                            import traceback
+                            print(f"Classification error: {e}")
+                            traceback.print_exc()
+                            await manager.send_message(json.dumps({
+                                "type": "error",
+                                "data": {"message": f"Classification failed: {str(e)}"}
+                            }))
                 # 3️⃣ Only fetch the existing family tree (STREAMING - one relationship at a time)
                 elif action == "fetch_existing_tree":
                     page_title = message.get("page_title")
