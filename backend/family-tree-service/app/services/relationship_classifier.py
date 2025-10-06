@@ -119,7 +119,7 @@ async def classify_relationships(relationships: List[Dict]) -> List[Dict]:
     # Build context
     context = build_compact_context(parent_child_rels, all_articles)
     
-    prompt = f"""Classify ALL these parent-child relationships as BIOLOGICAL or ADOPTIVE. Using the CONTEXT
+    prompt = f"""Classify ALL these parent-child relationships as BIOLOGICAL or ADOPTIVE. Using the CONTEXT. Please note that when you identify that if a child is not a direct biological child of a person, then classify as ADOPTIVE. If you are unsure, default to BIOLOGICAL.
 
 RELATIONSHIPS ({len(parent_child_rels)} total):
 {chr(10).join(rel_list)}
