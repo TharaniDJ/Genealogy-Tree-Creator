@@ -157,9 +157,12 @@ useEffect(() => {
       }
     });
     
+    // Capture current nodes snapshot
+    const currentNodes = nodes;
+    
     // Build node ID map - map entity names to node IDs
     const nodeIdMap = new Map<string, string>();
-    nodes.forEach(node => {
+    currentNodes.forEach(node => {
       if (node.data.entity) {
         nodeIdMap.set(node.data.entity, node.id);
       }
@@ -181,9 +184,9 @@ useEffect(() => {
           console.log(`\nChecking edge: ${edge.id}`);
           console.log(`  Source ID: ${edge.source}, Target ID: ${edge.target}`);
           
-          // Get entity names from node IDs
-          const sourceNode = nodes.find(n => n.id === edge.source);
-          const targetNode = nodes.find(n => n.id === edge.target);
+          // Get entity names from node IDs using captured snapshot
+          const sourceNode = currentNodes.find(n => n.id === edge.source);
+          const targetNode = currentNodes.find(n => n.id === edge.target);
           
           if (sourceNode && targetNode) {
             const parentEntity = sourceNode.data.entity;
@@ -225,7 +228,7 @@ useEffect(() => {
     
     setTimeout(() => setStatus(''), 3000);
   }
-}, [websocketData, setEdges, nodes]); // Added 'nodes' dependency
+}, [websocketData, setEdges]); // Removed 'nodes' dependency to prevent infinite loop
   useEffect(() => {
     if (relationships.length > 0 && personDetails.size > 0) {
       setShowClassificationButton(true);
