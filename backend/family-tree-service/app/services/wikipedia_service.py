@@ -3013,6 +3013,8 @@ import asyncio
 import aiohttp
 import json
 from app.core.websocket_manager import WebSocketManager
+from app.services.llm_relationship_extractor import LLMRelationshipExtractor
+
 
 WIKIPEDIA_API = "https://en.wikipedia.org/w/api.php"
 WIKIDATA_API = "https://www.wikidata.org/wiki/Special:EntityData/{}.json"
@@ -3150,6 +3152,114 @@ async def fetch_relationships(page_title: str, depth: int, websocket_manager: Op
             }))
         
         return []
+
+async def fetch_relationships_hybrid(
+    page_title: str, 
+    qid: Optional[str],
+    depth: int, 
+    websocket_manager: Optional[WebSocketManager] = None
+) -> List[Dict[str, str]]:
+    """
+    Hybrid approach: Use Wikidata first, then supplement with LLM extraction
+    """
+    relationships = []
+    
+    # Phase 1: Try Wikidata
+    if websocket_manager:
+        await websocket_manager.send_message(json.dumps({
+            "type": "status",
+            "data": {
+                "message": f"Fetching structured data for {page_title}...",
+                "progress": 10
+            }
+        }))
+    
+    if qid and qid.startswith('Q'):
+        wikidata_rels = await collect_bidirectional_relationships(
+            qid, depth, websocket_manager
+        )
+        relationships.extend(wikidata_rels)
+    
+    # Phase 2: Check if we have complete data
+    has_parents = any(r['relationship'] == 'child of' for r in relationships)
+    has_spouses = any(r['relationship'] == 'spouse of' for r in relationships)
+    has_children = any(r['relationship'] in ['child of', 'parent of'] 
+                      for r in relationships)
+    
+    # Phase 3: Use LLM to fill gaps
+    if not (has_parents and has_spouses and has_children):
+        if websocket_manager:
+            await websocket_manager.send_message(json.dumps({
+                "type": "status",
+                "data": {
+                    "message": f"Wikidata incomplete. Using AI to extract additional relationships from Wikipedia...",
+                    "progress": 50
+                }
+            }))
+        
+        extractor = LLMRelationshipExtractor()
+        llm_rels = await extractor.extract_relationships_for_person(page_title, qid)
+        
+        # Convert LLM format to standard format
+        for parent in llm_rels['child_of']:
+            if parent[0] == page_title:  # Ensure subject matches
+                relationships.append({
+                    "entity1": parent[0],
+                    "relationship": "child of",
+                    "entity2": parent[1]
+                })
+        
+        for spouse in llm_rels['spouse_of']:
+            if spouse[0] == page_title:
+                relationships.append({
+                    "entity1": spouse[0],
+                    "relationship": "spouse of",
+                    "entity2": spouse[1]
+                })
+        
+        for adopter in llm_rels['adopted_by']:
+            if adopter[0] == page_title:
+                relationships.append({
+                    "entity1": adopter[0],
+                    "relationship": "adopted by",
+                    "entity2": adopter[1]
+                })
+        
+        # Send LLM-extracted relationships
+        if websocket_manager:
+            for rel in relationships[len(wikidata_rels):]:
+                await websocket_manager.send_message(json.dumps({
+                    "type": "relationship",
+                    "data": {
+                        **rel,
+                        "source": "llm"  # Mark as LLM-extracted
+                    }
+                }))
+                
+                # Send personal details with temp QID
+                for entity in [rel['entity1'], rel['entity2']]:
+                    if entity != page_title:
+                        await websocket_manager.send_message(json.dumps({
+                            "type": "personal_details",
+                            "data": {
+                                "entity": entity,
+                                "qid": "temp",  # No Wikidata entry
+                                "birth_year": None,
+                                "death_year": None,
+                                "image_url": None
+                            }
+                        }))
+    
+    if websocket_manager:
+        await websocket_manager.send_message(json.dumps({
+            "type": "status",
+            "data": {
+                "message": f"Complete! Found {len(relationships)} relationships",
+                "progress": 100
+            }
+        }))
+    
+    return relationships
 
 def get_qid(page_title: str) -> Optional[str]:
     """Return the Wikidata Q-identifier for a Wikipedia page title, or None if not found."""

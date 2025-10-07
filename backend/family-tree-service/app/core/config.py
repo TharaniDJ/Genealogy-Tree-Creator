@@ -1,4 +1,5 @@
-from pydantic import BaseSettings
+from pydantic_settings import BaseSettings  # ← CHANGED FROM pydantic
+#from pydantic import BaseSettings
 
 class Settings(BaseSettings):
     WIKIPEDIA_API: str = "https://en.wikipedia.org/w/api.php"
