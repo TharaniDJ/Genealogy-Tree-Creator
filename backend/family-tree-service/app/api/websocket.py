@@ -335,6 +335,7 @@ async def websocket_endpoint(websocket: WebSocket):
                         }))
 
                 # 🆕 NEW: QID-based expansion (streams one by one)
+                # FIND THIS SECTION:
                 elif action == "expand_by_qid":
                     qid = message.get("qid")
                     depth = message.get("depth", 3)
@@ -342,8 +343,20 @@ async def websocket_endpoint(websocket: WebSocket):
 
                     if qid:
                         await manager.send_status(f"Starting QID-based expansion for {entity_name or qid}...", 0)
-                        # Use QID-based fetch with streaming
-                        relationships = await fetch_relationships_by_qid(qid, depth, manager, entity_name)
+        
+                        # REPLACE THIS LINE:
+                        # relationships = await fetch_relationships_by_qid(qid, depth, manager, entity_name)
+        
+                        # WITH THIS - Use hybrid approach:
+                        from app.services.wikipedia_service import fetch_relationships_hybrid
+        
+                        relationships = await fetch_relationships_hybrid(
+                            page_title=entity_name or qid,
+                            qid=qid,
+                            depth=depth,
+                            websocket_manager=manager
+                        )
+        
                         await manager.send_status("QID-based expansion complete!", 100)
                     else:
                         await manager.send_message(json.dumps({

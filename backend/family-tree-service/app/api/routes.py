@@ -348,6 +348,7 @@ async def get_personal_details(page_title: str):
     return personal_info
 
 # NEW: QID-based expansion endpoint
+# FIND THIS SECTION (around line 34-60):
 @router.post("/expand-by-qid")
 async def expand_genealogy_by_qid(request: dict):
     """
@@ -364,11 +365,17 @@ async def expand_genealogy_by_qid(request: dict):
         
         print(f"QID-based expansion request: QID={qid}, depth={depth}, entity={entity_name}")
         
-        relationships = await fetch_relationships_by_qid(
+        # REPLACE THIS LINE:
+        # relationships = await fetch_relationships_by_qid(...)
+        
+        # WITH THIS - Use hybrid approach:
+        from app.services.wikipedia_service import fetch_relationships_hybrid
+        
+        relationships = await fetch_relationships_hybrid(
+            page_title=entity_name or qid,
             qid=qid,
             depth=depth,
-            websocket_manager=None,
-            entity_name=entity_name
+            websocket_manager=None
         )
         
         return {
