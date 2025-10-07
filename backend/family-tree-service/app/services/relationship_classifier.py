@@ -119,7 +119,10 @@ async def classify_relationships(relationships: List[Dict]) -> List[Dict]:
     # Build context
     context = build_compact_context(parent_child_rels, all_articles)
     
-    prompt = f"""Classify ALL these parent-child relationships as BIOLOGICAL or ADOPTIVE. Using the CONTEXT. Please note that when you identify that if a child is not a direct biological child of a person, then classify as ADOPTIVE. If you are unsure, default to BIOLOGICAL.
+    prompt = f"""Classify ALL these parent-child relationships as BIOLOGICAL or ADOPTIVE. Using the CONTEXT. Please note that when you identify that if a child is not a direct biological child of a person, then classify as ADOPTIVE. 
+                Don't just tell adoptive, you need to be very very sure about the other relationship,like if you see if the person 1 is a grandparent or uncle of the second person,then the relationship can be adoptive.
+                In the real world many relationships are biological so before saying that they are adoptive you need to be very very sure about that.
+                If you are unsure, default to BIOLOGICAL.
 
 RELATIONSHIPS ({len(parent_child_rels)} total):
 {chr(10).join(rel_list)}
