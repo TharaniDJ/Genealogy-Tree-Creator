@@ -888,7 +888,7 @@ CRITICAL RULES:
    - "{subject} adopted by [Adopter]" (for adoptions)
 4. If you identify the spouse of the subject then search for children of that spouse and format those relationships as well like below
    - "[Child] child of [spouse]" (when spouse is someone's parent)
-
+5. Use the provided text only to extract relationships.
 **DUPLICATE DETECTION - READ CAREFULLY:**
 The following people are ALREADY in the family tree:
 {existing_list if existing_list else "None - this is the first extraction"}
