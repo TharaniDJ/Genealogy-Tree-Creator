@@ -3102,16 +3102,26 @@ async def fetch_relationships_by_qid(
                     )
                     
                     # Convert LLM format to standard format
+                    # Convert LLM format to standard format
                     llm_relationships = []
-                    
-                    for parent in llm_rels.get('child_of', []):
-                        if parent[0] == page_title:
+
+                    # Handle child_of relationships - allow BOTH directions now
+                    for child, parent in llm_rels.get('child_of', []):
+                        # Add if subject is the child
+                        if child == page_title:
                             llm_relationships.append({
-                                "entity1": parent[0],
+                                "entity1": child,
                                 "relationship": "child of",
-                                "entity2": parent[1]
+                                "entity2": parent
                             })
-                    
+                        # ALSO add if child exists and parent is new (connecting children to new spouse)
+                        else:
+                            llm_relationships.append({
+                                "entity1": child,
+                                "relationship": "child of",
+                                "entity2": parent
+                            })
+
                     for spouse in llm_rels.get('spouse_of', []):
                         if spouse[0] == page_title:
                             llm_relationships.append({
@@ -3119,7 +3129,7 @@ async def fetch_relationships_by_qid(
                                 "relationship": "spouse of",
                                 "entity2": spouse[1]
                             })
-                    
+
                     for adopter in llm_rels.get('adopted_by', []):
                         if adopter[0] == page_title:
                             llm_relationships.append({
@@ -3129,42 +3139,49 @@ async def fetch_relationships_by_qid(
                             })
                     
                     # Deduplicate: only add LLM relationships not in Wikidata
+                    # Deduplicate: only add LLM relationships not in Wikidata
                     existing_pairs = set()
                     for rel in wikidata_relationships:
-                        # Create normalized key for comparison
+                        # Create normalized key for comparison (consider both directions for child_of)
                         pair = f"{rel['entity1'].lower()}-{rel['relationship']}-{rel['entity2'].lower()}"
                         existing_pairs.add(pair)
-                    
+
                     new_llm_count = 0
                     for llm_rel in llm_relationships:
                         pair = f"{llm_rel['entity1'].lower()}-{llm_rel['relationship']}-{llm_rel['entity2'].lower()}"
+    
+                        # SPECIAL: For child_of, don't skip if we're adding a new parent to existing child
                         if pair not in existing_pairs:
                             wikidata_relationships.append(llm_rel)
                             new_llm_count += 1
-                            
+        
                             # Send LLM-extracted relationships via websocket
                             if websocket_manager:
                                 await websocket_manager.send_message(json.dumps({
                                     "type": "relationship",
-                                    "data": {
+                                        "data": {
                                         **llm_rel,
                                         "source": "llm"
                                     }
                                 }))
-                                
-                                # Send personal details for new entities (with temp QID)
+            
+                                # Send personal details for NEW entities only (not for existing children)
                                 for entity in [llm_rel['entity1'], llm_rel['entity2']]:
                                     if entity != page_title:
-                                        await websocket_manager.send_message(json.dumps({
-                                            "type": "personal_details",
-                                            "data": {
-                                                "entity": entity,
-                                                "qid": "temp",
-                                                "birth_year": None,
-                                                "death_year": None,
-                                                "image_url": None
-                                            }
-                                        }))
+                                        # Check if entity is truly new (not in existing_entities)
+                                        entity_is_new = entity not in existing_entities
+                    
+                                        if entity_is_new:
+                                            await websocket_manager.send_message(json.dumps({
+                                                "type": "personal_details",
+                                                    "data": {
+                                                    "entity": entity,
+                                                    "qid": "temp",
+                                                    "birth_year": None,
+                                                    "death_year": None,
+                                                    "image_url": None
+                                                }
+                                            }))
                     
                     if websocket_manager:
                         await websocket_manager.send_message(json.dumps({
