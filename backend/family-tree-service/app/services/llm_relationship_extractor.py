@@ -886,7 +886,8 @@ CRITICAL RULES:
    - "[Child] child of {subject}" (when {subject} is someone's parent)
    - "{subject} spouse of [Spouse]" (for marriages)
    - "{subject} adopted by [Adopter]" (for adoptions)
-4. Extract relationships for {subject} ONLY
+4. If you identify the spouse of the subject then search for children of that spouse and format those relationships as well like below
+   - "[Child] child of [spouse]" (when spouse is someone's parent)
 
 **DUPLICATE DETECTION - READ CAREFULLY:**
 The following people are ALREADY in the family tree:
