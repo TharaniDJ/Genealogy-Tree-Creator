@@ -1,834 +1,470 @@
-"""Service functions for fetching language genealogical relationships.
-
-The implementation adapts the exploration logic prototyped in `info.ipynb` into
-an async, streaming form suitable for WebSocket incremental updates.
-
-Strategy:
-1. Resolve input language name -> Wikidata QID (using Wikipedia API lookups).
-2. Recursively traverse parent (P279) and child (P527 + reverse P279) relations
-   up to the requested depth while de‑duplicating and preventing runaway growth.
-3. For every relationship discovered, immediately stream a JSON message over the
-   provided WebSocket connection so the frontend can progressively render.
-4. Perform light validation (ensuring candidate QIDs map to language / dialect /
-   family classes) to reduce noise. (Kept minimal to avoid excess SPARQL load.)
-
-NOTE: Network calls use `requests` (blocking). For production scalability you
-may wish to migrate to `httpx.AsyncClient`. Given the relatively small request
-volume per tree and FastAPI's default threadpool offload for sync I/O, this is
-acceptable for now.
-"""
+"""Wikipedia relationship extraction service using infobox + LLM pipeline."""
 
 from __future__ import annotations
 
-import time
 import asyncio
+import ast
+import logging
+import os
+import re
+import time
+from typing import Dict, List, Optional, Sequence, Tuple
+
+import mwparserfromhell
+import numpy as np
 import requests
-from typing import Dict, List, Optional, Set, Tuple
+from google import genai
+from mwparserfromhell.nodes import Heading
+from mwparserfromhell.wikicode import Wikicode
+from sentence_transformers import SentenceTransformer
 
-from app.core.websocket_manager import WebSocketManager
-from app.core.config import settings
+from app.models.language import LanguageInfo, LanguageRelationship
 
-HEADERS = {"User-Agent": "LanguageFamilyTreeService/1.0 (https://dasun.codes)", "Accept": "application/json"}
+logger = logging.getLogger(__name__)
 
-WIKIPEDIA_API = settings.WIKIPEDIA_API
-WIKIDATA_QUERY_API = settings.WIKIDATA_QUERY_API
-SPARQL_ENDPOINT = settings.SPARQL_API
-
-MAX_QIDS_PER_CALL = 50
-MAX_RETRIES = 4
-BACKOFF_BASE = 0.8
-MAX_NODES = 1500
-
-LABEL_CACHE: Dict[str, str] = {}
-VALID_QIDS: Set[str] = set()
-INVALID_QIDS: Set[str] = set()
-CLASSIFICATION_CACHE: Dict[str, Optional[str]] = {}
-
-# Accepted Wikidata type QIDs (instance/subclass) considered valid language entities
-VALID_TYPE_QIDS: Dict[str, str] = {
-	"language": "Q34770",
-	
-	"dialect": "Q33384",
-	
-	"language_family": "Q25295",
-	
-	"proto_language": "Q206577",
-	"extinct_language": "Q38058796",
-	"dead_language": "Q45762",
+WIKIPEDIA_API = "https://en.wikipedia.org/w/api.php"
+DEFAULT_HEADERS = {
+    "User-Agent": "GenealogyTreeLanguageService/1.0 (language-tree-service)"
 }
 
+FIELD_TO_RELATION: Dict[str, Tuple[str, str]] = {
+    "language family": ("belongs to family", "up"),
+    "family": ("belongs to family", "up"),
+    "familycolor": ("belongs to family", "up"),
+    **{f"fam{i}": ("belongs to family", "up") for i in range(1, 21)},
+    "dialects": ("is a dialect of", "down"),
+    "varieties": ("is a dialect of", "down"),
+    "dialect": ("is a dialect of", "down"),
+    **{f"dia{i}": ("is a dialect of", "down") for i in range(1, 41)},
+    "child": ("is a child of", "down"),
+    "children": ("is a child of", "down"),
+    **{f"child{i}": ("is a child of", "down") for i in range(1, 21)},
+    "descendants": ("descends from", "down"),
+    "posterior forms": ("descends from", "down"),
+}
 
-from SPARQLWrapper import SPARQLWrapper, JSON
+INFOTO_TEMPLATE_NAME_PATTERNS: Sequence[re.Pattern[str]] = (
+    re.compile(r".*infobox.*", re.IGNORECASE),
+    re.compile(r".*language.*", re.IGNORECASE),
+    re.compile(r".*proto.*", re.IGNORECASE),
+    re.compile(r".*langbox.*", re.IGNORECASE),
+)
 
-async def fetch_language_info(qid: str, lang_code: str = "en"):
-	"""
-	Fetch important information about a language, language family, or dialect by its Wikidata QID.
-	Uses Wikidata SPARQL to retrieve speakers, ISO code, and distribution map URL when available.
+GENETIC_RELATIONS = [
+    "belongs to family",
+    "proto language is",
+    "descends from",
+    "is a child of",
+    "is a dialect of",
+    "early form of",
+    "influenced by",
+]
 
-	Args:
-		qid (str): Wikidata QID like 'Q12345'
-		lang_code (str): Language code for labels/descriptions (default 'en')
+try:
+    embed_model: Optional[SentenceTransformer] = SentenceTransformer("all-MiniLM-L6-v2")
+    logger.info("Loaded sentence-transformer model 'all-MiniLM-L6-v2'.")
+except Exception as exc:  # pragma: no cover - depends on environment
+    embed_model = None
+    logger.error("Failed to load sentence-transformer model: %s", exc)
 
-	Returns:
-		dict: Extracted information matching LanguageInfo model structure
-	"""
-	info: Dict[str, Optional[str]] = {
-		"speakers": None,
-		"iso_code": None,
-		"distribution_map_url": None
-	}
-	sparql = SPARQLWrapper("https://query.wikidata.org/sparql")
-
-	try:
-		# SPARQL query to get language information (without Wikipedia infobox fallback)
-		sparql.setQuery(f"""
-		SELECT ?itemLabel ?itemDescription ?speakersValue ?isoCode WHERE {{
-		  VALUES ?item {{ wd:{qid} }}
-		  OPTIONAL {{ ?item wdt:P1098 ?speakersValue. }}
-		  OPTIONAL {{ ?item wdt:P219 ?isoCode. }}
-		  SERVICE wikibase:label {{ bd:serviceParam wikibase:language "{lang_code},en". }}
-		}}
-		""")
-		sparql.setReturnFormat(JSON)
-		results = sparql.query().convert()
-
-		# Handle different return types from SPARQLWrapper
-		if isinstance(results, dict):
-			bindings = results.get("results", {}).get("bindings", [])
-		else:
-			bindings = []
-
-		if bindings:
-			b = bindings[0]
-			info["speakers"] = b.get("speakersValue", {}).get("value")
-			info["iso_code"] = b.get("isoCode", {}).get("value")
-	except Exception:
-		# Silently ignore SPARQL errors and return whatever info we have
-		pass
-
-	# Get distribution map image URL
-	info["distribution_map_url"] = get_distribution_map_image(qid)
-
-	return info
-
-def _validate_qid(qid: str) -> Tuple[bool, Optional[str]]:
-	"""Return (is_valid, classification_key) for a Wikidata QID.
-
-	Caches results to avoid repeated SPARQL calls. Classification key is one
-	of the keys in VALID_TYPE_QIDS or None if not matched.
-	"""
-	if not qid:
-		return False, None
-	if qid in VALID_QIDS:
-		# We may or may not have stored classification separately
-		return True, CLASSIFICATION_CACHE.get(qid)
-	if qid in INVALID_QIDS:
-		return False, None
-	# Build VALUES clause of acceptable types
-	values_clause = " ".join(f"wd:{t}" for t in VALID_TYPE_QIDS.values())
-	query = f"""
-	SELECT ?type WHERE {{
-	  VALUES ?item {{ wd:{qid} }}
-	  {{ ?item wdt:P31 ?type. }} UNION {{ ?item wdt:P279 ?type. }}
-	  VALUES ?validType {{ {values_clause} }}
-	  FILTER(?type IN (?validType))
-	}}
-	LIMIT 1
-	"""
-	data = _safe_get_json(SPARQL_ENDPOINT, params={"query": query, "format": "json"}) or {}
-	bindings = data.get("results", {}).get("bindings", [])
-	if not bindings:
-		INVALID_QIDS.add(qid)
-		CLASSIFICATION_CACHE[qid] = None
-		return False, None
-	type_uri = bindings[0]["type"]["value"]
-	type_qid = type_uri.split("/")[-1]
-	# Reverse lookup classification key
-	for key, tqid in VALID_TYPE_QIDS.items():
-		if tqid == type_qid:
-			VALID_QIDS.add(qid)
-			CLASSIFICATION_CACHE[qid] = key
-			return True, key
-	# Fallback (should not happen if VALUES clause matches)
-	VALID_QIDS.add(qid)
-	CLASSIFICATION_CACHE[qid] = None
-	return True, None
+_genai_client: Optional[genai.Client] = None
 
 
-def _validate_root_language(qid: str) -> Tuple[bool, List[str]]:
-	"""Comprehensive validation for root language QID with detailed type information.
-	
-	Returns (is_valid, list_of_matching_types) where matching_types are ordered by priority.
-	Priority order: language -> modern/ancient/dead/extinct -> dialect -> sign -> creole/pidgin -> family -> proto
-	"""
-	if not qid:
-		return False, []
-		
-	# Comprehensive language type QIDs in priority order
-	LANGUAGE_TYPE_HIERARCHY = [
-		("language", "Q34770"),
-		("modern_language", "Q1288568"),
-		("ancient_language", "Q436240"), 
-		("dead_language", "Q45762"),
-		("extinct_language", "Q38058796"),
-		("dialect", "Q33384"),
-		("sign_language", "Q34228"),
-		("creole_language", "Q33289"),
-		("pidgin_language", "Q33831"),
-		("language_family", "Q25295"),
-		("proto_language", "Q206577"),
-	]
-	
-	# Build VALUES clause for all language types
-	values_clause = " ".join(f"wd:{qid_val}" for _, qid_val in LANGUAGE_TYPE_HIERARCHY)
-	
-	query = f"""
-	SELECT ?type WHERE {{
-	  VALUES ?item {{ wd:{qid} }}
-	  {{ ?item wdt:P31 ?type. }} UNION {{ ?item wdt:P279 ?type. }}
-	  VALUES ?validType {{ {values_clause} }}
-	  FILTER(?type IN (?validType))
-	}}
-	"""
-	
-	data = _safe_get_json(SPARQL_ENDPOINT, params={"query": query, "format": "json"}) or {}
-	bindings = data.get("results", {}).get("bindings", [])
-	
-	if not bindings:
-		return False, []
-	
-	# Extract all matching type QIDs
-	found_type_qids = set()
-	for binding in bindings:
-		type_uri = binding["type"]["value"]
-		type_qid = type_uri.split("/")[-1]
-		found_type_qids.add(type_qid)
-	
-	# Map back to type names in priority order
-	matching_types = []
-	for type_name, type_qid in LANGUAGE_TYPE_HIERARCHY:
-		if type_qid in found_type_qids:
-			matching_types.append(type_name)
-	
-	# Valid if we found at least one matching type
-	is_valid = len(matching_types) > 0
-	return is_valid, matching_types
+def _get_genai_client() -> genai.Client:
+    global _genai_client
+    if _genai_client is None:
+        api_key = "AIzaSyCjm3E6c33P7DfORc7lwggHstlughbgY5o"
+        
+        logger.info("Initialising Google Generative AI client.")
+        _genai_client = genai.Client(api_key=api_key)
+    return _genai_client
 
 
-def _safe_get_json(url: str, *, params: dict, headers: dict | None = None):
-	merged = {**HEADERS, **(headers or {})}
-	for attempt in range(1, MAX_RETRIES + 1):
-		try:
-			resp = requests.get(url, params=params, headers=merged, timeout=20)
-			status = resp.status_code
-			if status == 429:
-				wait = BACKOFF_BASE * attempt * 2
-				time.sleep(wait)
-				continue
-			if status >= 500:
-				wait = BACKOFF_BASE * attempt
-				time.sleep(wait)
-				continue
-			if status != 200:
-				return None
-			txt = resp.text.strip()
-			if not txt:
-				wait = BACKOFF_BASE * attempt
-				time.sleep(wait)
-				continue
-			return resp.json()
-		except Exception:
-			wait = BACKOFF_BASE * attempt
-			time.sleep(wait)
-	return None
+def fetch_wikitext(title: str, headers: Optional[dict] = None, max_retries: int = 3, backoff: float = 1.0) -> str:
+    headers = headers or DEFAULT_HEADERS
+    params = {
+        "action": "query",
+        "format": "json",
+        "prop": "revisions",
+        "rvprop": "content",
+        "titles": title,
+        "formatversion": "2",
+    }
+    for attempt in range(1, max_retries + 1):
+        try:
+            resp = requests.get(WIKIPEDIA_API, params=params, headers=headers, timeout=20)
+            resp.raise_for_status()
+            payload = resp.json()
+            pages = payload.get("query", {}).get("pages", [])
+            if not pages:
+                return ""
+            page = pages[0]
+            if "missing" in page:
+                return ""
+            return page.get("revisions", [{}])[0].get("content", "") or ""
+        except requests.HTTPError as exc:
+            status = getattr(exc.response, "status_code", None)
+            if status == 403 and attempt < max_retries:
+                time.sleep(backoff * attempt)
+                continue
+            raise
+        except Exception:
+            if attempt < max_retries:
+                time.sleep(backoff * attempt)
+            else:
+                logger.exception("Unexpected error fetching wikitext for %s", title)
+    return ""
 
 
-def _get_language_labels(qids: List[str]) -> Dict[str, str]:
-	qids = list({q for q in qids if q})
-	if not qids:
-		return {}
-	results: Dict[str, str] = {}
-	for i in range(0, len(qids), MAX_QIDS_PER_CALL):
-		group = qids[i : i + MAX_QIDS_PER_CALL]
-		params = {
-			"action": "wbgetentities",
-			"ids": "|".join(group),
-			"props": "labels",
-			"languages": "en",
-			"format": "json",
-			"origin": "*",
-		}
-		data = _safe_get_json(WIKIDATA_QUERY_API, params=params) or {}
-		entities = data.get("entities", {})
-		for qid, ent in entities.items():
-			label = ent.get("labels", {}).get("en", {}).get("value")
-			if label and label.strip():
-				results[qid] = label.strip()
-			# Don't set a fallback - let _get_label handle missing labels
-		time.sleep(0.05)
-	return results
+def _template_name_matches(name: str) -> bool:
+    if not name:
+        return False
+    name = name.strip()
+    for pattern in INFOTO_TEMPLATE_NAME_PATTERNS:
+        if pattern.search(name):
+            return True
+    return False
 
 
-def _get_label(qid: str) -> str:
-	if not qid:
-		return qid
-	if qid in LABEL_CACHE:
-		return LABEL_CACHE[qid]
-	labels = _get_language_labels([qid])
-	label = labels.get(qid, qid)
-	
-	# If label is the same as QID, it means lookup failed
-	# Don't cache failed lookups and return empty string to signal failure
-	if label == qid:
-		return ""
-	
-	LABEL_CACHE[qid] = label
-	return label
+def _extract_links_and_text(value_wikitext: str) -> List[str]:
+    if not value_wikitext:
+        return []
+
+    node = mwparserfromhell.parse(value_wikitext)
+    note_templates = {"efn", "refn", "notelist", "note", "sfn", "harv", "harvnb", "harvcol", "harvcolnb", "harvcoltxt"}
+    for template in list(node.filter_templates()):
+        if str(template.name).strip().lower() in note_templates:
+            node.remove(template)
+    for tag in list(node.filter_tags()):
+        if tag.tag.lower() == "ref":
+            node.remove(tag)
+
+    results: List[str] = []
+    for link in node.filter_wikilinks():
+        target = str(link.title).strip()
+        if "#" in target:
+            target = target.split("#", 1)[0].strip()
+        if target:
+            results.append(target)
+
+    if not results:
+        text = node.strip_code().strip()
+        if text:
+            parts = re.split(r"\s*(?:,|/|;|\band\b|\bor\b)\s*", text)
+            results.extend([p.strip() for p in parts if p.strip()])
+
+    deduped: List[str] = []
+    seen = set()
+    for item in results:
+        if item and item not in seen:
+            deduped.append(item)
+            seen.add(item)
+    return deduped
 
 
-def get_wikidata_entity_id(language_name):
-    """
-    
-    Tries multiple search strategies and validates each QID to ensure it's 
-    actually a language-related entity.
-    """
-    def _try_page_lookup(title):
-       
-        params = {
-            "action": "query",
-            "titles": title,
-            "prop": "pageprops",
-            "ppprop": "wikibase_item",
-            "format": "json",
-        }
-        data = _safe_get_json(WIKIPEDIA_API, params=params) or {}
-        pages = data.get("query", {}).get("pages", {})
-        for page in pages.values():
-            if "pageprops" in page and "wikibase_item" in page["pageprops"]:
-                return page["pageprops"]["wikibase_item"]
+def parse_infobox_from_wikitext(wikitext: str) -> List[Tuple[str, str, str]]:
+    triples: List[Tuple[str, str, str]] = []
+    if not wikitext:
+        return triples
+
+    parsed = mwparserfromhell.parse(wikitext)
+    templates = parsed.filter_templates()
+    infobox_templates = [t for t in templates if _template_name_matches(str(t.name).strip())]
+
+    if not infobox_templates:
+        return triples
+
+    for template in infobox_templates:
+        subject = None
+        if template.has("name"):
+            subject = template.get("name").value.strip_code().strip()
+        if not subject:
+            subject = "__PAGE__"
+
+        fam_chain: List[List[str]] = []
+        base_fam_keys = ["language family", "family", "familycolor"]
+        for key in base_fam_keys:
+            if template.has(key):
+                fam_chain.append(_extract_links_and_text(str(template.get(key).value)))
+        for i in range(1, 20):
+            key = f"fam{i}"
+            if template.has(key):
+                fam_chain.append(_extract_links_and_text(str(template.get(key).value)))
+        fam_chain_flat = [item for sublist in fam_chain for item in sublist]
+        if fam_chain_flat:
+            fam_chain_flat.append(subject)
+            for idx in range(len(fam_chain_flat) - 1):
+                triples.append((fam_chain_flat[idx + 1], "belongs to family", fam_chain_flat[idx]))
+
+        for param in template.params:
+            key = str(param.name).strip().lower()
+            if key not in FIELD_TO_RELATION:
+                continue
+            rel, direction = FIELD_TO_RELATION[key]
+            if direction != "down":
+                if rel != "Proto language is":
+                    continue
+            val = str(param.value).strip()
+            if not val:
+                continue
+            objs = _extract_links_and_text(val)
+            for obj in objs:
+                triples.append((obj, rel, subject))
+
+    seen = set()
+    unique: List[Tuple[str, str, str]] = []
+    for a, b, c in triples:
+        trip = (a.strip(), b.strip(), c.strip())
+        if trip[0] and trip[2] and trip not in seen:
+            unique.append(trip)
+            seen.add(trip)
+    return unique
+
+
+def extract_clean_sections(wikitext: str) -> Dict[str, str]:
+    if not wikitext:
+        return {}
+    parsed = mwparserfromhell.parse(wikitext)
+    sections: Dict[str, str] = {}
+    current_section = "Introduction"
+    content: List[str] = []
+    for node in parsed.nodes:
+        if isinstance(node, Heading):
+            if content:
+                sections[current_section] = " ".join(content).strip()
+            current_section = str(node.title).strip() or "Untitled"
+            content = []
+        else:
+            clean = Wikicode([node]).strip_code().strip()
+            if clean:
+                content.append(clean)
+    if content:
+        sections[current_section] = " ".join(content).strip()
+    return sections
+
+
+def select_relevant_chunks(sections: Dict[str, str], top_k: int = 20) -> str:
+    if not sections or embed_model is None:
+        logger.warning("Embedding model unavailable or no sections to select from.")
+        return ""
+    query = "Genetic language relationships, family trees,belongs to family,descends from,is a child of,part of, ancestry, dialects,early form of,influenced and historical linguistic evolution."
+    query_emb = embed_model.encode(query, normalize_embeddings=True)
+    chunks = [
+        f"Section: {title}\n{paragraph.strip()}"
+        for title, text in sections.items()
+        for paragraph in text.split("\n")
+        if paragraph.strip()
+    ]
+    if not chunks:
+        return ""
+    chunk_embs = embed_model.encode(chunks, normalize_embeddings=True)
+    similarities = np.dot(chunk_embs, query_emb)
+    top_indices = np.argsort(similarities)[-top_k:]
+    return "\n\n".join(chunks[i] for i in top_indices if 0 <= i < len(chunks))
+
+
+def parse_list_like_from_text(raw: str):
+    if not raw:
         return None
-    
-    def _try_page_lookup_with_validation(title, check_title_match=False):
-        """Helper to try page lookup and validate the QID is language-related."""
-        qid = _try_page_lookup(title)
-        if qid:
-            is_valid, _ = _validate_root_language(qid)
-            if is_valid:
-                
-                if check_title_match:
-                    # Check if the page title is relevant to the language name
-                    title_lower = title.lower()
-                    language_lower = language_name.lower()
-                    
-                    
-                    if (title_lower == language_lower or 
-                        title_lower == f"{language_lower} language" or
-                        title_lower.startswith(f"{language_lower} ") or
-                        title_lower.endswith(f" {language_lower}")):
-                        return qid
-                    return None
-                return qid
+    cleaned = re.sub(r"```(?:python)?", "", raw, flags=re.I).strip()
+    cleaned = cleaned.replace("```", "").strip()
+    match = re.search(r"\[.*\]", cleaned, re.DOTALL)
+    if not match:
+        logger.warning("Parser Warning: Could not find a list-like structure '[]' in the LLM response.")
         return None
-    
-    def _search_and_validate_with_priority(search_term, check_title_match=True):
-        """Search and validate results with priority for exact or close matches."""
-        params = {
-            "action": "query",
-            "list": "search",
-            "srsearch": search_term,
-            "srlimit": 10,  # Check more results for better coverage
-            "format": "json",
-        }
-        data = _safe_get_json(WIKIPEDIA_API, params=params) or {}
-        search_results = data.get("query", {}).get("search", [])
-        
-        if not search_results:
-            return None
-            
-        # Sort results by relevance - prioritize exact matches and close matches
-        language_lower = language_name.lower()
-        
-        def get_priority(result):
-            title = result["title"].lower()
-            # Highest priority: exact match
-            if title == language_lower:
-                return 0
-            # High priority: exact match with "language"
-            if title == f"{language_lower} language":
-                return 1
-            # Medium priority: starts with language name
-            if title.startswith(f"{language_lower} "):
-                return 2
-            # Lower priority: contains language name
-            if language_lower in title:
-                return 3
-            # Lowest priority: other matches
-            return 4
-        
-        sorted_results = sorted(search_results, key=get_priority)
-        
-        for result in sorted_results:
-            page_title = result["title"]
-            qid = _try_page_lookup_with_validation(page_title, check_title_match)
-            if qid:
-                return qid
-        return None
-    
+    list_str = match.group(0)
     try:
-        # Strategy 1: Try direct name lookup first (e.g., "Sanskrit")
-        qid = _try_page_lookup_with_validation(language_name)
-        if qid:
-            return qid
-        
-        # Strategy 2: Try with " language" suffix
-        qid = _try_page_lookup_with_validation(f"{language_name} language")
-        if qid:
-            return qid
-            
-        # Strategy 3: Search with direct name, prioritizing exact matches
-        qid = _search_and_validate_with_priority(language_name, check_title_match=True)
-        if qid:
-            return qid
-            
-        # Strategy 4: Search with " language" suffix, prioritizing exact matches
-        qid = _search_and_validate_with_priority(f"{language_name} language", check_title_match=True)
-        if qid:
-            return qid
-        
-        # Strategy 5: Broader search without strict title matching as fallback
-        qid = _search_and_validate_with_priority(language_name, check_title_match=False)
-        if qid:
-            return qid
-                
-        # Strategy 6: Try common language name variations
-        variations = [
-            f"{language_name}ese",
-            f"{language_name}ese language", 
-            f"Ancient {language_name}",
-            f"Old {language_name}",
-            f"Modern {language_name}",
-            f"{language_name} language family"
-        ]
-        
-        for variation in variations:
-            qid = _try_page_lookup_with_validation(variation)
-            if qid:
-                return qid
-                
-    except Exception as e:
-        print(f"Error getting QID for {language_name}: {e}")
+        return ast.literal_eval(list_str)
+    except (ValueError, SyntaxError) as exc:
+        logger.error("Parser Error: Could not parse the extracted list string. Error: %s", exc)
+        return None
+
+
+def get_normalized_hierarchical_graph(
+    infobox_triples: List[Tuple[str, str, str]],
+    relevant_text: str,
+    language: str,
+) -> List[Tuple[str, str, str]]:
+    if not infobox_triples and not relevant_text:
+        logger.info("No infobox triples or relevant text for %s", language)
+        return []
+
+    client = _get_genai_client()
+    model = os.getenv("GOOGLE_GENAI_MODEL", "gemini-2.5-flash")
+    infobox_triples_str = "\n".join([str(t) for t in infobox_triples])
+    prompt = f"""
+You are an expert in historical linguistics. Your task is to create a single, unified, and strictly hierarchical graph of genetic language relationships for "{language}".
+
+You are given infobox triples and relevant text.
+
+**CRITICAL INSTRUCTIONS:**
+1.  **Normalize ALL relationships** to the single format: `('Child Language', 'is child of', 'Parent Language')`.
+2.  **Create a Strict Hierarchy**: Each language or dialect must have **only ONE direct parent**. If Spanish evolved from Old Spanish, which evolved from Latin, the output must be `('Spanish', 'is child of', 'Old Spanish')` and `('Old Spanish', 'is child of', 'Latin')`.
+3.  **DO NOT include redundant "grandfather" links**. For the example above, you must NOT output `('Spanish', 'is child of', 'Latin')`. Only include the link to the immediate parent.
+4.  **Merge and Deduplicate**: Combine information from both the infobox and the text, then remove any exact duplicate triples.
+5.  **Be Accurate**: Only include relationships explicitly stated in the provided context.
+
+**Final Output Format**: A single Python list of (`subject`, `relation`, `object`) tuples.
+
+---
+**INPUT DATA for "{language}"**
+**1. Infobox Triples:**
+{infobox_triples_str}
+
+**2. Relevant Text:**
+{relevant_text}
+Produce the final, normalized, and strictly hierarchical list of triples now."""
+    try:
+        response = client.models.generate_content(model=model, contents=prompt)
+        response_text = getattr(response, "text", "")
+        logger.debug("LLM raw response for %s: %s", language, response_text)
+        if not response_text:
+            logger.warning("LLM returned an empty response for %s.", language)
+            return []
+        parsed = parse_list_like_from_text(response_text)
+        if not parsed:
+            logger.warning("LLM response for %s could not be parsed into a list.", language)
+            return []
+        final_triples: List[Tuple[str, str, str]] = []
+        seen = set()
+        for item in parsed:
+            if isinstance(item, (list, tuple)) and len(item) == 3:
+                subj, rel, obj = str(item[0]).strip(), str(item[1]).strip(), str(item[2]).strip()
+                if rel == "is child of" and subj and obj:
+                    triple = (subj, rel, obj)
+                    if triple not in seen:
+                        final_triples.append(triple)
+                        seen.add(triple)
+        return final_triples
+    except Exception as exc:
+        logger.error("An error occurred during LLM processing for %s: %s", language, exc)
+        return []
+
+
+def get_wikipedia_language_page_title(input_name: str) -> Optional[str]:
+    headers = DEFAULT_HEADERS
+    params = {
+        "action": "query",
+        "format": "json",
+        "list": "search",
+        "srsearch": input_name,
+        "srlimit": 10,
+    }
+    try:
+        resp = requests.get(WIKIPEDIA_API, headers=headers, params=params, timeout=10)
+        resp.raise_for_status()
+        results = resp.json().get("query", {}).get("search", [])
+    except Exception as exc:
+        logger.error("Failed to resolve page title for '%s': %s", input_name, exc)
+        return None
+
+    if not results:
+        return None
+
+    input_words = set(input_name.lower().split())
+    best_match = None
+    best_match_score = -1
+    for entry in results:
+        title = entry.get("title")
+        if not title:
+            continue
+        title_words = set(title.lower().replace("-", " ").split())
+        score = len(input_words.intersection(title_words))
+        has_language_suffix = title.lower().endswith("language") or title.lower().endswith("languages")
+        if score > best_match_score and has_language_suffix:
+            best_match = title
+            best_match_score = score
+    if best_match:
+        return best_match
+    return results[0].get("title") if results else None
+
+
+def _normalise_infobox_triples(
+    infobox_triples: List[Tuple[str, str, str]],
+    page_title: str,
+) -> List[Tuple[str, str, str]]:
+    processed: List[Tuple[str, str, str]] = []
+    for subject, relation, obj in infobox_triples:
+        subject_resolved = page_title if subject == "__PAGE__" else subject
+        object_resolved = page_title if obj == "__PAGE__" else obj
+        processed.append((subject_resolved, relation, object_resolved))
+    return processed
+
+
+async def _send_status(message: str, progress: Optional[int], websocket_manager, connection_id) -> None:
+    if websocket_manager and connection_id:
+        await websocket_manager.send_status(message, progress, connection_id)
+
+
+async def _send_root_language(label: str, websocket_manager, connection_id) -> None:
+    if websocket_manager and connection_id:
+        await websocket_manager.send_json({"type": "root_language", "data": {"label": label}}, connection_id)
+
+
+async def fetch_language_relationships(
+    language_name: str,
+    depth: int,
+    websocket_manager=None,
+    connection_id: Optional[str] = None,
+) -> List[Dict[str, object]]:
+    logger.info("Processing relationship extraction for '%s' (depth=%s)", language_name, depth)
+
+    await _send_status("Resolving Wikipedia page title...", 5, websocket_manager, connection_id)
+    resolved_title = await asyncio.to_thread(get_wikipedia_language_page_title, language_name)
+    if not resolved_title:
+        raise ValueError(f"Unable to find a Wikipedia page for '{language_name}'")
+    logger.info("Resolved language '%s' to Wikipedia title '%s'", language_name, resolved_title)
+    await _send_root_language(resolved_title, websocket_manager, connection_id)
+
+    await _send_status(f"Fetching Wikipedia content for '{resolved_title}'...", 15, websocket_manager, connection_id)
+    wikitext = await asyncio.to_thread(fetch_wikitext, resolved_title)
+    if not wikitext:
+        raise ValueError(f"No Wikipedia content found for '{resolved_title}'")
+    logger.info("Fetched wikitext for '%s' (%d characters)", resolved_title, len(wikitext))
+
+    await _send_status("Parsing infobox data...", 30, websocket_manager, connection_id)
+    raw_infobox_triples = await asyncio.to_thread(parse_infobox_from_wikitext, wikitext)
+    infobox_processed = _normalise_infobox_triples(raw_infobox_triples, resolved_title)
+    logger.info("Extracted %d infobox triples for '%s'", len(infobox_processed), resolved_title)
+
+    await _send_status("Extracting relevant sections...", 45, websocket_manager, connection_id)
+    sections = await asyncio.to_thread(extract_clean_sections, wikitext)
+    relevant_text = ""
+    if sections:
+        relevant_text = await asyncio.to_thread(select_relevant_chunks, sections)
+    logger.info("Selected %d characters of relevant text for '%s'", len(relevant_text), resolved_title)
+
+    await _send_status("Synthesising hierarchical relationships with LLM...", 70, websocket_manager, connection_id)
+    final_triples = await asyncio.to_thread(
+        get_normalized_hierarchical_graph,
+        infobox_processed,
+        relevant_text,
+        resolved_title,
+    )
+    logger.info("LLM produced %d hierarchical triples for '%s'", len(final_triples), resolved_title)
+
+    relationships: List[LanguageRelationship] = []
+    for child, relation, parent in final_triples:
+        rel_model = LanguageRelationship(
+            language1=child,
+            relationship=relation,
+            language2=parent,
+        )
+        relationships.append(rel_model)
+        if websocket_manager and connection_id:
+            await websocket_manager.send_json({"type": "relationship", "data": rel_model.model_dump()}, connection_id)
+
+    await _send_status(f"Generated {len(relationships)} relationships.", 95, websocket_manager, connection_id)
+    logger.info("Completed extraction for '%s' with %d relationships", resolved_title, len(relationships))
+
+    return [rel.model_dump() for rel in relationships]
+
+
+async def fetch_language_info(qid: str) -> Optional[LanguageInfo]:
+    logger.info("fetch_language_info called for %s but feature not implemented", qid)
     return None
 
 
-
-def _sparql_pairs(entity_id: str, query_body: str, parent_var: str, label_var: str) -> List[Tuple[str, str]]:
-	query = f"""
-	SELECT ?{parent_var} ?{label_var} WHERE {{
-	  {query_body}
-	  SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en". }}
-	}}
-	"""
-	data = _safe_get_json(SPARQL_ENDPOINT, params={"query": query, "format": "json"}) or {}
-	results = data.get("results", {}).get("bindings", [])
-	out: List[Tuple[str, str]] = []
-	for r in results:
-		try:
-			qid = r[parent_var]["value"].split("/")[-1]
-			label = r[label_var]["value"]
-			out.append((qid, label))
-		except Exception:
-			continue
-	return out
-
-
-def _get_parents(entity_id: str) -> List[Tuple[str, str]]:
-	return _sparql_pairs(entity_id, f"wd:{entity_id} wdt:P279 ?parent.", "parent", "parentLabel")
-
-
-def _get_children_by_p527(entity_id: str) -> List[Tuple[str, str]]:
-	return _sparql_pairs(entity_id, f"wd:{entity_id} wdt:P527 ?child.", "child", "childLabel")
-
-
-def _get_children(entity_id: str) -> List[Tuple[str, str]]:
-	return _sparql_pairs(entity_id, f"?child wdt:P279 wd:{entity_id}.", "child", "childLabel")
-
-
 def get_distribution_map_image(qid: str) -> Optional[str]:
-	"""Get distribution map image URL for a given language QID.
-	
-	Args:
-		qid: Wikidata QID (e.g., 'Q1860' for English)
-		
-	Returns:
-		Image URL if found, None otherwise
-	"""
-	if not qid:
-		return None
-		
-	query = f"""
-	SELECT ?image WHERE {{
-	  wd:{qid} wdt:P1846 ?image.
-	}}
-	"""
-	print(qid)
-	data = _safe_get_json(SPARQL_ENDPOINT, params={"query": query, "format": "json"}) or {}
-	results = data.get("results", {}).get("bindings", [])
-	
-	if results:
-		image_url = results[0]["image"]["value"]
-		return image_url
-	return None
-
-
-def relationships_depth1_by_qid(qid: str) -> List[Dict[str, str]]:
-	"""Return immediate parent/child relationships for a given QID (depth=1).
-
-	Does not perform WebSocket streaming. Intended for on-demand node expansion
-	when the frontend already knows the QID of the node to expand.
-	"""
-	if not qid:
-		return []
-
-	# Ensure classification cache is populated for the root qid
-	_validate_qid(qid)
-	root_label = _get_label(qid)
-
-	rels_set: Set[Tuple[str, str]] = set()  # (child_id, parent_id)
-	out: List[Dict[str, str]] = []
-
-	def _emit(child_id: str, parent_id: str, child_label: str, parent_label: str):
-		# Skip if labels are missing
-		if not child_label or not child_label.strip() or not parent_label or not parent_label.strip():
-			return
-		key = (child_id, parent_id)
-		if key in rels_set:
-			return
-		rels_set.add(key)
-
-		# Validate and capture categories
-		_validate_qid(child_id)
-		_validate_qid(parent_id)
-		child_cat = CLASSIFICATION_CACHE.get(child_id) or ""
-		parent_cat = CLASSIFICATION_CACHE.get(parent_id) or ""
-
-		out.append({
-			"language1": child_label,
-			"relationship": "Child of",
-			"language2": parent_label,
-			"language1_qid": child_id,
-			"language2_qid": parent_id,
-			"language1_category": child_cat,
-			"language2_category": parent_cat,
-		})
-
-	# Parents of root (root is child of parent)
-	for parent_id, _ in _get_parents(qid):
-		proper_parent_label = _get_label(parent_id)
-		# Resolve root label if not available yet
-		proper_child_label = root_label or _get_label(qid)
-		_emit(qid, parent_id, proper_child_label, proper_parent_label)
-
-	# Children of root by P527
-	for child_id, _ in _get_children_by_p527(qid):
-		proper_child_label = _get_label(child_id)
-		proper_parent_label = root_label or _get_label(qid)
-		_emit(child_id, qid, proper_child_label, proper_parent_label)
-
-	# Children of root by reverse P279
-	for child_id, _ in _get_children(qid):
-		proper_child_label = _get_label(child_id)
-		proper_parent_label = root_label or _get_label(qid)
-		_emit(child_id, qid, proper_child_label, proper_parent_label)
-
-	return out
-
-
-async def fetch_language_relationships(language_name: str, depth: int, websocket_manager: Optional[WebSocketManager] = None, connection_id: Optional[str] = None) -> List[Dict[str, str]]:
-	"""Fetch genealogical relationships for a language up to `depth`.
-
-	Streams each discovered relationship via websocket (type=relationship) with
-	a running count so the frontend can progressively display nodes.
-	Returns the full de‑duplicated list at the end.
-	"""
-
-	if depth < 1:
-		raise ValueError("Depth must be >= 1")
-	if depth > settings.MAX_DEPTH:
-		raise ValueError(f"Depth exceeds allowed maximum ({settings.MAX_DEPTH})")
-
-	root_qid = get_wikidata_entity_id(language_name)
-    
-	if not root_qid:
-		raise ValueError(f"Language '{language_name}' not found in Wikidata")
-	print(root_qid)
-	
-	
-	root_label = _get_label(root_qid)
-	
-	
-	root_valid, root_types = _validate_root_language(root_qid)
-	if not root_valid:
-		raise ValueError(f"Root entity for '{language_name}' (QID {root_qid}) is not a recognized language/dialect/family")
-	
-	# Emit root language information with detailed type classification
-	if websocket_manager:
-		await websocket_manager.send_json({
-			"type": "root_language",
-			"data": {
-				"language_name": language_name,
-				"qid": root_qid,
-				"label": root_label,
-				"types": root_types,
-				"primary_type": root_types[0] if root_types else None,
-				"is_language_family": "language_family" in root_types,
-				"is_extinct": any(t in root_types for t in ["dead_language", "extinct_language", "ancient_language"]),
-				"is_constructed": "constructed_language" in root_types,
-				"is_sign_language": "sign_language" in root_types
-			}
-		}, connection_id)
-	
-	VALID_QIDS.add(root_qid)
-
-	visited: Set[str] = set()
-	relations: List[Tuple[str, str, str, str, str]] = []  # (lang1, relationship, lang2, qid1, qid2) full history
-	emitted: Set[Tuple[str, str, str, str, str]] = set()
-	total = 0
-
-	async def emit(rel: Tuple[str, str, str, str, str]):
-		nonlocal total
-		if rel in emitted:
-			return
-		
-		# Validate that both languages have proper names (not just QIDs)
-		lang1_name, relationship, lang2_name, qid1, qid2 = rel
-		
-		# Skip if either language name is actually a QID (starts with Q followed by digits)
-		if (lang1_name.startswith('Q') and lang1_name[1:].isdigit()) or \
-		   (lang2_name.startswith('Q') and lang2_name[1:].isdigit()):
-			return
-		
-		# Skip if either language name is empty or None
-		if not lang1_name or not lang2_name or lang1_name.strip() == '' or lang2_name.strip() == '':
-			return
-			
-		emitted.add(rel)
-		total += 1
-		if websocket_manager:
-			# Check if connection is still active before sending
-			if connection_id and hasattr(websocket_manager, 'is_connection_active'):
-				if not websocket_manager.is_connection_active(connection_id):
-					return  # Stop processing if connection is closed
-			
-			# Derive categories (classification) from cached QIDs if available
-			cat1 = CLASSIFICATION_CACHE.get(qid1) if qid1 else None
-			cat2 = CLASSIFICATION_CACHE.get(qid2) if qid2 else None
-			await websocket_manager.send_json(
-				{
-					"type": "relationship",
-					"data": {
-						"language1": lang1_name,
-						"relationship": relationship,
-						"language2": lang2_name,
-						"language1_qid": qid1,
-						"language2_qid": qid2,
-						"count": total,
-						"language1_category": cat1,
-						"language2_category": cat2,
-					},
-				},
-				connection_id
-			)
-
-	async def recurse(entity_id: str, current_depth: int, direction: str = "both"):
-		"""
-		Recursively traverse language relationships with direction awareness.
-		
-		Args:
-			entity_id: Wikidata QID to process
-			current_depth: Current traversal depth
-			direction: "up" (parents only), "down" (children only), "both" (both directions)
-		"""
-		# Check if connection is still active or task was cancelled
-		if connection_id and websocket_manager and hasattr(websocket_manager, 'is_connection_active'):
-			if not websocket_manager.is_connection_active(connection_id):
-				return
-		
-		# Allow cancellation
-		await asyncio.sleep(0)
-		
-		if entity_id in visited or len(visited) >= MAX_NODES:
-			return
-		
-		# For depth control with direction awareness
-		if direction == "up" and current_depth > depth:
-			# If we've reached max depth going up, explore children with remaining depth and return
-			current_label = _get_label(entity_id)
-			if current_label and current_label.strip():
-				visited.add(entity_id)
-				_validate_qid(entity_id)
-				# Use depth-respecting downward traversal for the root level
-				await explore_children_with_depth(entity_id, current_label, depth)
-			return
-		elif direction == "down" and current_depth > depth:
-			return
-		elif direction == "both" and current_depth > depth:
-			return
-			
-		visited.add(entity_id)
-		current_label = _get_label(entity_id)
-		
-		# Skip if we couldn't get a proper label for this entity
-		if not current_label or current_label.strip() == "":
-			return
-
-		# Validate current entity (may already be validated)
-		_validate_qid(entity_id)
-
-		# Parents (only if direction allows upward traversal)
-		if direction in ["up", "both"]:
-			for parent_id, parent_label in _get_parents(entity_id):
-				# Check cancellation in loop
-				if connection_id and websocket_manager and hasattr(websocket_manager, 'is_connection_active'):
-					if not websocket_manager.is_connection_active(connection_id):
-						return
-				
-				if parent_id in visited:
-					continue
-				valid_parent, parent_class = _validate_qid(parent_id)
-				if not valid_parent:
-					continue
-				# Get proper label, skip if empty
-				proper_parent_label = _get_label(parent_id)
-				if not proper_parent_label or proper_parent_label.strip() == "":
-					continue
-				rel = (current_label, "Child of", proper_parent_label, entity_id, parent_id)
-				relations.append(rel)
-				await emit(rel)
-				if current_depth < depth:
-					await recurse(parent_id, current_depth + 1, "both")
-				else:
-					await recurse(parent_id, current_depth + 1, "up")
-
-		# Children (only if direction allows downward traversal)
-		if direction in ["down", "both"]:
-			await explore_children_with_depth(entity_id, current_label, depth - current_depth + 1)
-	
-	async def explore_children_one_level(entity_id: str, current_label: str):
-		"""Helper function to explore only immediate children (one level) of a given entity.
-		Used for breadth-first search operations where you need precise level control."""
-		# Children by P527
-		for child_id, child_label in _get_children_by_p527(entity_id):
-			if child_id != entity_id and child_id not in visited and len(visited) < MAX_NODES:
-				valid_child, child_class = _validate_qid(child_id)
-				if not valid_child:
-					continue
-				# Get proper label, skip if empty
-				proper_child_label = _get_label(child_id)
-				if not proper_child_label or proper_child_label.strip() == "":
-					continue
-				rel = (proper_child_label, "Child of", current_label, child_id, entity_id)
-				relations.append(rel)
-				await emit(rel)
-
-		# Children by reverse P279
-		for child_id, child_label in _get_children(entity_id):
-			if child_id != entity_id and child_id not in visited and len(visited) < MAX_NODES:
-				valid_child, child_class = _validate_qid(child_id)
-				if not valid_child:
-					continue
-				# Get proper label, skip if empty
-				proper_child_label = _get_label(child_id)
-				if not proper_child_label or proper_child_label.strip() == "":
-					continue
-				rel = (proper_child_label, "Child of", current_label, child_id, entity_id)
-				relations.append(rel)
-				await emit(rel)
-
-	async def explore_children_with_depth(entity_id: str, current_label: str, remaining_depth: int):
-		"""Helper function to explore children of a given entity up to a specified depth.
-		Performs depth-respecting downward traversal for breadth-first search."""
-		# Check if connection is still active or task was cancelled
-		if connection_id and websocket_manager and hasattr(websocket_manager, 'is_connection_active'):
-			if not websocket_manager.is_connection_active(connection_id):
-				return
-		
-		# Allow cancellation
-		await asyncio.sleep(0)
-		
-		if remaining_depth <= 0 or len(visited) >= MAX_NODES:
-			return
-			
-		children_to_explore = []
-		
-		# Collect children by P527
-		for child_id, child_label in _get_children_by_p527(entity_id):
-			# Check cancellation in loop
-			if connection_id and websocket_manager and hasattr(websocket_manager, 'is_connection_active'):
-				if not websocket_manager.is_connection_active(connection_id):
-					return
-					
-			if child_id != entity_id and child_id not in visited:
-				valid_child, child_class = _validate_qid(child_id)
-				if not valid_child:
-					continue
-				# Get proper label, skip if empty
-				proper_child_label = _get_label(child_id)
-				if not proper_child_label or proper_child_label.strip() == "":
-					continue
-				
-				visited.add(child_id)
-				rel = (proper_child_label, "Child of", current_label, child_id, entity_id)
-				relations.append(rel)
-				await emit(rel)
-				
-				if remaining_depth > 1:
-					children_to_explore.append((child_id, proper_child_label))
-
-		# Collect children by reverse P279
-		for child_id, child_label in _get_children(entity_id):
-			# Check cancellation in loop
-			if connection_id and websocket_manager and hasattr(websocket_manager, 'is_connection_active'):
-				if not websocket_manager.is_connection_active(connection_id):
-					return
-					
-			if child_id != entity_id and child_id not in visited:
-				valid_child, child_class = _validate_qid(child_id)
-				if not valid_child:
-					continue
-				# Get proper label, skip if empty
-				proper_child_label = _get_label(child_id)
-				if not proper_child_label or proper_child_label.strip() == "":
-					continue
-				
-				visited.add(child_id)
-				rel = (proper_child_label, "Child of", current_label, child_id, entity_id)
-				relations.append(rel)
-				await emit(rel)
-				
-				if remaining_depth > 1:
-					children_to_explore.append((child_id, proper_child_label))
-
-		# Recursively explore children at the next depth level
-		for child_id, child_label in children_to_explore:
-			# Check cancellation before each recursive call
-			if connection_id and websocket_manager and hasattr(websocket_manager, 'is_connection_active'):
-				if not websocket_manager.is_connection_active(connection_id):
-					return
-					
-			if len(visited) < MAX_NODES:
-				await explore_children_with_depth(child_id, child_label, remaining_depth - 1)
-
-	# Perform traversal with immediate emission - start with both directions
-	await recurse(root_qid, 1, "both")
-
-	# Final unique list
-	unique_relations = list({(r[0], r[1], r[2], r[3], r[4]) for r in relations})
-	return [
-		{
-			"language1": r[0], 
-			"relationship": r[1], 
-			"language2": r[2],
-			"language1_qid": r[3],
-			"language2_qid": r[4]
-		} for r in unique_relations
-	]
+    logger.info("get_distribution_map_image called for %s but feature not implemented", qid)
+    return None

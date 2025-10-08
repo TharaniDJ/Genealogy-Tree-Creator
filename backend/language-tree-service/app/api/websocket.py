@@ -38,59 +38,18 @@ async def websocket_language_relationships(websocket: WebSocket):
                 if isinstance(parsed, dict) and parsed.get("action"):
                     action = parsed.get("action")
                     if action == "expand_by_qid":
-                        qid = parsed.get("qid")
-                        if not qid or not isinstance(qid, str):
-                            raise ValueError("Missing or invalid 'qid' for expand_by_qid")
-                        depth = int(parsed.get("depth", 1))
-                        if depth < 1 or depth > 5:
-                            raise ValueError("Depth must be between 1 and 5")
-
-                        await websocket_manager.send_status(
-                            f"Expanding node {qid} (depth {depth})...",
-                            0,
+                        await websocket_manager.send_error(
+                            "Expansion by QID is no longer supported.",
                             connection_id
                         )
-
-                        # Create a task for the expansion operation
-                        async def expand_task():
-                            try:
-                                # For expand we only support depth=1 currently; ignore larger values and treat as 1
-                                rels = wiki.relationships_depth1_by_qid(qid)
-
-                                # Stream each relationship to this specific connection
-                                for rel in rels:
-                                    # Check if connection is still active before sending
-                                    if not websocket_manager.is_connection_active(connection_id):
-                                        break
-                                    await websocket_manager.send_json({
-                                        "type": "relationship",
-                                        "data": rel
-                                    }, connection_id)
-
-                                # Send completion message if connection is still active
-                                if websocket_manager.is_connection_active(connection_id):
-                                    await websocket_manager.send_json({
-                                        "type": "expand_complete",
-                                        "data": {"qid": qid, "added": len(rels)}
-                                    }, connection_id)
-                            except asyncio.CancelledError:
-                                print(f"Expand task cancelled for connection {connection_id}")
-                                raise
-                            except Exception as e:
-                                if websocket_manager.is_connection_active(connection_id):
-                                    await websocket_manager.send_error(f"Error expanding node: {str(e)}", connection_id)
-
-                        # Start the task and register it
-                        task = asyncio.create_task(expand_task())
-                        websocket_manager.set_active_task(connection_id, task)
-                        await task
                         continue
                         
                     elif action == "expand_by_label":
                         # Fallback: expand using a label by reusing depth-1 fetch
-                        label = parsed.get("label")
-                        if not label or not isinstance(label, str):
+                        label_value = parsed.get("label")
+                        if not isinstance(label_value, str) or not label_value.strip():
                             raise ValueError("Missing or invalid 'label' for expand_by_label")
+                        label = label_value.strip()
                         await websocket_manager.send_status(
                             f"Expanding node '{label}' (depth 1)...",
                             0,
@@ -98,10 +57,10 @@ async def websocket_language_relationships(websocket: WebSocket):
                         )
                         
                         # Create a task for the expansion operation
-                        async def expand_by_label_task():
+                        async def expand_by_label_task(label_name: str):
                             try:
                                 relationships = await wiki.fetch_language_relationships(
-                                    label,
+                                    label_name,
                                     1,
                                     websocket_manager,
                                     connection_id
@@ -109,7 +68,7 @@ async def websocket_language_relationships(websocket: WebSocket):
                                 if websocket_manager.is_connection_active(connection_id):
                                     await websocket_manager.send_json({
                                         "type": "expand_complete",
-                                        "data": {"label": label, "added": len(relationships)}
+                                        "data": {"label": label_name, "added": len(relationships)}
                                     }, connection_id)
                             except asyncio.CancelledError:
                                 print(f"Expand by label task cancelled for connection {connection_id}")
@@ -119,7 +78,7 @@ async def websocket_language_relationships(websocket: WebSocket):
                                     await websocket_manager.send_error(f"Error expanding node: {str(e)}", connection_id)
                         
                         # Start the task and register it
-                        task = asyncio.create_task(expand_by_label_task())
+                        task = asyncio.create_task(expand_by_label_task(label))
                         websocket_manager.set_active_task(connection_id, task)
                         await task
                         continue

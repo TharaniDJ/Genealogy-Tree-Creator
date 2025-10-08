@@ -5,15 +5,18 @@ description = "Language Tree Service - A FastAPI backend for exploring language 
 requires-python = ">=3.11"
 dependencies = [
     "aiohttp>=3.12.14",
+    "google-genai",
     "fastapi>=0.116.1",
+    "google-genai>=0.5.0",
+    "motor>=3.4.0",
+    "mwparserfromhell>=0.6.6",
+    "numpy>=1.26.0",
     "pydantic>=2.11.7",
     "python-dotenv>=1.1.1",
     "requests>=2.32.4",
+    "sentence-transformers>=3.0.0",
     "uvicorn>=0.35.0",
-    "websockets>=15.0.1",
-    "SPARQLWrapper",
-    "wptools",
-    "motor>=3.4.0"
+    "websockets>=15.0.1"
 ]
 
 [tool.uv]
