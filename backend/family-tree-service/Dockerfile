@@ -14,7 +14,7 @@ COPY uv.lock ./
 
 RUN uv sync --frozen --all-extras
 
-
+COPY .env ./
 
 COPY app/ ./app/
 
