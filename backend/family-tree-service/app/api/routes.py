@@ -349,6 +349,7 @@ async def get_personal_details(page_title: str):
 
 # NEW: QID-based expansion endpoint
 # FIND THIS SECTION (around line 34-60):
+# FIND THIS (around line 34-60):
 @router.post("/expand-by-qid")
 async def expand_genealogy_by_qid(request: dict):
     """
@@ -365,17 +366,17 @@ async def expand_genealogy_by_qid(request: dict):
         
         print(f"QID-based expansion request: QID={qid}, depth={depth}, entity={entity_name}")
         
-        # REPLACE THIS LINE:
-        # relationships = await fetch_relationships_by_qid(...)
+        # REMOVE THIS:
+        # from app.services.wikipedia_service import fetch_relationships_hybrid
+        # relationships = await fetch_relationships_hybrid(...)
         
-        # WITH THIS - Use hybrid approach:
-        from app.services.wikipedia_service import fetch_relationships_hybrid
-        
-        relationships = await fetch_relationships_hybrid(
-            page_title=entity_name or qid,
+        # REPLACE WITH THIS:
+        relationships = await fetch_relationships_by_qid(
             qid=qid,
             depth=depth,
-            websocket_manager=None
+            websocket_manager=None,
+            entity_name=entity_name,
+            use_llm_enrichment=True  # ✅ Enable LLM for expand
         )
         
         return {
@@ -438,6 +439,7 @@ async def websocket_relationships(websocket: WebSocket):
             print(f"Error in websocket_relationships: {e}")
             break
 
+# FIND THIS (around line 130):
 @router.websocket("/ws/expand-by-qid")
 async def websocket_expand_by_qid(websocket: WebSocket):
     await websocket.accept()
@@ -461,11 +463,13 @@ async def websocket_expand_by_qid(websocket: WebSocket):
                 })
                 continue
             
+            # UPDATE THIS LINE - add use_llm_enrichment parameter:
             relationships = await fetch_relationships_by_qid(
                 qid=qid,
                 depth=depth,
                 websocket_manager=websocket_manager,
-                entity_name=entity_name
+                entity_name=entity_name,
+                use_llm_enrichment=True  # ✅ Enable LLM for expand
             )
             
             await websocket.send_json({
