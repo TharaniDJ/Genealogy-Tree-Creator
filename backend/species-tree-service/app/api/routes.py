@@ -25,6 +25,7 @@ async def get_taxonomies(scientific_name: str):
     
     Returns taxonomic relationships as tuples (parent_taxon, has_child, child_taxon)
     """
+    
     print(f"📊 Extracting taxonomy tuples for: {scientific_name}")
     
     try:

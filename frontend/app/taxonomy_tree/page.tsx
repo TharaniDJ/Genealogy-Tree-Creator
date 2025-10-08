@@ -24,6 +24,32 @@ dagreGraph.setDefaultEdgeLabel(() => ({}));
 const nodeWidth = 220;
 const nodeHeight = 60;
 
+// TypeScript interfaces for the new API structure
+interface TaxonomicEntity {
+  rank: string;
+  name: string;
+}
+
+interface TaxonomicTuple {
+  parent_taxon: TaxonomicEntity;
+  has_child: boolean;
+  child_taxon: TaxonomicEntity;
+}
+
+interface TaxonomyApiResponse {
+  scientific_name: string;
+  total_relationships: number;
+  tuples: TaxonomicTuple[];
+  extraction_method?: string;
+}
+
+interface ExpansionApiResponse {
+  parent_taxon: TaxonomicEntity;
+  children: TaxonomicEntity[];
+  tuples: TaxonomicTuple[];
+  total_children: number;
+}
+
 type TaxonomyNodeData = { 
   label: string; 
   rank?: string; 
@@ -162,14 +188,14 @@ const TaxonomyTreePage = () => {
           scientific_name: speciesName,
           total_relationships: 8,
           tuples: [
-            { parent_taxon: "Eukarya", has_child: true, child_taxon: "Animalia" },
-            { parent_taxon: "Animalia", has_child: true, child_taxon: "Chordata" }, 
-            { parent_taxon: "Chordata", has_child: true, child_taxon: "Mammalia" },
-            { parent_taxon: "Mammalia", has_child: true, child_taxon: "Primates" },
-            { parent_taxon: "Primates", has_child: true, child_taxon: "Hominidae" },
-            { parent_taxon: "Hominidae", has_child: true, child_taxon: "Homo" },
-            { parent_taxon: "Homo", has_child: true, child_taxon: "Homo sapiens" },
-            { parent_taxon: "Homo sapiens", has_child: false, child_taxon: speciesName }
+            { parent_taxon: { rank: "Domain", name: "Eukarya" }, has_child: true, child_taxon: { rank: "Kingdom", name: "Animalia" } },
+            { parent_taxon: { rank: "Kingdom", name: "Animalia" }, has_child: true, child_taxon: { rank: "Phylum", name: "Chordata" } }, 
+            { parent_taxon: { rank: "Phylum", name: "Chordata" }, has_child: true, child_taxon: { rank: "Class", name: "Mammalia" } },
+            { parent_taxon: { rank: "Class", name: "Mammalia" }, has_child: true, child_taxon: { rank: "Order", name: "Primates" } },
+            { parent_taxon: { rank: "Order", name: "Primates" }, has_child: true, child_taxon: { rank: "Family", name: "Hominidae" } },
+            { parent_taxon: { rank: "Family", name: "Hominidae" }, has_child: true, child_taxon: { rank: "Genus", name: "Homo" } },
+            { parent_taxon: { rank: "Genus", name: "Homo" }, has_child: true, child_taxon: { rank: "Species", name: "Homo sapiens" } },
+            { parent_taxon: { rank: "Species", name: "Homo sapiens" }, has_child: false, child_taxon: { rank: "Species", name: speciesName } }
           ]
         };
         setStatus('Using mock data (API service not available)');
@@ -185,24 +211,24 @@ const TaxonomyTreePage = () => {
       if (data.tuples && Array.isArray(data.tuples)) {
         const processedNodes = new Set<string>();
         
-        data.tuples.forEach((tuple: { parent_taxon: string; has_child: boolean; child_taxon: string }) => {
+        data.tuples.forEach((tuple: TaxonomicTuple) => {
           const { parent_taxon: parentTaxon, has_child: hasChild, child_taxon: childTaxon } = tuple;
           
           // Create parent node if not exists
-          if (!processedNodes.has(parentTaxon)) {
-            ensureNode(parentTaxon, undefined, parentTaxon === speciesName ? speciesName : undefined);
-            processedNodes.add(parentTaxon);
+          if (!processedNodes.has(parentTaxon.name)) {
+            ensureNode(parentTaxon.name, parentTaxon.rank, parentTaxon.name === speciesName ? speciesName : undefined);
+            processedNodes.add(parentTaxon.name);
           }
           
           // Create child node if not exists
-          if (!processedNodes.has(childTaxon)) {
-            ensureNode(childTaxon, undefined, childTaxon === speciesName ? speciesName : undefined);
-            processedNodes.add(childTaxon);
+          if (!processedNodes.has(childTaxon.name)) {
+            ensureNode(childTaxon.name, childTaxon.rank, childTaxon.name === speciesName ? speciesName : undefined);
+            processedNodes.add(childTaxon.name);
           }
           
           // Create edge from parent to child
-          const parentId = slugify(parentTaxon);
-          const childId = slugify(childTaxon);
+          const parentId = slugify(parentTaxon.name);
+          const childId = slugify(childTaxon.name);
           ensureEdge(parentId, childId);
         });
         
@@ -224,7 +250,14 @@ const TaxonomyTreePage = () => {
 
   // Expand a specific node to show its children
   const expandNode = useCallback(async (taxonName: string, rank?: string) => {
-    const expandKey = taxonName; // Simplified key since we don't need rank anymore
+    const expandKey = `${taxonName}-${rank}`; // Include rank in the key to prevent duplicates
+    
+    // Validate that we have the rank parameter
+    if (!rank) {
+      console.warn(`Cannot expand ${taxonName}: rank is required`);
+      setStatus(`Cannot expand ${taxonName}: taxonomic rank is required`);
+      return;
+    }
     
     // Prevent duplicate expansions
     if (expandedNodesRef.current.has(expandKey)) {
@@ -232,13 +265,13 @@ const TaxonomyTreePage = () => {
     }
     
     expandedNodesRef.current.add(expandKey);
-    setStatus(`Expanding ${taxonName}...`);
+    setStatus(`Expanding ${taxonName} (${rank})...`);
     
     try {
       // Try the real API first, fallback to mock data if service is not available
       let data;
       try {
-        const response = await fetch(`http://127.0.0.1:8002/api/v1/expand/${encodeURIComponent(taxonName)}`);
+        const response = await fetch(`http://127.0.0.1:8002/api/v1/expand/${encodeURIComponent(taxonName)}/${encodeURIComponent(rank.toLowerCase())}`);
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
@@ -254,41 +287,45 @@ const TaxonomyTreePage = () => {
         };
         
         const children = mockChildren[taxonName as keyof typeof mockChildren] || [];
+        const childRank = rank === 'Class' ? 'Order' : rank === 'Order' ? 'Family' : 'species';
         data = {
-          parent_taxon: taxonName,
-          parent_rank: rank || 'unknown',
-          child_rank: 'order',
+          parent_taxon: { rank: rank || 'unknown', name: taxonName },
+          children: children.map(child => ({ rank: childRank, name: child })),
           total_children: children.length,
-          tuples: children.map(child => ({ parent_taxon: taxonName, has_child: true, child_taxon: child }))
+          tuples: children.map(child => ({ 
+            parent_taxon: { rank: rank || 'unknown', name: taxonName }, 
+            has_child: true, 
+            child_taxon: { rank: childRank, name: child }
+          }))
         };
-        setStatus(`Mock expansion for ${taxonName} (API not available)`);
+        setStatus(`Mock expansion for ${taxonName} (${rank}) - API not available`);
       }
       
       if (data.tuples && Array.isArray(data.tuples)) {
-        data.tuples.forEach((tuple: { parent_taxon: string; has_child: boolean; child_taxon: string }) => {
+        data.tuples.forEach((tuple: TaxonomicTuple) => {
           const { parent_taxon: parentTaxon, has_child: hasChild, child_taxon: childTaxon } = tuple;
           
           // Create child node if not exists
-          const childId = ensureNode(childTaxon, data.child_rank);
+          const childId = ensureNode(childTaxon.name, childTaxon.rank);
           
           // Create edge from parent to child
-          const parentId = slugify(parentTaxon);
+          const parentId = slugify(parentTaxon.name);
           if (childId && parentId) {
             ensureEdge(parentId, childId);
           }
         });
         
-        setStatus(`Expanded ${taxonName}: found ${data.tuples.length} children`);
+        setStatus(`Expanded ${taxonName} (${rank}): found ${data.tuples.length} children`);
         
         // Re-layout the graph
         setTimeout(() => layout(), 100);
       } else {
-        setStatus(`No children found for ${taxonName}`);
+        setStatus(`No children found for ${taxonName} (${rank})`);
       }
       
     } catch (error: any) {
       console.error('Error expanding node:', error);
-      setStatus(`Error expanding ${taxonName}: ${error.message}`);
+      setStatus(`Error expanding ${taxonName} (${rank}): ${error.message}`);
       // Remove from expanded set so user can retry
       expandedNodesRef.current.delete(expandKey);
     }

@@ -7,7 +7,7 @@ from SPARQLWrapper import SPARQLWrapper, JSON
 from typing import Dict, Optional, List
 import time
 import logging
-from app.models.taxonomy import TaxonomicTuple, ExpansionResponse
+from app.models.taxonomy import TaxonomicTuple, ExpansionResponse, TaxonomicEntity
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -130,10 +130,8 @@ class TaxonomyExpander:
         
         if target_rank is None:
             return ExpansionResponse(
-                parent_taxon=taxon_name,
-                parent_rank=current_rank,
+                parent_taxon=TaxonomicEntity(rank=current_rank, name=taxon_name),
                 children=[],
-                child_rank="",
                 tuples=[],
                 total_children=0
             )
@@ -145,16 +143,17 @@ class TaxonomyExpander:
         tuples = []
         for child in children:
             tuples.append(TaxonomicTuple(
-                parent_taxon=taxon_name,
+                parent_taxon=TaxonomicEntity(rank=current_rank, name=taxon_name),
                 has_child=True,  # Assume children might have their own children
-                child_taxon=child
+                child_taxon=TaxonomicEntity(rank=target_rank, name=child)
             ))
         
+        # Create TaxonomicEntity objects for children
+        children_entities = [TaxonomicEntity(rank=target_rank, name=child) for child in children]
+        
         return ExpansionResponse(
-            parent_taxon=taxon_name,
-            parent_rank=current_rank,
-            children=children,
-            child_rank=target_rank,
+            parent_taxon=TaxonomicEntity(rank=current_rank, name=taxon_name),
+            children=children_entities,
             tuples=tuples,
             total_children=len(children)
         )
@@ -218,10 +217,8 @@ class TaxonomyExpander:
         
         if current_rank is None:
             return ExpansionResponse(
-                parent_taxon=taxon_name,
-                parent_rank="unknown",
+                parent_taxon=TaxonomicEntity(rank="unknown", name=taxon_name),
                 children=[],
-                child_rank="",
                 tuples=[],
                 total_children=0
             )
