@@ -17,50 +17,69 @@ class TaxonomyExpander:
     def __init__(self, endpoint: str = "https://query.wikidata.org/sparql"):
         self.endpoint = endpoint
         self.sparql = SPARQLWrapper(endpoint)
+            
+    # Full list of taxonomic ranks in hierarchical order
+    taxonomic_ranks = [
+        'domain', 'subdomain', 'superkingdom', 'kingdom', 'subkingdom', 'infrakingdom',
+        'superphylum', 'phylum', 'subphylum', 'infraphylum', 'microphylum',
+        'superclass', 'class', 'subclass', 'infraclass', 'parvclass',
+        'superorder', 'order', 'suborder', 'infraorder', 'parvorder',
+        'superfamily', 'family', 'subfamily', 'tribe', 'subtribe',
+        'genus', 'subgenus', 'section', 'subsection', 'series', 'subseries',
+        'species', 'species group', 'species subgroup', 'subspecies', 'variety',
+        'subvariety', 'form', 'subform', 'morph', 'strain', 'cultivar','clade'
+    ]
+
+    # Wikidata QIDs for taxonomic ranks (use placeholders for unknowns)
+    rank_qids = {
+        'domain': 'wd:Q3624078',
+        'subdomain': 'wd:Q2136103',
+        'superkingdom': 'wd:Q3624078',
+        'kingdom': 'wd:Q36732',
+        'subkingdom': 'wd:Q3978005',
+        'infrakingdom': 'wd:Q2136103',
+        'superphylum': 'wd:Q2136103',
+        'phylum': 'wd:Q38348',
+        'subphylum': 'wd:Q2362355',
+        'infraphylum': 'wd:Q2136103',
+        'microphylum': 'wd:Q2136103',
+        'superclass': 'wd:Q2361851',
+        'class': 'wd:Q37517',
+        'subclass': 'wd:Q5867051',
+        'infraclass': 'wd:Q2007442',
+        'parvclass': 'wd:Q2136103',
+        'superorder': 'wd:Q2136103',
+        'order': 'wd:Q36602',
+        'suborder': 'wd:Q3663366',
+        'infraorder': 'wd:Q2889003',
+        'parvorder': 'wd:Q2136103',
+        'superfamily': 'wd:Q2136103',
+        'family': 'wd:Q35409',
+        'subfamily': 'wd:Q164280',
+        'tribe': 'wd:Q227936',
+        'subtribe': 'wd:Q2136103',
+        'genus': 'wd:Q34740',
+        'subgenus': 'wd:Q3238261',
+        'section': 'wd:Q2136103',
+        'subsection': 'wd:Q2136103',
+        'series': 'wd:Q2136103',
+        'subseries': 'wd:Q2136103',
+        'species': 'wd:Q7432',
+        'species group': 'wd:Q2136103',
+        'species subgroup': 'wd:Q2136103',
+        'subspecies': 'wd:Q68947',
+        'variety': 'wd:Q767728',
+        'subvariety': 'wd:Q2136103',
+        'form': 'wd:Q2136103',
+        'subform': 'wd:Q2136103',
+        'morph': 'wd:Q2136103',
+        'strain': 'wd:Q2136103',
+        'cultivar': 'wd:Q2136103',
+        'clade': 'wd:Q713623',
+    }
+
+
         
-        # Taxonomic ranks in order
-        self.taxonomic_ranks = [
-            'domain', 'kingdom', 'subkingdom', 'superphylum', 'phylum',
-            'subphylum', 'superclass', 'class', 'subclass', 'infraclass',
-            'superorder', 'order', 'suborder', 'infraorder', 'parvorder',
-            'superfamily', 'family', 'subfamily', 'tribe', 'subtribe',
-            'genus', 'subgenus', 'species', 'subspecies', 'variety',
-            'form', 'morph', 'strain'
-        ]
-        
-        # Wikidata QIDs for taxonomic ranks
-        self.rank_qids = {
-            'domain': 'wd:Q3624078',
-            'kingdom': 'wd:Q36732',
-            'subkingdom': 'wd:Q3978005',
-            'superphylum': 'wd:Q2136103',
-            'phylum': 'wd:Q38348',
-            'subphylum': 'wd:Q2362355',
-            'superclass': 'wd:Q2361851',
-            'class': 'wd:Q37517',
-            'subclass': 'wd:Q5867051',
-            'infraclass': 'wd:Q2007442',
-            'superorder': 'wd:Q2136103',
-            'order': 'wd:Q36602',
-            'suborder': 'wd:Q3663366',
-            'infraorder': 'wd:Q2889003',
-            'parvorder': 'wd:Q2136103',
-            'superfamily': 'wd:Q2136103',
-            'family': 'wd:Q35409',
-            'subfamily': 'wd:Q164280',
-            'tribe': 'wd:Q227936',
-            'subtribe': 'wd:Q2136103',
-            'genus': 'wd:Q34740',
-            'subgenus': 'wd:Q3238261',
-            'species': 'wd:Q7432',
-            'subspecies': 'wd:Q68947',
-            'variety': 'wd:Q767728',
-            'form': 'wd:Q2136103',
-            'morph': 'wd:Q2136103',
-            'strain': 'wd:Q2136103'
-        }
-        
-     
     def _execute_query(self, query: str, cache_key: str = None) -> Optional[Dict]:
         """Execute SPARQL query with caching and error handling."""
             
