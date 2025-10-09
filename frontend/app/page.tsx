@@ -630,7 +630,7 @@ const handleClassifyRelationships = useCallback((relationships: any[]) => {
         onExpandNode={handleExpandNode}          // For initial name-based searches
         onExpandNodeByQid={handleExpandNodeByQid} // For QID-based node expansion
         onClassifyRelationships={handleClassifyRelationships}  // ADD THIS LINE
-        expandDepth={3}                          // Default expansion depth for nodes
+        expandDepth={2}                          // Default expansion depth for nodes
       />
     </main>
   );
