@@ -11,14 +11,27 @@ from app.services.taxonomy_extractor import TaxonomyExtractor
 from app.services.taxonomy_expander import TaxonomyExpander
 from app.services.gemini_taxonomy import GeminiTaxonomyService
 import difflib
+from datetime import datetime
 from app.models.taxonomy import TaxonomicEntity
-
+from app.models.taxonomy import ExpansionResponse, TaxonomicTuple
 router = APIRouter()
 
 # Initialize services
 taxonomy_extractor = TaxonomyExtractor()
 taxonomy_expander = TaxonomyExpander()
 gemini_service = GeminiTaxonomyService()
+
+
+# Simple print system used by endpoints (timestamp + level)
+def _print_sys(level: str, message: str, *args):
+    """Print a message with ISO timestamp and level. Message can be a format string with args."""
+    ts = datetime.utcnow().isoformat() + 'Z'
+    try:
+        msg = message.format(*args) if args else message
+    except Exception:
+        # fallback: join args if formatting fails
+        msg = message + ' ' + ' '.join(str(a) for a in args)
+    print(f"[{ts}] [{level.upper()}] {msg}")
 
 @router.get("/taxonomy/{scientific_name}", response_model=TaxonomyTuplesResponse)
 async def get_taxonomies(scientific_name: str):
@@ -86,7 +99,7 @@ async def get_taxonomies(scientific_name: str):
 #         )
 
 @router.get("/expand/{taxon_name}", response_model=ExpansionResponse)
-async def expand_taxonomy_auto(taxon_name: str, target_rank: Optional[str] = None, response: Response = None):
+async def expand_taxonomy_auto(taxon_name: str, target_rank: Optional[str] = None, response: Response = None, prefer_llm: bool = False, force_llm: bool = False):
     """
     Expand taxonomic tree from a given taxon with automatic rank detection.
     
@@ -95,21 +108,21 @@ async def expand_taxonomy_auto(taxon_name: str, target_rank: Optional[str] = Non
     
     Returns children of the given taxon in tuple format (parent_taxon, has_child, child_taxon)
     """
-    print(f"🔍 Expanding taxonomy from {taxon_name} (auto-detecting rank) to {target_rank or 'next rank'}")
+    _print_sys('info', "🔍 Expanding taxonomy from {} (auto-detecting rank) to {}", taxon_name, target_rank or 'next rank')
     
     try:
         if target_rank:
             valid_ranks = taxonomy_expander.taxonomic_ranks
             if target_rank.lower() not in valid_ranks:
-                # try to guess a close target rank
-                suggestions = difflib.get_close_matches(target_rank.lower(), valid_ranks, n=1, cutoff=0.5)
-                if suggestions:
-                    guessed = suggestions[0]
+                # attempt an automatic guess (use a lower cutoff to be more permissive)
+                guesses = difflib.get_close_matches(target_rank.lower(), valid_ranks, n=1, cutoff=0.4)
+                if guesses:
+                    guessed = guesses[0]
                     if response is not None:
                         response.headers['X-Guessed-Target-Rank'] = guessed
                     target_rank = guessed
                 else:
-                    suggestion_msg = ''
+                    # no close single guess; provide suggestions and fail
                     suggestions = difflib.get_close_matches(target_rank.lower(), valid_ranks, n=3, cutoff=0.6)
                     suggestion_msg = f" Did you mean: {', '.join(suggestions)}?" if suggestions else ""
                     raise HTTPException(
@@ -117,6 +130,26 @@ async def expand_taxonomy_auto(taxon_name: str, target_rank: Optional[str] = Non
                         detail=f"Invalid target rank '{target_rank}'. Valid ranks are: {', '.join(valid_ranks)}{suggestion_msg}"
                     )
         
+        # If user provided a domain-like taxon (e.g., Eukarya), return kingdoms directly
+        try:
+            domains = taxonomy_expander.get_domain()
+            if taxon_name in domains and (target_rank is None or target_rank.lower() == 'kingdom'):
+                kingdoms = taxonomy_expander.get_kingdom(taxon_name)
+                children_entities = [TaxonomicEntity(rank='kingdom', name=k) for k in kingdoms]
+                tuples = []
+                for k in kingdoms:
+                    tuples.append({
+                        'parent_taxon': {'rank': 'domain', 'name': taxon_name},
+                        'has_child': True,
+                        'child_taxon': {'rank': 'kingdom', 'name': k}
+                    })
+                from app.models.taxonomy import ExpansionResponse, TaxonomicTuple
+                tuples_models = [TaxonomicTuple(parent_taxon=TaxonomicEntity(rank='domain', name=taxon_name), has_child=True, child_taxon=TaxonomicEntity(rank='kingdom', name=k)) for k in kingdoms]
+                return ExpansionResponse(parent_taxon=TaxonomicEntity(rank='domain', name=taxon_name), children=children_entities, tuples=tuples_models, total_children=len(children_entities))
+        except Exception:
+            # fallback to normal flow if domain handling fails
+            pass
+
         result = taxonomy_expander.expand_auto_detect(taxon_name, target_rank)
 
         # If expander returns few or no children, try Gemini to augment results
@@ -125,11 +158,16 @@ async def expand_taxonomy_auto(taxon_name: str, target_rank: Optional[str] = Non
         except Exception:
             need_gemini = True
 
+        parent_rank = getattr(result.parent_taxon, 'rank', '') or ''
+        prefer_high_level = parent_rank.lower() in {'domain', 'superkingdom', 'kingdom', 'clade'}
+
+        # Decide whether to call LLM/fallback
+        use_llm = force_llm or prefer_llm or prefer_high_level or need_gemini
+
         gemini_res = None
-        if need_gemini and gemini_service.enabled:
+        if use_llm and gemini_service.enabled:
             gemini_res = gemini_service.analyze_taxon(taxon_name)
-        elif need_gemini and not gemini_service.enabled:
-            # try simple wikipedia-based extraction as a fallback
+        elif use_llm and not gemini_service.enabled:
             gemini_res = gemini_service.simple_wikipedia_children(taxon_name)
             if gemini_res.get('status') == 'success':
                 children = []
@@ -181,17 +219,13 @@ async def expand_taxonomy_auto(taxon_name: str, target_rank: Optional[str] = Non
                     tuples=tuples_models,
                     total_children=len(merged_children)
                 )
+        _print_sys('info', "✅ Successfully augmented children using Gemini: total {}", response.total_children)
+        return response
 
-                print(f"✅ Successfully augmented children using Gemini: total {response.total_children}")
-                return response
-
-        print(f"✅ Successfully found {result.total_children} children")
-        return result
-        
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ Error expanding taxonomy: {e}")
+        _print_sys('error', "Error expanding taxonomy: {}", str(e))
         raise HTTPException(
             status_code=500, 
             detail=f"Internal error while expanding taxonomy: {str(e)}"
@@ -211,106 +245,62 @@ async def expand_taxonomies(taxon_name: str, rank: str, target_rank: Optional[st
     print(f"🔍 Expanding taxonomy from {taxon_name} ({rank}) to {target_rank or 'next rank'}")
     
     try:
-        # Validate rank and auto-guess if possible
-        valid_ranks = taxonomy_expander.taxonomic_ranks
-        guessed_rank = None
-        if rank.lower() not in valid_ranks:
-            suggestions = difflib.get_close_matches(rank.lower(), valid_ranks, n=1, cutoff=0.5)
-            if suggestions:
-                guessed_rank = suggestions[0]
-                # set header to communicate guess to client
-                if response is not None:
-                    response.headers['X-Guessed-Rank'] = guessed_rank
-                # proceed by using guessed rank
-                rank = guessed_rank
-            else:
-                suggestion_msg = ''
-                suggestions = difflib.get_close_matches(rank.lower(), valid_ranks, n=3, cutoff=0.6)
-                suggestion_msg = f" Did you mean: {', '.join(suggestions)}?" if suggestions else ""
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Invalid rank '{rank}'. Valid ranks are: {', '.join(valid_ranks)}.{suggestion_msg}"
-                )
-        
-        if target_rank and target_rank.lower() not in valid_ranks:
-            suggestions = difflib.get_close_matches(target_rank.lower(), valid_ranks, n=1, cutoff=0.5)
-            if suggestions:
-                guessed = suggestions[0]
-                if response is not None:
-                    response.headers['X-Guessed-Target-Rank'] = guessed
-                target_rank = guessed
-            else:
-                suggestions = difflib.get_close_matches(target_rank.lower(), valid_ranks, n=3, cutoff=0.6)
-                suggestion_msg = f" Did you mean: {', '.join(suggestions)}?" if suggestions else ""
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Invalid target rank '{target_rank}'. Valid ranks are: {', '.join(valid_ranks)}.{suggestion_msg}"
-                )
-        
-        result = taxonomy_expander.expand_taxonomy(taxon_name, rank, target_rank)
+                
+        result = taxonomy_expander.expand_taxonomy(taxon_name, rank)
+        print(result)
+        # gemini_res = gemini_service.analyze_taxon(taxon_name, rank_hint=rank)
+ 
+        # if gemini_res.get('status') == 'success':
+        #     children = []
+        #     for child in gemini_res.get('direct_children', [])[:50]:
+        #         name = child.get('name')
+        #         r = child.get('rank') or gemini_res.get('child_rank') or 'Not specified'
+        #         suggested = child.get('suggested_rank')
+        #         suggestion_src = child.get('suggestion_source')
+        #         if name:
+        #             children.append(TaxonomicEntity(rank=r, name=name, suggested_rank=suggested, suggestion_source=suggestion_src))
 
-        # Attempt Gemini augmentation if results sparse
-        try:
-            need_gemini = (result.total_children == 0) or (result.total_children < 5)
-        except Exception:
-            need_gemini = True
+        #     existing_names = {c.name for c in result.children}
+        #     new_children = [c for c in children if c.name not in existing_names]
+        #     merged_children = result.children + new_children
 
-        gemini_res = None
-        if need_gemini and gemini_service.enabled:
-            gemini_res = gemini_service.analyze_taxon(taxon_name, rank_hint=rank)
-        elif need_gemini and not gemini_service.enabled:
-            gemini_res = gemini_service.simple_wikipedia_children(taxon_name)
-            if gemini_res.get('status') == 'success':
-                children = []
-                for child in gemini_res.get('direct_children', [])[:50]:
-                    name = child.get('name')
-                    r = child.get('rank') or gemini_res.get('child_rank') or 'Not specified'
-                    suggested = child.get('suggested_rank')
-                    suggestion_src = child.get('suggestion_source')
-                    if name:
-                        children.append(TaxonomicEntity(rank=r, name=name, suggested_rank=suggested, suggestion_source=suggestion_src))
+        #     # Build tuples
+        #     tuples = result.tuples or []
+        #     for c in new_children:
+        #         tuples.append(
+        #             {
+        #                 'parent_taxon': {
+        #                     'rank': result.parent_taxon.rank,
+        #                     'name': result.parent_taxon.name
+        #                 },
+        #                 'has_child': True,
+        #                 'child_taxon': {'rank': c.rank, 'name': c.name}
+        #             }
+        #         )
 
-                existing_names = {c.name for c in result.children}
-                new_children = [c for c in children if c.name not in existing_names]
-                merged_children = result.children + new_children
+           
+        #     tuples_models = []
+        #     for t in tuples:
+        #         try:
+        #             tuples_models.append(TaxonomicTuple(
+        #                 parent_taxon=TaxonomicEntity(rank=t['parent_taxon']['rank'], name=t['parent_taxon']['name']),
+        #                 has_child=t.get('has_child', True),
+        #                 child_taxon=TaxonomicEntity(rank=t['child_taxon']['rank'], name=t['child_taxon']['name'])
+        #             ))
+        #         except Exception:
+        #             continue
 
-                # Build tuples
-                tuples = result.tuples or []
-                for c in new_children:
-                    tuples.append(
-                        {
-                            'parent_taxon': {
-                                'rank': result.parent_taxon.rank,
-                                'name': result.parent_taxon.name
-                            },
-                            'has_child': True,
-                            'child_taxon': {'rank': c.rank, 'name': c.name}
-                        }
-                    )
+        #     response = ExpansionResponse(
+        #         parent_taxon=result.parent_taxon,
+        #         children=merged_children,
+        #         tuples=tuples_models,
+        #         total_children=len(merged_children)
+        #     )
 
-                from app.models.taxonomy import ExpansionResponse, TaxonomicTuple
-                tuples_models = []
-                for t in tuples:
-                    try:
-                        tuples_models.append(TaxonomicTuple(
-                            parent_taxon=TaxonomicEntity(rank=t['parent_taxon']['rank'], name=t['parent_taxon']['name']),
-                            has_child=t.get('has_child', True),
-                            child_taxon=TaxonomicEntity(rank=t['child_taxon']['rank'], name=t['child_taxon']['name'])
-                        ))
-                    except Exception:
-                        continue
+        #     print(f"✅ Successfully augmented children using Gemini: total {response.total_children}")
+        #     return response
 
-                response = ExpansionResponse(
-                    parent_taxon=result.parent_taxon,
-                    children=merged_children,
-                    tuples=tuples_models,
-                    total_children=len(merged_children)
-                )
-
-                print(f"✅ Successfully augmented children using Gemini: total {response.total_children}")
-                return response
-
-        print(f"✅ Successfully found {result.total_children} children")
+        # print(f"✅ Successfully found {result.total_children} children")
         return result
         
     except HTTPException:

@@ -140,7 +140,7 @@ class TaxonomyExtractor:
             print("❌ No ancestral taxa found")
             return None
         
-        print(f"✅ Successfully extracted {len(ancestral_taxa)} taxonomic entries")
+            print(f"✅ Successfully extracted {len(ancestral_taxa)} taxonomic entries")
         
         # Create result
         result = TaxonomyResponse(

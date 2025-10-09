@@ -26,10 +26,7 @@ class TaxonomicEntity(BaseModel):
     """Represents a taxonomic entity with rank and name"""
     rank: str = Field(..., description="The taxonomic rank (Kingdom, Phylum, etc.)")
     name: str = Field(..., description="The taxonomic name")
-    # Optional suggestion when rank is unknown or uncertain (e.g., LLM or heuristic)
-    suggested_rank: Optional[str] = Field(None, description="Suggested rank when the primary rank is missing or uncertain")
-    suggestion_source: Optional[str] = Field(None, description="Source of suggested rank (e.g., 'llm', 'heuristic')")
-
+    
 class TaxonomicTuple(BaseModel):
     """Represents a taxonomic relationship as a tuple"""
     parent_taxon: TaxonomicEntity = Field(..., description="The parent taxonomic entity")
