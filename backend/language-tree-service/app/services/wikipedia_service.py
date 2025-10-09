@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import ast
-import logging
 import os
 import re
 import time
@@ -19,8 +18,6 @@ from mwparserfromhell.wikicode import Wikicode
 from sentence_transformers import SentenceTransformer
 
 from app.models.language import LanguageInfo, LanguageRelationship
-
-logger = logging.getLogger(__name__)
 
 WIKIPEDIA_API = "https://en.wikipedia.org/w/api.php"
 DEFAULT_HEADERS = {
@@ -62,10 +59,10 @@ GENETIC_RELATIONS = [
 
 try:
     embed_model: Optional[SentenceTransformer] = SentenceTransformer("all-MiniLM-L6-v2")
-    logger.info("Loaded sentence-transformer model 'all-MiniLM-L6-v2'.")
+    print("[wikipedia_service] Loaded sentence-transformer model 'all-MiniLM-L6-v2'.")
 except Exception as exc:  # pragma: no cover - depends on environment
     embed_model = None
-    logger.error("Failed to load sentence-transformer model: %s", exc)
+    print(f"[wikipedia_service] Failed to load sentence-transformer model: {exc}")
 
 _genai_client: Optional[genai.Client] = None
 
@@ -74,8 +71,7 @@ def _get_genai_client() -> genai.Client:
     global _genai_client
     if _genai_client is None:
         api_key = "AIzaSyCjm3E6c33P7DfORc7lwggHstlughbgY5o"
-        
-        logger.info("Initialising Google Generative AI client.")
+        print("[wikipedia_service] Initialising Google Generative AI client.")
         _genai_client = genai.Client(api_key=api_key)
     return _genai_client
 
@@ -108,11 +104,11 @@ def fetch_wikitext(title: str, headers: Optional[dict] = None, max_retries: int 
                 time.sleep(backoff * attempt)
                 continue
             raise
-        except Exception:
+        except Exception as exc:
             if attempt < max_retries:
                 time.sleep(backoff * attempt)
             else:
-                logger.exception("Unexpected error fetching wikitext for %s", title)
+                print(f"[wikipedia_service] Unexpected error fetching wikitext for {title}: {exc}")
     return ""
 
 
@@ -245,7 +241,7 @@ def extract_clean_sections(wikitext: str) -> Dict[str, str]:
 
 def select_relevant_chunks(sections: Dict[str, str], top_k: int = 20) -> str:
     if not sections or embed_model is None:
-        logger.warning("Embedding model unavailable or no sections to select from.")
+        print("[wikipedia_service] Embedding model unavailable or no sections to select from.")
         return ""
     query = "Genetic language relationships, family trees,belongs to family,descends from,is a child of,part of, ancestry, dialects,early form of,influenced and historical linguistic evolution."
     query_emb = embed_model.encode(query, normalize_embeddings=True)
@@ -270,13 +266,13 @@ def parse_list_like_from_text(raw: str):
     cleaned = cleaned.replace("```", "").strip()
     match = re.search(r"\[.*\]", cleaned, re.DOTALL)
     if not match:
-        logger.warning("Parser Warning: Could not find a list-like structure '[]' in the LLM response.")
+        print("[wikipedia_service] Parser warning: could not find list-like structure [] in LLM response.")
         return None
     list_str = match.group(0)
     try:
         return ast.literal_eval(list_str)
     except (ValueError, SyntaxError) as exc:
-        logger.error("Parser Error: Could not parse the extracted list string. Error: %s", exc)
+        print(f"[wikipedia_service] Parser error: could not parse extracted list string. Error: {exc}")
         return None
 
 
@@ -286,7 +282,7 @@ def get_normalized_hierarchical_graph(
     language: str,
 ) -> List[Tuple[str, str, str]]:
     if not infobox_triples and not relevant_text:
-        logger.info("No infobox triples or relevant text for %s", language)
+        print(f"[wikipedia_service] No infobox triples or relevant text for {language}.")
         return []
 
     client = _get_genai_client()
@@ -317,13 +313,13 @@ Produce the final, normalized, and strictly hierarchical list of triples now."""
     try:
         response = client.models.generate_content(model=model, contents=prompt)
         response_text = getattr(response, "text", "")
-        logger.debug("LLM raw response for %s: %s", language, response_text)
+        print(f"[wikipedia_service] LLM raw response for {language}: {response_text}")
         if not response_text:
-            logger.warning("LLM returned an empty response for %s.", language)
+            print(f"[wikipedia_service] LLM returned an empty response for {language}.")
             return []
         parsed = parse_list_like_from_text(response_text)
         if not parsed:
-            logger.warning("LLM response for %s could not be parsed into a list.", language)
+            print(f"[wikipedia_service] LLM response for {language} could not be parsed into a list.")
             return []
         final_triples: List[Tuple[str, str, str]] = []
         seen = set()
@@ -337,7 +333,7 @@ Produce the final, normalized, and strictly hierarchical list of triples now."""
                         seen.add(triple)
         return final_triples
     except Exception as exc:
-        logger.error("An error occurred during LLM processing for %s: %s", language, exc)
+        print(f"[wikipedia_service] Error during LLM processing for {language}: {exc}")
         return []
 
 
@@ -355,7 +351,7 @@ def get_wikipedia_language_page_title(input_name: str) -> Optional[str]:
         resp.raise_for_status()
         results = resp.json().get("query", {}).get("search", [])
     except Exception as exc:
-        logger.error("Failed to resolve page title for '%s': %s", input_name, exc)
+        print(f"[wikipedia_service] Failed to resolve page title for '{input_name}': {exc}")
         return None
 
     if not results:
@@ -407,32 +403,32 @@ async def fetch_language_relationships(
     websocket_manager=None,
     connection_id: Optional[str] = None,
 ) -> List[Dict[str, object]]:
-    logger.info("Processing relationship extraction for '%s' (depth=%s)", language_name, depth)
+    print(f"[wikipedia_service] Starting extraction for '{language_name}' (depth={depth}).")
 
     await _send_status("Resolving Wikipedia page title...", 5, websocket_manager, connection_id)
     resolved_title = await asyncio.to_thread(get_wikipedia_language_page_title, language_name)
     if not resolved_title:
         raise ValueError(f"Unable to find a Wikipedia page for '{language_name}'")
-    logger.info("Resolved language '%s' to Wikipedia title '%s'", language_name, resolved_title)
+    print(f"[wikipedia_service] Resolved '{language_name}' to '{resolved_title}'.")
     await _send_root_language(resolved_title, websocket_manager, connection_id)
 
     await _send_status(f"Fetching Wikipedia content for '{resolved_title}'...", 15, websocket_manager, connection_id)
     wikitext = await asyncio.to_thread(fetch_wikitext, resolved_title)
     if not wikitext:
         raise ValueError(f"No Wikipedia content found for '{resolved_title}'")
-    logger.info("Fetched wikitext for '%s' (%d characters)", resolved_title, len(wikitext))
+    print(f"[wikipedia_service] Fetched wikitext for '{resolved_title}' ({len(wikitext)} characters).")
 
     await _send_status("Parsing infobox data...", 30, websocket_manager, connection_id)
     raw_infobox_triples = await asyncio.to_thread(parse_infobox_from_wikitext, wikitext)
     infobox_processed = _normalise_infobox_triples(raw_infobox_triples, resolved_title)
-    logger.info("Extracted %d infobox triples for '%s'", len(infobox_processed), resolved_title)
+    print(f"[wikipedia_service] Extracted {len(infobox_processed)} infobox triples for '{resolved_title}'.")
 
     await _send_status("Extracting relevant sections...", 45, websocket_manager, connection_id)
     sections = await asyncio.to_thread(extract_clean_sections, wikitext)
     relevant_text = ""
     if sections:
         relevant_text = await asyncio.to_thread(select_relevant_chunks, sections)
-    logger.info("Selected %d characters of relevant text for '%s'", len(relevant_text), resolved_title)
+    print(f"[wikipedia_service] Selected {len(relevant_text)} characters of relevant text for '{resolved_title}'.")
 
     await _send_status("Synthesising hierarchical relationships with LLM...", 70, websocket_manager, connection_id)
     final_triples = await asyncio.to_thread(
@@ -441,7 +437,7 @@ async def fetch_language_relationships(
         relevant_text,
         resolved_title,
     )
-    logger.info("LLM produced %d hierarchical triples for '%s'", len(final_triples), resolved_title)
+    print(f"[wikipedia_service] LLM produced {len(final_triples)} hierarchical triples for '{resolved_title}'.")
 
     relationships: List[LanguageRelationship] = []
     for child, relation, parent in final_triples:
@@ -451,20 +447,22 @@ async def fetch_language_relationships(
             language2=parent,
         )
         relationships.append(rel_model)
-        if websocket_manager and connection_id:
-            await websocket_manager.send_json({"type": "relationship", "data": rel_model.model_dump()}, connection_id)
 
-    await _send_status(f"Generated {len(relationships)} relationships.", 95, websocket_manager, connection_id)
-    logger.info("Completed extraction for '%s' with %d relationships", resolved_title, len(relationships))
+    relationships_payload = [rel.model_dump() for rel in relationships]
+    if websocket_manager and connection_id:
+        await websocket_manager.send_json({"type": "relationships", "data": relationships_payload}, connection_id)
 
-    return [rel.model_dump() for rel in relationships]
+    await _send_status(f"Generated {len(relationships_payload)} relationships.", 95, websocket_manager, connection_id)
+    print(f"[wikipedia_service] Completed extraction for '{resolved_title}' with {len(relationships_payload)} relationships.")
+
+    return relationships_payload
 
 
 async def fetch_language_info(qid: str) -> Optional[LanguageInfo]:
-    logger.info("fetch_language_info called for %s but feature not implemented", qid)
+    print(f"[wikipedia_service] fetch_language_info called for {qid} but not implemented.")
     return None
 
 
 def get_distribution_map_image(qid: str) -> Optional[str]:
-    logger.info("get_distribution_map_image called for %s but feature not implemented", qid)
+    print(f"[wikipedia_service] get_distribution_map_image called for {qid} but not implemented.")
     return None
