@@ -90,7 +90,7 @@ function GenealogyTreeInternal({
   onExpandNode,
   onExpandNodeByQid,
   onClassifyRelationships,
-  expandDepth = 3
+  expandDepth = 2
 }: GenealogyTreeProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
