@@ -8,6 +8,7 @@ from typing import Dict, Optional, List
 import time
 import logging
 from app.models.taxonomy import TaxonomicTuple, ExpansionResponse, TaxonomicEntity
+from app.services.taxonomy_extractor import TaxonomyExtractor
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -17,6 +18,8 @@ class TaxonomyExpander:
     def __init__(self, endpoint: str = "https://query.wikidata.org/sparql"):
         self.endpoint = endpoint
         self.sparql = SPARQLWrapper(endpoint)
+        # initialize extractor for enriching child details
+        self.extractor = TaxonomyExtractor()
             
     # Full list of taxonomic ranks in hierarchical order
     major_taxonomic_ranks = ['domain', 'kingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species']
@@ -253,11 +256,68 @@ class TaxonomyExpander:
 
             children_entities.append(TaxonomicEntity(rank=child_rank, name=child_name))
 
+        # Enrich children with detailed taxonomy where possible
+        # Use extract_as_tuples which returns a TaxonomyTuplesResponse
+        # and extend only with its .tuples (list[TaxonomicTuple]).
+        all_tuples = []
+        for child in children_entities:
+            try:
+                detail = self.extractor.extract_as_tuples(child.name)
+                if detail and getattr(detail, 'tuples', None):
+                    # detail.tuples should already be a list of TaxonomicTuple
+                    all_tuples.extend(detail.tuples)
+            except Exception:
+                # ignore extraction failures per child
+                continue
+        # Append enriched tuples (TaxonomicTuple instances) to our main tuples list
+        tuples = all_tuples
+        # Remove self-linking tuples where parent and child names are identical (case-insensitive)
+        filtered_tuples = []
+        for t in tuples:
+            try:
+                p_name = (t.parent_taxon.name or "").strip().lower()
+                c_name = (t.child_taxon.name or "").strip().lower()
+                if p_name and c_name and p_name == c_name:
+                    # skip self-link
+                    continue
+            except Exception:
+                # if tuple shape unexpected, keep it (will be validated later)
+                pass
+            filtered_tuples.append(t)
+        tuples = filtered_tuples
+
+        # Remove any child entries that are the same as the parent taxon
+        children_entities = [c for c in children_entities if (c.name or "").strip().lower() != (taxon_name or "").strip().lower()]
+        # # remove duplicate children while preserving order (by rank+name)
+        # seen_children = set()
+        # unique_children = []
+        # for c in children_entities:
+        #     key = ((c.rank or "").strip().lower(), (c.name or "").strip().lower())
+        #     if key not in seen_children:
+        #         seen_children.add(key)
+        #         unique_children.append(c)
+        # children_entities = unique_children
+
+        # # remove duplicate tuples while preserving order (by parent+child rank+name)
+        # seen_tuples = set()
+        # unique_tuples = []
+        # for t in tuples:
+        #     p_key = ((t.parent_taxon.name or "").strip().lower(), (t.parent_taxon.rank or "").strip().lower())
+        #     c_key = ((t.child_taxon.name or "").strip().lower(), (t.child_taxon.rank or "").strip().lower())
+        #     key = (p_key, c_key)
+        #     if key not in seen_tuples:
+        #         seen_tuples.add(key)
+        #         unique_tuples.append(t)
+        # tuples = unique_tuples
+
+        # no extra children details available here; keep None unless populated elsewhere
+        children_details = None
         return ExpansionResponse(
             parent_taxon=TaxonomicEntity(rank=current_rank, name=taxon_name),
             children=children_entities,
             tuples=tuples,
-            total_children=len(children_entities)
+            total_children=len(children_entities),
+            children_details=children_details if children_details else None
         )
     
     # Domain functions

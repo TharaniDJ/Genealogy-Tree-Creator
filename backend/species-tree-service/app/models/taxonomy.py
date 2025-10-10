@@ -26,7 +26,7 @@ class TaxonomicEntity(BaseModel):
     """Represents a taxonomic entity with rank and name"""
     rank: str = Field(..., description="The taxonomic rank (Kingdom, Phylum, etc.)")
     name: str = Field(..., description="The taxonomic name")
-    
+
 class TaxonomicTuple(BaseModel):
     """Represents a taxonomic relationship as a tuple"""
     parent_taxon: TaxonomicEntity = Field(..., description="The parent taxonomic entity")
@@ -52,6 +52,7 @@ class ExpansionResponse(BaseModel):
     children: List[TaxonomicEntity]
     tuples: List[TaxonomicTuple]
     total_children: int
+    children_details: Optional[List[TaxonomyResponse]] = None
 
 class ErrorResponse(BaseModel):
     """Standard error response"""

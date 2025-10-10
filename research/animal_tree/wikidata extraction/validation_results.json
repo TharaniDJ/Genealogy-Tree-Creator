@@ -1,0 +1,188 @@
+{
+  "metrics": {
+    "accuracy": 0.1044776119402985,
+    "precision_macro": 0.2,
+    "recall_macro": 0.2909356725146199,
+    "f1_macro": 0.2159321134390387,
+    "precision_micro": 0.1044776119402985,
+    "recall_micro": 0.175,
+    "f1_micro": 0.1308411214953271,
+    "total_queries": 19,
+    "total_tp": 14,
+    "total_fp": 120,
+    "total_fn": 66
+  },
+  "detailed_results": [
+    {
+      "parent": "Eukarya",
+      "rank": "kingdom",
+      "tp": 4,
+      "fp": 0,
+      "fn": 0,
+      "predicted_count": 4,
+      "expected_count": 4
+    },
+    {
+      "parent": "Bacteria",
+      "rank": "kingdom",
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "predicted_count": 1,
+      "expected_count": 1
+    },
+    {
+      "parent": "Archaea",
+      "rank": "kingdom",
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "predicted_count": 1,
+      "expected_count": 1
+    },
+    {
+      "parent": "Animalia",
+      "rank": "phylum",
+      "tp": 1,
+      "fp": 9,
+      "fn": 8,
+      "predicted_count": 10,
+      "expected_count": 9
+    },
+    {
+      "parent": "Plantae",
+      "rank": "phylum",
+      "tp": 0,
+      "fp": 5,
+      "fn": 3,
+      "predicted_count": 5,
+      "expected_count": 3
+    },
+    {
+      "parent": "Chordata",
+      "rank": "class",
+      "tp": 0,
+      "fp": 0,
+      "fn": 6,
+      "predicted_count": 0,
+      "expected_count": 6
+    },
+    {
+      "parent": "Arthropoda",
+      "rank": "class",
+      "tp": 0,
+      "fp": 7,
+      "fn": 4,
+      "predicted_count": 7,
+      "expected_count": 4
+    },
+    {
+      "parent": "Mammalia",
+      "rank": "order",
+      "tp": 2,
+      "fp": 8,
+      "fn": 6,
+      "predicted_count": 10,
+      "expected_count": 8
+    },
+    {
+      "parent": "Aves",
+      "rank": "order",
+      "tp": 0,
+      "fp": 10,
+      "fn": 5,
+      "predicted_count": 10,
+      "expected_count": 5
+    },
+    {
+      "parent": "Insecta",
+      "rank": "order",
+      "tp": 0,
+      "fp": 5,
+      "fn": 5,
+      "predicted_count": 5,
+      "expected_count": 5
+    },
+    {
+      "parent": "Primates",
+      "rank": "family",
+      "tp": 0,
+      "fp": 8,
+      "fn": 5,
+      "predicted_count": 8,
+      "expected_count": 5
+    },
+    {
+      "parent": "Carnivora",
+      "rank": "family",
+      "tp": 0,
+      "fp": 3,
+      "fn": 5,
+      "predicted_count": 3,
+      "expected_count": 5
+    },
+    {
+      "parent": "Rodentia",
+      "rank": "family",
+      "tp": 0,
+      "fp": 10,
+      "fn": 4,
+      "predicted_count": 10,
+      "expected_count": 4
+    },
+    {
+      "parent": "Hominidae",
+      "rank": "genus",
+      "tp": 2,
+      "fp": 8,
+      "fn": 2,
+      "predicted_count": 10,
+      "expected_count": 4
+    },
+    {
+      "parent": "Felidae",
+      "rank": "genus",
+      "tp": 0,
+      "fp": 10,
+      "fn": 5,
+      "predicted_count": 10,
+      "expected_count": 5
+    },
+    {
+      "parent": "Canidae",
+      "rank": "genus",
+      "tp": 1,
+      "fp": 9,
+      "fn": 2,
+      "predicted_count": 10,
+      "expected_count": 3
+    },
+    {
+      "parent": "Homo",
+      "rank": "species",
+      "tp": 1,
+      "fp": 9,
+      "fn": 0,
+      "predicted_count": 10,
+      "expected_count": 1
+    },
+    {
+      "parent": "Canis",
+      "rank": "species",
+      "tp": 1,
+      "fp": 9,
+      "fn": 2,
+      "predicted_count": 10,
+      "expected_count": 3
+    },
+    {
+      "parent": "Panthera",
+      "rank": "species",
+      "tp": 0,
+      "fp": 10,
+      "fn": 4,
+      "predicted_count": 10,
+      "expected_count": 4
+    }
+  ]
+}

@@ -248,60 +248,68 @@ async def expand_taxonomies(taxon_name: str, rank: str, target_rank: Optional[st
                 
         result = taxonomy_expander.expand_taxonomy(taxon_name, rank)
         print(result)
-        # gemini_res = gemini_service.analyze_taxon(taxon_name, rank_hint=rank)
- 
-        # if gemini_res.get('status') == 'success':
-        #     children = []
-        #     for child in gemini_res.get('direct_children', [])[:50]:
-        #         name = child.get('name')
-        #         r = child.get('rank') or gemini_res.get('child_rank') or 'Not specified'
-        #         suggested = child.get('suggested_rank')
-        #         suggestion_src = child.get('suggestion_source')
-        #         if name:
-        #             children.append(TaxonomicEntity(rank=r, name=name, suggested_rank=suggested, suggestion_source=suggestion_src))
 
-        #     existing_names = {c.name for c in result.children}
-        #     new_children = [c for c in children if c.name not in existing_names]
-        #     merged_children = result.children + new_children
+        # If the expander produced no tuples, try Gemini augmentation as a fallback
+        try:
+            if not getattr(result, 'tuples', None):
+                gemini_res = gemini_service.analyze_taxon(taxon_name, rank_hint=rank)
 
-        #     # Build tuples
-        #     tuples = result.tuples or []
-        #     for c in new_children:
-        #         tuples.append(
-        #             {
-        #                 'parent_taxon': {
-        #                     'rank': result.parent_taxon.rank,
-        #                     'name': result.parent_taxon.name
-        #                 },
-        #                 'has_child': True,
-        #                 'child_taxon': {'rank': c.rank, 'name': c.name}
-        #             }
-        #         )
+                if gemini_res.get('status') == 'success':
+                    children = []
+                    for child in gemini_res.get('direct_children', [])[:50]:
+                        name = child.get('name')
+                        r = child.get('rank') or gemini_res.get('child_rank') or 'Not specified'
+                        suggested = child.get('suggested_rank')
+                        suggestion_src = child.get('suggestion_source')
+                        if name:
+                            children.append(TaxonomicEntity(rank=r, name=name, suggested_rank=suggested, suggestion_source=suggestion_src))
 
-           
-        #     tuples_models = []
-        #     for t in tuples:
-        #         try:
-        #             tuples_models.append(TaxonomicTuple(
-        #                 parent_taxon=TaxonomicEntity(rank=t['parent_taxon']['rank'], name=t['parent_taxon']['name']),
-        #                 has_child=t.get('has_child', True),
-        #                 child_taxon=TaxonomicEntity(rank=t['child_taxon']['rank'], name=t['child_taxon']['name'])
-        #             ))
-        #         except Exception:
-        #             continue
+                    existing_names = {c.name for c in result.children}
+                    new_children = [c for c in children if c.name not in existing_names]
+                    merged_children = result.children + new_children
 
-        #     response = ExpansionResponse(
-        #         parent_taxon=result.parent_taxon,
-        #         children=merged_children,
-        #         tuples=tuples_models,
-        #         total_children=len(merged_children)
-        #     )
+                    # Build tuples
+                    tuples = result.tuples or []
+                    for c in new_children:
+                        tuples.append(
+                            {
+                                'parent_taxon': {
+                                    'rank': result.parent_taxon.rank,
+                                    'name': result.parent_taxon.name
+                                },
+                                'has_child': True,
+                                'child_taxon': {'rank': c.rank, 'name': c.name}
+                            }
+                        )
 
-        #     print(f"✅ Successfully augmented children using Gemini: total {response.total_children}")
-        #     return response
+                    tuples_models = []
+                    for t in tuples:
+                        try:
+                            tuples_models.append(TaxonomicTuple(
+                                parent_taxon=TaxonomicEntity(rank=t['parent_taxon']['rank'], name=t['parent_taxon']['name']),
+                                has_child=t.get('has_child', True),
+                                child_taxon=TaxonomicEntity(rank=t['child_taxon']['rank'], name=t['child_taxon']['name'])
+                            ))
+                        except Exception:
+                            continue
 
-        # print(f"✅ Successfully found {result.total_children} children")
-        return result
+                    response = ExpansionResponse(
+                        parent_taxon=result.parent_taxon,
+                        children=merged_children,
+                        tuples=tuples_models,
+                        total_children=len(merged_children)
+                    )
+
+                    print(f"✅ Successfully augmented children using Gemini: total {response.total_children}")
+                    return response
+
+            # No augmentation performed or Gemini failed — return original result
+            print(f"✅ Successfully found {result.total_children} children")
+            return result
+        except Exception:
+            # On any error during augmentation, fall back to returning the original result
+            print(f"⚠️ Gemini augmentation failed; returning original expansion result")
+            return result
         
     except HTTPException:
         raise
