@@ -7,7 +7,8 @@ from SPARQLWrapper import SPARQLWrapper, JSON
 from typing import Dict, Optional, List
 import time
 import logging
-from app.models.taxonomy import TaxonomicTuple, ExpansionResponse
+from app.models.taxonomy import TaxonomicTuple, ExpansionResponse, TaxonomicEntity
+from app.services.taxonomy_extractor import TaxonomyExtractor
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -17,51 +18,72 @@ class TaxonomyExpander:
     def __init__(self, endpoint: str = "https://query.wikidata.org/sparql"):
         self.endpoint = endpoint
         self.sparql = SPARQLWrapper(endpoint)
-        
-        # Taxonomic ranks in order
-        self.taxonomic_ranks = [
-            'domain', 'kingdom', 'subkingdom', 'superphylum', 'phylum',
-            'subphylum', 'superclass', 'class', 'subclass', 'infraclass',
-            'superorder', 'order', 'suborder', 'infraorder', 'parvorder',
-            'superfamily', 'family', 'subfamily', 'tribe', 'subtribe',
-            'genus', 'subgenus', 'species', 'subspecies', 'variety',
-            'form', 'morph', 'strain'
-        ]
-        
-        # Wikidata QIDs for taxonomic ranks
-        self.rank_qids = {
-            'domain': 'wd:Q3624078',
-            'kingdom': 'wd:Q36732',
-            'subkingdom': 'wd:Q3978005',
-            'superphylum': 'wd:Q2136103',
-            'phylum': 'wd:Q38348',
-            'subphylum': 'wd:Q2362355',
-            'superclass': 'wd:Q2361851',
-            'class': 'wd:Q37517',
-            'subclass': 'wd:Q5867051',
-            'infraclass': 'wd:Q2007442',
-            'superorder': 'wd:Q2136103',
-            'order': 'wd:Q36602',
-            'suborder': 'wd:Q3663366',
-            'infraorder': 'wd:Q2889003',
-            'parvorder': 'wd:Q2136103',
-            'superfamily': 'wd:Q2136103',
-            'family': 'wd:Q35409',
-            'subfamily': 'wd:Q164280',
-            'tribe': 'wd:Q227936',
-            'subtribe': 'wd:Q2136103',
-            'genus': 'wd:Q34740',
-            'subgenus': 'wd:Q3238261',
-            'species': 'wd:Q7432',
-            'subspecies': 'wd:Q68947',
-            'variety': 'wd:Q767728',
-            'form': 'wd:Q2136103',
-            'morph': 'wd:Q2136103',
-            'strain': 'wd:Q2136103'
-        }
-        
-     
-    def _execute_query(self, query: str, cache_key: str = None) -> Optional[Dict]:
+        # initialize extractor for enriching child details
+        self.extractor = TaxonomyExtractor()
+            
+    # Full list of taxonomic ranks in hierarchical order
+    major_taxonomic_ranks = ['domain', 'kingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species']
+    taxonomic_ranks = [
+        'domain', 'subdomain', 'superkingdom', 'kingdom', 'subkingdom', 'infrakingdom',
+        'superphylum', 'phylum', 'subphylum', 'infraphylum', 'microphylum',
+        'superclass', 'class', 'subclass', 'infraclass', 'parvclass',
+        'superorder', 'order', 'suborder', 'infraorder', 'parvorder',
+        'superfamily', 'family', 'subfamily', 'tribe', 'subtribe',
+        'genus', 'subgenus', 'section', 'subsection', 'series', 'subseries',
+        'species', 'species group', 'species subgroup', 'subspecies', 'variety',
+        'subvariety', 'form', 'subform', 'morph', 'strain', 'cultivar','clade'
+    ]
+
+    # Wikidata QIDs for taxonomic ranks (use placeholders for unknowns)
+    rank_qids = {
+        'clade': 'wd:Q713623',
+        'domain': 'wd:Q3624078',
+        'subdomain': 'wd:Q2136103',
+        'superkingdom': 'wd:Q3624078',
+        'kingdom': 'wd:Q36732',
+        'subkingdom': 'wd:Q3978005',
+        'infrakingdom': 'wd:Q2136103',
+        'superphylum': 'wd:Q2136103',
+        'phylum': 'wd:Q38348',
+        'subphylum': 'wd:Q2362355',
+        'infraphylum': 'wd:Q2136103',
+        'microphylum': 'wd:Q2136103',
+        'superclass': 'wd:Q2361851',
+        'class': 'wd:Q37517',
+        'subclass': 'wd:Q5867051',
+        'infraclass': 'wd:Q2007442',
+        'parvclass': 'wd:Q2136103',
+        'superorder': 'wd:Q2136103',
+        'order': 'wd:Q36602',
+        'suborder': 'wd:Q3663366',
+        'infraorder': 'wd:Q2889003',
+        'parvorder': 'wd:Q2136103',
+        'superfamily': 'wd:Q2136103',
+        'family': 'wd:Q35409',
+        'subfamily': 'wd:Q164280',
+        'tribe': 'wd:Q227936',
+        'subtribe': 'wd:Q2136103',
+        'genus': 'wd:Q34740',
+        'subgenus': 'wd:Q3238261',
+        'section': 'wd:Q2136103',
+        'subsection': 'wd:Q2136103',
+        'series': 'wd:Q2136103',
+        'subseries': 'wd:Q2136103',
+        'species': 'wd:Q7432',
+        'species group': 'wd:Q2136103',
+        'species subgroup': 'wd:Q2136103',
+        'subspecies': 'wd:Q68947',
+        'variety': 'wd:Q767728',
+        'subvariety': 'wd:Q2136103',
+        'form': 'wd:Q2136103',
+        'subform': 'wd:Q2136103',
+        'morph': 'wd:Q2136103',
+        'strain': 'wd:Q2136103',
+        'cultivar': 'wd:Q2136103',
+    }
+
+
+    def _execute_query(self, query: str) -> Optional[Dict]:
         """Execute SPARQL query with caching and error handling."""
             
         try:
@@ -76,36 +98,60 @@ class TaxonomyExpander:
             logger.warning(f"Query failed: {e}")
             return None
     
-    def query_children(self, parent_name: str, target_rank: str) -> List[str]:
-        """Query for children of a given taxonomic entity"""
-        target_qid = self.rank_qids.get(target_rank.lower())
-        if not target_qid:
-            return []
-        
-        # Use simplified query for better performance
-        query = f"""
-        SELECT DISTINCT ?childLabel WHERE {{
-          ?parent wdt:P225 "{parent_name}" .
-          ?child wdt:P171 ?parent ;
-                 wdt:P105 {target_qid} .
-          ?child rdfs:label ?childLabel .
-          FILTER(LANG(?childLabel) = "en")
-        }}
-        LIMIT 50
-        """
-        
-        results = self._execute_query(query, f"children_{parent_name}_{target_rank}")
-        if results and results.get("results", {}).get("bindings"):
-            return [r["childLabel"]["value"] for r in results["results"]["bindings"]]
-        
-        return []
-    
-    def get_next_rank(self, current_rank: str) -> Optional[str]:
+    def query_children(self, parent_name: str) -> List[Dict]:
+            """Query for children of a given taxonomic entity.
+
+            Returns a list of dicts with keys: childQID, childTaxonName, taxonRank, taxonRankLabel
+            """
+
+            # Escape quotes in parent name
+            safe_name = parent_name.replace('"', '\\"')
+
+            query = f"""
+            SELECT DISTINCT ?child ?childTaxonName ?childQID ?taxonRank ?taxonRankLabel
+            WHERE {{
+                ?parent wdt:P225 "{safe_name}" .
+                ?child wdt:P171 ?parent .
+                ?child wdt:P225 ?childTaxonName .
+                OPTIONAL {{
+                    ?child wdt:P105 ?taxonRank .
+                    ?taxonRank rdfs:label ?taxonRankLabel .
+                    FILTER(LANG(?taxonRankLabel) = "en")
+                }}
+                BIND(STRAFTER(STR(?child), "entity/") AS ?childQID)
+            }}
+            LIMIT 100
+            """
+
+            results = self._execute_query(query)
+            rows = results.get("results", {}).get("bindings", []) if results else []
+
+            out = []
+            for r in rows:
+                    out.append({
+                            'childQID': r.get('childQID', {}).get('value') if r.get('childQID') else None,
+                            'childTaxonName': r.get('childTaxonName', {}).get('value') if r.get('childTaxonName') else None,
+                            'taxonRank': r.get('taxonRank', {}).get('value') if r.get('taxonRank') else None,
+                            'taxonRankLabel': r.get('taxonRankLabel', {}).get('value') if r.get('taxonRankLabel') else None,
+                    })
+
+            return out
+
+    def _get_rank_index(self, rank_label: Optional[str]) -> int:
+        """Return the index of the rank_label in taxonomic_ranks. Unknown ranks return a large index so they sort last."""
+        if not rank_label:
+            return len(self.taxonomic_ranks) + 100
+        try:
+            return self.taxonomic_ranks.index(rank_label.lower())
+        except ValueError:
+            return len(self.taxonomic_ranks) + 50
+
+    def get_next_ranks(self, current_rank: str) -> Optional[str]:
         """Get the next lower taxonomic rank."""
         try:
             idx = self.taxonomic_ranks.index(current_rank.lower())
             if idx + 1 < len(self.taxonomic_ranks):
-                return self.taxonomic_ranks[idx + 1]
+                return self.taxonomic_ranks[idx + 1:idx+5]
         except ValueError:
             pass
         return None
@@ -120,43 +166,158 @@ class TaxonomyExpander:
             pass
         return None
     
-    def expand_taxonomy(self, taxon_name: str, current_rank: str, target_rank: str = None) -> ExpansionResponse:
-        """
-        Expand taxonomy from a given taxon to show its children.
+    def expand_taxonomy(self, taxon_name: str, current_rank: str, target_rank: Optional[str] = None) -> ExpansionResponse:
+        """Expand taxonomy from a given taxon to show its children.
+
         Returns results in tuple format.
         """
-        if target_rank is None:
-            target_rank = self.get_next_rank(current_rank)
-        
-        if target_rank is None:
-            return ExpansionResponse(
-                parent_taxon=taxon_name,
-                parent_rank=current_rank,
-                children=[],
-                child_rank="",
-                tuples=[],
-                total_children=0
-            )
-        
-        # Get children for the target rank
-        children = self.query_children(taxon_name, target_rank)
-        
-        # Create tuples
-        tuples = []
-        for child in children:
+
+        # Fetch children (with metadata)
+        child_records = self.query_children(taxon_name) or []
+
+        # Sort children by rank index (known ranks first) then by taxon name
+        child_records.sort(key=lambda r: (self._get_rank_index(r.get('taxonRankLabel')), (r.get('childTaxonName') or '').lower()))
+        # If there are children, try to select a meaningful set of ranks to return.
+        if child_records:
+            first_rank_label = child_records[0].get('taxonRankLabel')
+
+            # If parent rank is a major rank (domain/kingdom/phylum/...), include all ranks
+            # from just below the parent up to the next major rank (inclusive). Example: domain -> include up to kingdom.
+            if current_rank and current_rank.lower() in [r.lower() for r in self.major_taxonomic_ranks]:
+                try:
+                    # find parent's position in taxonomic_ranks
+                    parent_idx = self.taxonomic_ranks.index(current_rank.lower())
+                except ValueError:
+                    parent_idx = None
+
+                if parent_idx is not None:
+                    # find next major rank after parent
+                    try:
+                        maj_idx = [r.lower() for r in self.major_taxonomic_ranks].index(current_rank.lower())
+                        if maj_idx + 1 < len(self.major_taxonomic_ranks):
+                            next_major = self.major_taxonomic_ranks[maj_idx + 1]
+                            if next_major in self.taxonomic_ranks:
+                                target_idx = self.taxonomic_ranks.index(next_major)
+                                allowed_slice = self.taxonomic_ranks[parent_idx + 1: target_idx + 1]
+                            else:
+                                allowed_slice = self.taxonomic_ranks[parent_idx + 1: parent_idx + 6]
+                        else:
+                            allowed_slice = self.taxonomic_ranks[parent_idx + 1: parent_idx + 6]
+                    except ValueError:
+                        allowed_slice = self.taxonomic_ranks[parent_idx + 1: parent_idx + 6]
+
+                    allowed_ranks = {r.lower() for r in allowed_slice}
+                    # filter child_records to allowed ranks
+                    child_records = [r for r in child_records if (r.get('taxonRankLabel') or '').lower() in allowed_ranks]
+
+            else:
+                # fallback: use first child's rank and progressively include next lower ranks until we hit a major rank
+                if first_rank_label:
+                    fr_lower = first_rank_label.lower()
+                    allowed_ranks = {fr_lower}
+
+                    # include next ranks initially
+                    nxt = self.get_next_ranks(fr_lower) or []
+                    allowed_ranks.update([r.lower() for r in nxt])
+
+                    # initial filter
+                    filtered = [r for r in child_records if (r.get('taxonRankLabel') or '').lower() in allowed_ranks]
+
+                    # If too few results, expand allowed_ranks to include more lower ranks until we have enough or run out
+                    threshold = 5
+                    if len(filtered) < threshold:
+                        next_ranks = self.get_next_ranks(fr_lower) or []
+                        for rk in next_ranks:
+                            if rk.lower() not in allowed_ranks:
+                                allowed_ranks.add(rk.lower())
+                            if len([r for r in child_records if (r.get('taxonRankLabel') or '').lower() in allowed_ranks]) >= threshold:
+                                break
+
+                        filtered = [r for r in child_records if (r.get('taxonRankLabel') or '').lower() in allowed_ranks]
+
+                    child_records = filtered
+                else:
+                    # keep only those without an explicit rank label
+                    child_records = [r for r in child_records if not r.get('taxonRankLabel')]
+            
+        tuples: List[TaxonomicTuple] = []
+        children_entities: List[TaxonomicEntity] = []
+
+        for rec in child_records:
+            child_name = rec.get('childTaxonName') or 'Unknown'
+            child_rank_label = rec.get('taxonRankLabel')
+            child_rank = child_rank_label.lower() if child_rank_label else 'unknown'
+
             tuples.append(TaxonomicTuple(
-                parent_taxon=taxon_name,
-                has_child=True,  # Assume children might have their own children
-                child_taxon=child
+                parent_taxon=TaxonomicEntity(rank=current_rank, name=taxon_name),
+                has_child=True,
+                child_taxon=TaxonomicEntity(rank=child_rank, name=child_name)
             ))
-        
+
+            children_entities.append(TaxonomicEntity(rank=child_rank, name=child_name))
+
+        # Enrich children with detailed taxonomy where possible
+        # Use extract_as_tuples which returns a TaxonomyTuplesResponse
+        # and extend only with its .tuples (list[TaxonomicTuple]).
+        all_tuples = []
+        for child in children_entities:
+            try:
+                detail = self.extractor.extract_as_tuples(child.name)
+                if detail and getattr(detail, 'tuples', None):
+                    # detail.tuples should already be a list of TaxonomicTuple
+                    all_tuples.extend(detail.tuples)
+            except Exception:
+                # ignore extraction failures per child
+                continue
+        # Append enriched tuples (TaxonomicTuple instances) to our main tuples list
+        tuples = all_tuples
+        # Remove self-linking tuples where parent and child names are identical (case-insensitive)
+        filtered_tuples = []
+        for t in tuples:
+            try:
+                p_name = (t.parent_taxon.name or "").strip().lower()
+                c_name = (t.child_taxon.name or "").strip().lower()
+                if p_name and c_name and p_name == c_name:
+                    # skip self-link
+                    continue
+            except Exception:
+                # if tuple shape unexpected, keep it (will be validated later)
+                pass
+            filtered_tuples.append(t)
+        tuples = filtered_tuples
+
+        # Remove any child entries that are the same as the parent taxon
+        children_entities = [c for c in children_entities if (c.name or "").strip().lower() != (taxon_name or "").strip().lower()]
+        # # remove duplicate children while preserving order (by rank+name)
+        # seen_children = set()
+        # unique_children = []
+        # for c in children_entities:
+        #     key = ((c.rank or "").strip().lower(), (c.name or "").strip().lower())
+        #     if key not in seen_children:
+        #         seen_children.add(key)
+        #         unique_children.append(c)
+        # children_entities = unique_children
+
+        # # remove duplicate tuples while preserving order (by parent+child rank+name)
+        # seen_tuples = set()
+        # unique_tuples = []
+        # for t in tuples:
+        #     p_key = ((t.parent_taxon.name or "").strip().lower(), (t.parent_taxon.rank or "").strip().lower())
+        #     c_key = ((t.child_taxon.name or "").strip().lower(), (t.child_taxon.rank or "").strip().lower())
+        #     key = (p_key, c_key)
+        #     if key not in seen_tuples:
+        #         seen_tuples.add(key)
+        #         unique_tuples.append(t)
+        # tuples = unique_tuples
+
+        # no extra children details available here; keep None unless populated elsewhere
+        children_details = None
         return ExpansionResponse(
-            parent_taxon=taxon_name,
-            parent_rank=current_rank,
-            children=children,
-            child_rank=target_rank,
+            parent_taxon=TaxonomicEntity(rank=current_rank, name=taxon_name),
+            children=children_entities,
             tuples=tuples,
-            total_children=len(children)
+            total_children=len(children_entities),
+            children_details=children_details if children_details else None
         )
     
     # Domain functions
@@ -190,8 +351,8 @@ class TaxonomyExpander:
         }}
         LIMIT 1
         """
-        
-        results = self._execute_query(query, f"rank_{taxon_name}")
+
+        results = self._execute_query(query)
         if results and results.get("results", {}).get("bindings"):
             rank_label = results["results"]["bindings"][0]["rankLabel"]["value"].lower()
             # Map common rank names to our standard names
@@ -205,7 +366,7 @@ class TaxonomyExpander:
                 "phylum": "phylum"
             }
             return rank_mapping.get(rank_label, rank_label)
-        
+
         return None
     
     def expand_auto_detect(self, taxon_name: str, target_rank: str = None) -> ExpansionResponse:
@@ -218,10 +379,8 @@ class TaxonomyExpander:
         
         if current_rank is None:
             return ExpansionResponse(
-                parent_taxon=taxon_name,
-                parent_rank="unknown",
+                parent_taxon=TaxonomicEntity(rank="unknown", name=taxon_name),
                 children=[],
-                child_rank="",
                 tuples=[],
                 total_children=0
             )

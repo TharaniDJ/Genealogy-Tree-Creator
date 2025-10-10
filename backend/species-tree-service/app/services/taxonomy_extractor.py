@@ -11,7 +11,7 @@ import json
 import time
 from urllib.parse import quote
 from typing import List, Dict, Optional
-from app.models.taxonomy import TaxonomicRank, TaxonomyResponse, TaxonomicTuple, TaxonomyTuplesResponse
+from app.models.taxonomy import TaxonomicRank, TaxonomyResponse, TaxonomicTuple, TaxonomyTuplesResponse, TaxonomicEntity
 
 class TaxonomyExtractor:
     def __init__(self):
@@ -140,7 +140,7 @@ class TaxonomyExtractor:
             print("❌ No ancestral taxa found")
             return None
         
-        print(f"✅ Successfully extracted {len(ancestral_taxa)} taxonomic entries")
+            print(f"✅ Successfully extracted {len(ancestral_taxa)} taxonomic entries")
         
         # Create result
         result = TaxonomyResponse(
@@ -164,25 +164,25 @@ class TaxonomyExtractor:
         
         tuples = []
         ancestral_taxa = taxonomy_data.ancestral_taxa
-        
+
         # Create tuples from the hierarchical data
         for i in range(len(ancestral_taxa) - 1):
             parent = ancestral_taxa[i]
             child = ancestral_taxa[i + 1]
             
             tuples.append(TaxonomicTuple(
-                parent_taxon=parent.name,
+                parent_taxon=TaxonomicEntity(rank=parent.rank, name=parent.name),
                 has_child=True,
-                child_taxon=child.name
+                child_taxon=TaxonomicEntity(rank=child.rank, name=child.name)
             ))
         
         # Add the final taxon (species) as a child of the last parent
         if ancestral_taxa:
             last_parent = ancestral_taxa[-1]
             tuples.append(TaxonomicTuple(
-                parent_taxon=last_parent.name,
+                parent_taxon=TaxonomicEntity(rank=last_parent.rank, name=last_parent.name),
                 has_child=True,
-                child_taxon=scientific_name
+                child_taxon=TaxonomicEntity(rank="Species", name=scientific_name)
             ))
         
         return TaxonomyTuplesResponse(

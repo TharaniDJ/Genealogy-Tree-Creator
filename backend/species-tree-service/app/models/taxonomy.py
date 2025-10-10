@@ -22,11 +22,16 @@ class TaxonomyResponse(BaseModel):
     extraction_timestamp: str
     extraction_method: str = "real-time"
 
+class TaxonomicEntity(BaseModel):
+    """Represents a taxonomic entity with rank and name"""
+    rank: str = Field(..., description="The taxonomic rank (Kingdom, Phylum, etc.)")
+    name: str = Field(..., description="The taxonomic name")
+
 class TaxonomicTuple(BaseModel):
     """Represents a taxonomic relationship as a tuple"""
-    parent_taxon: str = Field(..., description="The parent taxonomic entity")
+    parent_taxon: TaxonomicEntity = Field(..., description="The parent taxonomic entity")
     has_child: bool = Field(..., description="Whether this parent has children")
-    child_taxon: str = Field(..., description="The child taxonomic entity")
+    child_taxon: TaxonomicEntity = Field(..., description="The child taxonomic entity")
 
 class TaxonomyTuplesResponse(BaseModel):
     """Response containing taxonomic relationships as tuples"""
@@ -43,12 +48,11 @@ class ExpansionRequest(BaseModel):
 
 class ExpansionResponse(BaseModel):
     """Response model for taxonomic expansion"""
-    parent_taxon: str
-    parent_rank: str
-    children: List[str]
-    child_rank: str
+    parent_taxon: TaxonomicEntity
+    children: List[TaxonomicEntity]
     tuples: List[TaxonomicTuple]
     total_children: int
+    children_details: Optional[List[TaxonomyResponse]] = None
 
 class ErrorResponse(BaseModel):
     """Standard error response"""
