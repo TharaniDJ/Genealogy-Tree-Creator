@@ -83,6 +83,49 @@ async def websocket_language_relationships(websocket: WebSocket):
                         await task
                         continue
 
+                    elif action == "fetch_full_tree":
+                        language_value = parsed.get("language")
+                        if not isinstance(language_value, str) or not language_value.strip():
+                            raise ValueError("Missing or invalid 'language' for fetch_full_tree")
+                        language_name = language_value.strip()
+
+                        await websocket_manager.send_status(
+                            f"Fetching full hierarchy for {language_name}...",
+                            0,
+                            connection_id
+                        )
+
+                        async def full_tree_task():
+                            try:
+                                relationships = await wiki.fetch_language_relationships(
+                                    language_name,
+                                    None,
+                                    websocket_manager,
+                                    connection_id
+                                )
+
+                                if websocket_manager.is_connection_active(connection_id):
+                                    await websocket_manager.send_json({
+                                        "type": "complete",
+                                        "data": {
+                                            "language": language_name,
+                                            "depth": None,
+                                            "total_relationships": len(relationships),
+                                            "relationships": relationships
+                                        }
+                                    }, connection_id)
+                            except asyncio.CancelledError:
+                                print(f"Full-tree task cancelled for connection {connection_id}")
+                                raise
+                            except Exception as e:
+                                if websocket_manager.is_connection_active(connection_id):
+                                    await websocket_manager.send_error(f"Error processing full tree request: {str(e)}", connection_id)
+
+                        task = asyncio.create_task(full_tree_task())
+                        websocket_manager.set_active_task(connection_id, task)
+                        await task
+                        continue
+
                 # Legacy format: "language_name,depth"
                 # Parse the request
                 if "," in data:

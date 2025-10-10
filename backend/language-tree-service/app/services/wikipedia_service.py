@@ -7,12 +7,13 @@ import ast
 import os
 import re
 import time
+from collections import defaultdict, deque
 from typing import Dict, List, Optional, Sequence, Tuple
 
 import mwparserfromhell
 import numpy as np
 import requests
-from google import genai
+from google import genai  # type: ignore
 from mwparserfromhell.nodes import Heading
 from mwparserfromhell.wikicode import Wikicode
 from sentence_transformers import SentenceTransformer
@@ -23,6 +24,16 @@ WIKIPEDIA_API = "https://en.wikipedia.org/w/api.php"
 DEFAULT_HEADERS = {
     "User-Agent": "GenealogyTreeLanguageService/1.0 (language-tree-service)"
 }
+
+DEFAULT_GENAI_MODELS = [
+    "models/gemini-2.5-flash",
+    "models/gemini-2.5-flash-preview-09-2025",
+    "models/gemini-2.5-flash-preview-05-20",
+    "models/gemini-2.5-pro-preview-06-05",
+    "models/gemini-2.0-flash",
+    "models/gemini-2.0-flash-lite-001",
+]
+
 
 FIELD_TO_RELATION: Dict[str, Tuple[str, str]] = {
     "language family": ("belongs to family", "up"),
@@ -286,7 +297,7 @@ def get_normalized_hierarchical_graph(
         return []
 
     client = _get_genai_client()
-    model = os.getenv("GOOGLE_GENAI_MODEL", "gemini-2.5-flash")
+    models_to_try = _get_model_candidates()
     infobox_triples_str = "\n".join([str(t) for t in infobox_triples])
     prompt = f"""
 You are an expert in historical linguistics. Your task is to create a single, unified, and strictly hierarchical graph of genetic language relationships for "{language}".
@@ -310,31 +321,46 @@ You are given infobox triples and relevant text.
 **2. Relevant Text:**
 {relevant_text}
 Produce the final, normalized, and strictly hierarchical list of triples now."""
-    try:
-        response = client.models.generate_content(model=model, contents=prompt)
-        response_text = getattr(response, "text", "")
-        print(f"[wikipedia_service] LLM raw response for {language}: {response_text}")
-        if not response_text:
-            print(f"[wikipedia_service] LLM returned an empty response for {language}.")
-            return []
-        parsed = parse_list_like_from_text(response_text)
-        if not parsed:
-            print(f"[wikipedia_service] LLM response for {language} could not be parsed into a list.")
-            return []
-        final_triples: List[Tuple[str, str, str]] = []
-        seen = set()
-        for item in parsed:
-            if isinstance(item, (list, tuple)) and len(item) == 3:
-                subj, rel, obj = str(item[0]).strip(), str(item[1]).strip(), str(item[2]).strip()
-                if rel == "is child of" and subj and obj:
-                    triple = (subj, rel, obj)
-                    if triple not in seen:
-                        final_triples.append(triple)
-                        seen.add(triple)
-        return final_triples
-    except Exception as exc:
-        print(f"[wikipedia_service] Error during LLM processing for {language}: {exc}")
-        return []
+    last_error: Optional[Exception] = None
+    for model in models_to_try:
+        try:
+            print(f"[wikipedia_service] Calling Generative AI model '{model}' for {language}.")
+            response = client.models.generate_content(model=model, contents=prompt)
+            response_text = getattr(response, "text", "")
+            print(f"[wikipedia_service] LLM raw response for {language}: {response_text}")
+            if not response_text:
+                print(f"[wikipedia_service] LLM returned an empty response for {language}.")
+                last_error = RuntimeError("LLM returned empty response")
+                continue
+            parsed = parse_list_like_from_text(response_text)
+            if not parsed:
+                print(f"[wikipedia_service] LLM response for {language} could not be parsed into a list.")
+                last_error = RuntimeError("LLM response parsing failed")
+                continue
+            final_triples: List[Tuple[str, str, str]] = []
+            seen = set()
+            for item in parsed:
+                if isinstance(item, (list, tuple)) and len(item) == 3:
+                    subj, rel, obj = str(item[0]).strip(), str(item[1]).strip(), str(item[2]).strip()
+                    if rel == "is child of" and subj and obj:
+                        triple = (subj, rel, obj)
+                        if triple not in seen:
+                            final_triples.append(triple)
+                            seen.add(triple)
+            if final_triples:
+                print(
+                    f"[wikipedia_service] Successfully obtained hierarchical graph for {language} using model '{model}'."
+                )
+                return final_triples
+            last_error = RuntimeError("LLM produced no valid triples")
+        except Exception as exc:
+            print(f"[wikipedia_service] Error during LLM processing with model '{model}' for {language}: {exc}")
+            last_error = exc
+
+    print(f"[wikipedia_service] All LLM attempts failed for {language}. Returning empty list.")
+    if last_error:
+        print(f"[wikipedia_service] Last LLM error: {last_error}")
+    return []
 
 
 def get_wikipedia_language_page_title(input_name: str) -> Optional[str]:
@@ -387,6 +413,164 @@ def _normalise_infobox_triples(
     return processed
 
 
+def _build_relationship_graph(
+    triples: List[Tuple[str, str, str]]
+) -> Tuple[Dict[str, str], Dict[str, set[str]]]:
+    parent_map: Dict[str, str] = {}
+    children_map: Dict[str, set[str]] = defaultdict(set)
+    for child, relation, parent in triples:
+        if relation != "is child of":
+            continue
+        parent_map[child] = parent
+        children_map[parent].add(child)
+    return parent_map, children_map
+
+
+def _normalise_label_key(label: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", label.lower())
+
+
+def _strip_language_tokens(label: str) -> str:
+    return re.sub(r"\blanguages?\b", "", label, flags=re.I).strip()
+
+
+def _get_model_candidates() -> List[str]:
+    raw_list = os.getenv("GOOGLE_GENAI_MODEL_LIST")
+    if raw_list:
+        candidates = [model.strip() for model in raw_list.split(",") if model.strip()]
+        if candidates:
+            return candidates
+
+    primary = os.getenv("GOOGLE_GENAI_MODEL")
+    if primary:
+        ordered = [primary]
+        ordered.extend(model for model in DEFAULT_GENAI_MODELS if model != primary)
+        return ordered
+
+    return DEFAULT_GENAI_MODELS
+
+
+def _find_graph_root_label(
+    root_label: str,
+    parent_map: Dict[str, str],
+    children_map: Dict[str, set[str]],
+) -> Optional[str]:
+    graph_nodes = (
+        set(parent_map.keys())
+        | set(parent_map.values())
+        | set(children_map.keys())
+    )
+    if not graph_nodes:
+        return None
+
+    normalised_lookup: Dict[str, str] = {}
+    for node in graph_nodes:
+        key = _normalise_label_key(node)
+        if key and key not in normalised_lookup:
+            normalised_lookup[key] = node
+
+    def _candidates(name: str) -> List[str]:
+        variants = {name}
+        stripped = _strip_language_tokens(name)
+        if stripped:
+            variants.add(stripped)
+        if "(" in name:
+            variants.add(name.split("(", 1)[0].strip())
+        if name.lower().endswith(" language"):
+            variants.add(name[: -len(" language")].strip())
+        if name.lower().endswith(" languages"):
+            variants.add(name[: -len(" languages")].strip())
+        return [variant for variant in variants if variant]
+
+    for candidate in _candidates(root_label):
+        for node in graph_nodes:
+            if node.lower() == candidate.lower():
+                return node
+        normalised_candidate = _normalise_label_key(candidate)
+        if normalised_candidate in normalised_lookup:
+            return normalised_lookup[normalised_candidate]
+        stripped_normalised = _normalise_label_key(_strip_language_tokens(candidate))
+        if stripped_normalised in normalised_lookup:
+            return normalised_lookup[stripped_normalised]
+
+    return None
+
+
+def _relationships_within_depth(
+    root: str,
+    depth: Optional[int],
+    parent_map: Dict[str, str],
+    children_map: Dict[str, set[str]],
+) -> List[Tuple[LanguageRelationship, str, int]]:
+    if depth is not None and depth <= 0:
+        return []
+
+    bounded: List[Tuple[LanguageRelationship, str, int]] = []
+    seen_edges: set[Tuple[str, str, str]] = set()
+
+    if (
+        root not in parent_map
+        and root not in children_map
+        and root not in parent_map.values()
+    ):
+        print(
+            f"[wikipedia_service] Warning: root '{root}' not present in relationship graph."
+        )
+        return []
+
+    current = root
+    current_level = 1
+    while True:
+        parent = parent_map.get(current)
+        if not parent:
+            break
+        edge_key = (current, "is child of", parent)
+        if edge_key not in seen_edges:
+            bounded.append(
+                (
+                    LanguageRelationship(
+                        language1=current,
+                        relationship="is child of",
+                        language2=parent,
+                    ),
+                    "ancestor",
+                    current_level,
+                )
+            )
+            seen_edges.add(edge_key)
+        current = parent
+        current_level += 1
+        if depth is not None and current_level > depth:
+            break
+
+    queue = deque([(root, 0)])
+    seen_nodes = {root}
+    while queue:
+        node, level = queue.popleft()
+        if depth is not None and level >= depth:
+            continue
+        for child in children_map.get(node, set()):
+            edge_key = (child, "is child of", node)
+            if edge_key not in seen_edges:
+                bounded.append(
+                    (
+                        LanguageRelationship(
+                            language1=child,
+                            relationship="is child of",
+                            language2=node,
+                        ),
+                        "descendant",
+                        level + 1,
+                    )
+                )
+                seen_edges.add(edge_key)
+            if child not in seen_nodes:
+                queue.append((child, level + 1))
+                seen_nodes.add(child)
+
+    return bounded
+
+
 async def _send_status(message: str, progress: Optional[int], websocket_manager, connection_id) -> None:
     if websocket_manager and connection_id:
         await websocket_manager.send_status(message, progress, connection_id)
@@ -399,11 +583,12 @@ async def _send_root_language(label: str, websocket_manager, connection_id) -> N
 
 async def fetch_language_relationships(
     language_name: str,
-    depth: int,
+    depth: Optional[int],
     websocket_manager=None,
     connection_id: Optional[str] = None,
 ) -> List[Dict[str, object]]:
-    print(f"[wikipedia_service] Starting extraction for '{language_name}' (depth={depth}).")
+    depth_desc = f"depth={depth}" if depth is not None else "full-tree"
+    print(f"[wikipedia_service] Starting extraction for '{language_name}' ({depth_desc}).")
 
     await _send_status("Resolving Wikipedia page title...", 5, websocket_manager, connection_id)
     resolved_title = await asyncio.to_thread(get_wikipedia_language_page_title, language_name)
@@ -439,21 +624,49 @@ async def fetch_language_relationships(
     )
     print(f"[wikipedia_service] LLM produced {len(final_triples)} hierarchical triples for '{resolved_title}'.")
 
-    relationships: List[LanguageRelationship] = []
-    for child, relation, parent in final_triples:
-        rel_model = LanguageRelationship(
-            language1=child,
-            relationship=relation,
-            language2=parent,
+    parent_map, children_map = _build_relationship_graph(final_triples)
+    graph_root = _find_graph_root_label(resolved_title, parent_map, children_map)
+    if graph_root and graph_root != resolved_title:
+        print(
+            f"[wikipedia_service] Using graph node '{graph_root}' as root for depth traversal."
         )
-        relationships.append(rel_model)
+    elif not graph_root:
+        print(
+            f"[wikipedia_service] Unable to directly match '{resolved_title}' in graph; using page title as fallback."
+        )
+    traversal_root = graph_root or resolved_title
 
-    relationships_payload = [rel.model_dump() for rel in relationships]
+    bounded_relationships = _relationships_within_depth(
+        traversal_root,
+        depth,
+        parent_map,
+        children_map,
+    )
+
+    relationships_payload: List[Dict[str, object]] = []
+    for rel_model, relation_type, level in bounded_relationships:
+        payload = rel_model.model_dump()
+        payload.update({"direction": relation_type, "level": level})
+        relationships_payload.append(payload)
+
     if websocket_manager and connection_id:
         await websocket_manager.send_json({"type": "relationships", "data": relationships_payload}, connection_id)
 
-    await _send_status(f"Generated {len(relationships_payload)} relationships.", 95, websocket_manager, connection_id)
-    print(f"[wikipedia_service] Completed extraction for '{resolved_title}' with {len(relationships_payload)} relationships.")
+    if depth is None:
+        summary = f"Generated {len(relationships_payload)} relationships (full hierarchy)."
+    else:
+        summary = f"Generated {len(relationships_payload)} relationships within depth {depth}."
+
+    await _send_status(
+        summary,
+        95,
+        websocket_manager,
+        connection_id,
+    )
+    print(
+        f"[wikipedia_service] Completed extraction for '{resolved_title}' with "
+        f"{len(relationships_payload)} relationships ({depth_desc})."
+    )
 
     return relationships_payload
 
