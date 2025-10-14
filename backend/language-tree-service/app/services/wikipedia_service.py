@@ -291,10 +291,18 @@ def get_normalized_hierarchical_graph(
     infobox_triples: List[Tuple[str, str, str]],
     relevant_text: str,
     language: str,
-) -> List[Tuple[str, str, str]]:
+) -> Tuple[List[Tuple[str, str, str]], Optional[str]]:
+    """Synthesize a strictly hierarchical graph using LLM and return triples plus identified root.
+
+    Returns
+    -------
+    (triples, root_node)
+        triples: list of (child, 'is child of', parent)
+        root_node: best label representing the requested language according to the LLM (may be None)
+    """
     if not infobox_triples and not relevant_text:
         print(f"[wikipedia_service] No infobox triples or relevant text for {language}.")
-        return []
+        return [], None
 
     client = _get_genai_client()
     models_to_try = _get_model_candidates()
@@ -305,13 +313,18 @@ You are an expert in historical linguistics. Your task is to create a single, un
 You are given infobox triples and relevant text.
 
 **CRITICAL INSTRUCTIONS:**
-1.  **Normalize ALL relationships** to the single format: `('Child Language', 'is child of', 'Parent Language')`.
-2.  **Create a Strict Hierarchy**: Each language or dialect must have **only ONE direct parent**. If Spanish evolved from Old Spanish, which evolved from Latin, the output must be `('Spanish', 'is child of', 'Old Spanish')` and `('Old Spanish', 'is child of', 'Latin')`.
-3.  **DO NOT include redundant "grandfather" links**. For the example above, you must NOT output `('Spanish', 'is child of', 'Latin')`. Only include the link to the immediate parent.
-4.  **Merge and Deduplicate**: Combine information from both the infobox and the text, then remove any exact duplicate triples.
+1.  **Normalize ALL relationships** to the single format: ('Child Language', 'is child of', 'Parent Language').
+2.  **Create a Strict Hierarchy**: Each language or dialect must have **only ONE direct parent**.
+3.  **DO NOT include redundant "grandfather" links** – only immediate parent relations.
+4.  **Merge and Deduplicate**: Combine information and remove duplicate triples.
 5.  **Be Accurate**: Only include relationships explicitly stated in the provided context.
+6.  **Identify the Root**: Provide the single node label from your generated graph that best represents the primary subject, "{language}".
 
-**Final Output Format**: A single Python list of (`subject`, `relation`, `object`) tuples.
+**Final Output Format**: A single JSON object with two keys:
+{{
+  "root_node": "<string>",
+  "triples": [["Child", "is child of", "Parent"], ...]
+}}
 
 ---
 **INPUT DATA for "{language}"**
@@ -320,7 +333,10 @@ You are given infobox triples and relevant text.
 
 **2. Relevant Text:**
 {relevant_text}
-Produce the final, normalized, and strictly hierarchical list of triples now."""
+---
+Produce ONLY the JSON object now with no extra commentary.
+"""
+
     last_error: Optional[Exception] = None
     for model in models_to_try:
         try:
@@ -329,29 +345,54 @@ Produce the final, normalized, and strictly hierarchical list of triples now."""
             response_text = getattr(response, "text", "")
             print(f"[wikipedia_service] LLM raw response for {language}: {response_text}")
             if not response_text:
-                print(f"[wikipedia_service] LLM returned an empty response for {language}.")
                 last_error = RuntimeError("LLM returned empty response")
                 continue
-            parsed = parse_list_like_from_text(response_text)
-            if not parsed:
-                print(f"[wikipedia_service] LLM response for {language} could not be parsed into a list.")
-                last_error = RuntimeError("LLM response parsing failed")
+
+            # Remove code fences
+            cleaned_text = re.sub(r"```(?:json|python)?", "", response_text, flags=re.I).replace("```", "").strip()
+            match = re.search(r"\{.*\}", cleaned_text, re.DOTALL)
+            if not match:
+                last_error = RuntimeError("Could not find JSON object in LLM response.")
                 continue
+            json_blob = match.group(0)
+
+            parsed_json: Optional[dict] = None
+            try:
+                import json as _json
+                parsed_json = _json.loads(json_blob)
+            except Exception:
+                # fallback to ast for python-like literals
+                try:
+                    parsed_json = ast.literal_eval(json_blob)  # type: ignore
+                except Exception as exc:
+                    print(f"[wikipedia_service] Parser error: could not parse JSON blob: {exc}")
+                    last_error = exc
+                    continue
+
+            if not isinstance(parsed_json, dict):
+                last_error = RuntimeError("Parsed JSON was not an object.")
+                continue
+
+            llm_triples = parsed_json.get("triples")
+            llm_root = parsed_json.get("root_node")
+            if not isinstance(llm_triples, list):
+                last_error = RuntimeError("LLM response 'triples' key missing or not a list.")
+                continue
+
             final_triples: List[Tuple[str, str, str]] = []
-            seen = set()
-            for item in parsed:
+            seen: set[Tuple[str, str, str]] = set()
+            for item in llm_triples:
                 if isinstance(item, (list, tuple)) and len(item) == 3:
-                    subj, rel, obj = str(item[0]).strip(), str(item[1]).strip(), str(item[2]).strip()
+                    subj, rel, obj = (str(item[0]).strip(), str(item[1]).strip(), str(item[2]).strip())
                     if rel == "is child of" and subj and obj:
                         triple = (subj, rel, obj)
                         if triple not in seen:
-                            final_triples.append(triple)
                             seen.add(triple)
+                            final_triples.append(triple)
+
             if final_triples:
-                print(
-                    f"[wikipedia_service] Successfully obtained hierarchical graph for {language} using model '{model}'."
-                )
-                return final_triples
+                print(f"[wikipedia_service] Successfully obtained hierarchical graph for {language} using model '{model}'.")
+                return final_triples, llm_root if isinstance(llm_root, str) else None
             last_error = RuntimeError("LLM produced no valid triples")
         except Exception as exc:
             print(f"[wikipedia_service] Error during LLM processing with model '{model}' for {language}: {exc}")
@@ -360,7 +401,7 @@ Produce the final, normalized, and strictly hierarchical list of triples now."""
     print(f"[wikipedia_service] All LLM attempts failed for {language}. Returning empty list.")
     if last_error:
         print(f"[wikipedia_service] Last LLM error: {last_error}")
-    return []
+    return [], None
 
 
 def get_wikipedia_language_page_title(input_name: str) -> Optional[str]:
@@ -616,25 +657,31 @@ async def fetch_language_relationships(
     print(f"[wikipedia_service] Selected {len(relevant_text)} characters of relevant text for '{resolved_title}'.")
 
     await _send_status("Synthesising hierarchical relationships with LLM...", 70, websocket_manager, connection_id)
-    final_triples = await asyncio.to_thread(
+    final_triples, llm_identified_root = await asyncio.to_thread(
         get_normalized_hierarchical_graph,
         infobox_processed,
         relevant_text,
         resolved_title,
     )
     print(f"[wikipedia_service] LLM produced {len(final_triples)} hierarchical triples for '{resolved_title}'.")
+    if llm_identified_root:
+        print(f"[wikipedia_service] LLM identified root node: '{llm_identified_root}'")
 
     parent_map, children_map = _build_relationship_graph(final_triples)
-    graph_root = _find_graph_root_label(resolved_title, parent_map, children_map)
-    if graph_root and graph_root != resolved_title:
-        print(
-            f"[wikipedia_service] Using graph node '{graph_root}' as root for depth traversal."
-        )
-    elif not graph_root:
-        print(
-            f"[wikipedia_service] Unable to directly match '{resolved_title}' in graph; using page title as fallback."
-        )
-    traversal_root = graph_root or resolved_title
+
+    traversal_root: Optional[str] = None
+    if llm_identified_root:
+        traversal_root = llm_identified_root
+    if not traversal_root:
+        graph_root = _find_graph_root_label(resolved_title, parent_map, children_map)
+        if graph_root and graph_root != resolved_title:
+            print(f"[wikipedia_service] Using matched graph node '{graph_root}' as root.")
+            traversal_root = graph_root
+        elif not graph_root:
+            print(f"[wikipedia_service] Unable to match '{resolved_title}' in graph; using page title as fallback.")
+            traversal_root = resolved_title
+    if not traversal_root:
+        traversal_root = resolved_title
 
     bounded_relationships = _relationships_within_depth(
         traversal_root,

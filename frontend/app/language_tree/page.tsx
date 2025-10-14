@@ -13,12 +13,17 @@ import ReactFlow, {
   Connection,
   Position,
   MarkerType,
+  useReactFlow,
+  getRectOfNodes,
+  getTransformForBounds,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import dagre from 'dagre';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import LanguageNode from '../../components/LanguageNode';
 import LanguageDetailsSidebar from '../../components/LanguageDetailsSidebar';
+import { toPng, toJpeg } from 'html-to-image';
+import jsPDF from 'jspdf';
 
 const MIN_NODE_WIDTH = 200;
 const MAX_NODE_WIDTH = 360;
@@ -240,6 +245,9 @@ const LanguageTreePage = () => {
     qid?: string;
     category?: string;
   } | null>(null);
+
+  const { getNodes } = useReactFlow();
+  const reactFlowRef = useRef<HTMLDivElement>(null);
 
   const { messages, connectionStatus, connect, disconnect, sendMessage } = useWebSocket('ws://localhost:8001/ws/relationships');
 
@@ -728,6 +736,89 @@ const LanguageTreePage = () => {
     setSelectedLanguage(null);
   }, []);
 
+  // Export graph as PNG
+  const exportAsPNG = useCallback(() => {
+    const viewport = reactFlowRef.current?.querySelector('.react-flow__viewport') as HTMLElement;
+    if (!viewport) {
+      console.error('Viewport not found');
+      return;
+    }
+
+    const nodesBounds = getRectOfNodes(getNodes());
+    const transform = getTransformForBounds(
+      nodesBounds,
+      nodesBounds.width,
+      nodesBounds.height,
+      0.5,
+      2,
+      0.2
+    );
+
+    toPng(viewport, {
+      backgroundColor: '#0f172a',
+      width: nodesBounds.width,
+      height: nodesBounds.height,
+      style: {
+        width: `${nodesBounds.width}px`,
+        height: `${nodesBounds.height}px`,
+        transform: `translate(${transform[0]}px, ${transform[1]}px) scale(${transform[2]})`,
+      },
+    }).then((dataUrl) => {
+      const link = document.createElement('a');
+      link.download = `${language || 'language-tree'}-graph.png`;
+      link.href = dataUrl;
+      link.click();
+      setStatus('Graph exported as PNG');
+    }).catch((err) => {
+      console.error('Failed to export PNG:', err);
+      setStatus('Error exporting PNG');
+    });
+  }, [getNodes, language]);
+
+  // Export graph as PDF
+  const exportAsPDF = useCallback(() => {
+    const viewport = reactFlowRef.current?.querySelector('.react-flow__viewport') as HTMLElement;
+    if (!viewport) {
+      console.error('Viewport not found');
+      return;
+    }
+
+    const nodesBounds = getRectOfNodes(getNodes());
+    const transform = getTransformForBounds(
+      nodesBounds,
+      nodesBounds.width,
+      nodesBounds.height,
+      0.5,
+      2,
+      0.2
+    );
+
+    toJpeg(viewport, {
+      backgroundColor: '#0f172a',
+      width: nodesBounds.width,
+      height: nodesBounds.height,
+      quality: 0.95,
+      style: {
+        width: `${nodesBounds.width}px`,
+        height: `${nodesBounds.height}px`,
+        transform: `translate(${transform[0]}px, ${transform[1]}px) scale(${transform[2]})`,
+      },
+    }).then((dataUrl) => {
+      const pdf = new jsPDF({
+        orientation: nodesBounds.width > nodesBounds.height ? 'landscape' : 'portrait',
+        unit: 'px',
+        format: [nodesBounds.width, nodesBounds.height],
+      });
+
+      pdf.addImage(dataUrl, 'JPEG', 0, 0, nodesBounds.width, nodesBounds.height);
+      pdf.save(`${language || 'language-tree'}-graph.pdf`);
+      setStatus('Graph exported as PDF');
+    }).catch((err) => {
+      console.error('Failed to export PDF:', err);
+      setStatus('Error exporting PDF');
+    });
+  }, [getNodes, language]);
+
   return (
     <div className="h-screen w-full flex flex-col bg-gradient-to-br from-slate-900 via-gray-900 to-slate-800">
       {/* Modern Dark Header with Glass Effect */}
@@ -885,7 +976,7 @@ const LanguageTreePage = () => {
       </div>
 
       {/* React Flow Container with Modern Styling */}
-      <div className="flex-1 relative">
+      <div className="flex-1 relative" ref={reactFlowRef}>
         <ReactFlow
           nodes={nodes}
           edges={displayEdges}
@@ -953,13 +1044,36 @@ const LanguageTreePage = () => {
             >
               Delete
             </button>
+                        <button
+              onClick={deleteSelectedNode}
+              disabled={!selectedNodeId}
+              title="Delete Selected Node"
+              className="p-2 rounded-lg bg-gray-800/80 hover:bg-red-600/80 text-gray-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg border border-gray-700/50"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
             <div className="w-px h-6 bg-gray-700/50 mx-1" />
             <button
-              onClick={handleSaveGraph}
-              className="px-3 py-2 text-sm rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 text-white hover:from-emerald-600 hover:to-teal-700 transition-colors shadow"
-              title="Save current graph"
+              onClick={exportAsPNG}
+              disabled={nodes.length === 0}
+              title="Export as PNG"
+              className="p-2 rounded-lg bg-gray-800/80 hover:bg-blue-600/80 text-gray-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg border border-gray-700/50"
             >
-              Save Graph
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </button>
+            <button
+              onClick={exportAsPDF}
+              disabled={nodes.length === 0}
+              title="Export as PDF"
+              className="p-2 rounded-lg bg-gray-800/80 hover:bg-purple-600/80 text-gray-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg border border-gray-700/50"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+              </svg>
             </button>
           </div>
         </ReactFlow>
