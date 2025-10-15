@@ -313,11 +313,22 @@ You are an expert in historical linguistics. Your task is to create a single, un
 You are given infobox triples and relevant text.
 
 **CRITICAL INSTRUCTIONS:**
-1.  **Normalize ALL relationships** to the single format: ('Child Language', 'is child of', 'Parent Language').
-2.  **Create a Strict Hierarchy**: Each language or dialect must have **only ONE direct parent**.
-3.  **DO NOT include redundant "grandfather" links** – only immediate parent relations.
-4.  **Merge and Deduplicate**: Combine information and remove duplicate triples.
-5.  **Be Accurate**: Only include relationships explicitly stated in the provided context.
+
+1.  **Primary Goal: Build the Full Tree from Text**: Your main objective is to extract **all** genetic relationships from the `Relevant Text` to construct the most comprehensive and detailed family tree possible. This includes finding direct parents, children, grandchildren that may lie above the provided infobox data.
+
+2.  **Use Infobox as an Unbreakable Framework**: The `belongs to family` triples from the infobox (e.g., `('A', 'belongs to family', 'B')`) establish an **unbreakable ancestral rule**: 'A' MUST be a descendant of 'B' in your final graph. This framework is for validation, not limitation. Your detailed graph must be consistent with these facts.
+
+3.  **Synthesize, Don't Just Insert**: You must intelligently synthesize both data sources. Use the text to discover the complete, high-resolution chain that satisfies the rules from the infobox, adding any newly discovered nodes (ancestors or descendants) to the graph.
+    * **Comprehensive Example**: Imagine the infobox states `('English', 'belongs to family', 'Germanic')`. The text might reveal:
+        * **Intermediate Links**: `Middle English` and `Old English`.
+        * **Higher Ancestor**: `Indo-European` is the parent of `Germanic`.
+        * **Descendants**: `British English` is a child of `English`.
+    * Your output **must** synthesize all of this into a coherent chain like: `('British English', 'is child of', 'English')`, `('English', 'is child of', 'Middle English')`, `('Middle English', 'is child of', 'Old English')`, `('Old English', 'is child of', 'Germanic')`, and `('Germanic', 'is child of', 'Indo-European')`.
+
+4.  **Normalize ALL relationships** to the single format: `('Child Language', 'is child of', 'Parent Language')`.
+
+5.  **Create a Strict Hierarchy**: Each language must have **only ONE direct parent**. Do not include redundant "grandfather" links.
+
 6.  **Identify the Root**: Provide the single node label from your generated graph that best represents the primary subject, "{language}".
 
 **Final Output Format**: A single JSON object with two keys:
@@ -335,7 +346,7 @@ You are given infobox triples and relevant text.
 {relevant_text}
 ---
 Produce ONLY the JSON object now with no extra commentary.
-"""
+""" 
 
     last_error: Optional[Exception] = None
     for model in models_to_try:
