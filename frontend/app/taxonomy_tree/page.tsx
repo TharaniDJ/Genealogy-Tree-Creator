@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import AuthGuard from '@/components/AuthGuard';
 import ReactFlow, {
   Controls,
   Background,
@@ -176,7 +177,8 @@ const TaxonomyTreePage = () => {
       // Try the real API first, fallback to mock data if service is not available
       let data;
       try {
-        const response = await fetch(`http://127.0.0.1:8002/api/v1/taxonomy/${encodeURIComponent(speciesName)}`);
+        const base = process.env.NEXT_PUBLIC_SPECIES_API_URL || 'http://127.0.0.1:8002';
+        const response = await fetch(`${base}/api/v1/taxonomy/${encodeURIComponent(speciesName)}`);
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
@@ -271,7 +273,8 @@ const TaxonomyTreePage = () => {
       // Try the real API first, fallback to mock data if service is not available
       let data;
       try {
-        const response = await fetch(`http://127.0.0.1:8002/api/v1/expand/${encodeURIComponent(taxonName)}/${encodeURIComponent(rank.toLowerCase())}`);
+  const base = process.env.NEXT_PUBLIC_SPECIES_API_URL || 'http://127.0.0.1:8002';
+  const response = await fetch(`${base}/api/v1/expand/${encodeURIComponent(taxonName)}/${encodeURIComponent(rank.toLowerCase())}`);
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
@@ -446,4 +449,16 @@ const TaxonomyTreePage = () => {
   );
 };
 
-export default TaxonomyTreePage;
+const TaxonomyTreePageWrapper = () => (
+    <ReactFlowProvider>
+        <TaxonomyTreePage />
+    </ReactFlowProvider>
+);
+
+export default function ProtectedTaxonomyTree(){
+  return (
+    <AuthGuard>
+      <TaxonomyTreePageWrapper />
+    </AuthGuard>
+  );
+}

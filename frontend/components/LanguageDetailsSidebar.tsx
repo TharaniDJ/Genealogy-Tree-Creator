@@ -41,7 +41,8 @@ const LanguageDetailsSidebar: React.FC<LanguageDetailsSidebarProps> = ({
     setError(null);
     
     try {
-      const response = await fetch(`http://localhost:8001/info/${qid}`);
+      const base = process.env.NEXT_PUBLIC_LANGUAGE_API_URL || 'http://localhost:8001';
+      const response = await fetch(`${base}/info/${qid}`);
       if (!response.ok) {
         throw new Error(`Failed to fetch language info: ${response.statusText}`);
       }

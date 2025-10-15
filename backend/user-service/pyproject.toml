@@ -1,0 +1,16 @@
+[project]
+name = "user-service"
+version = "0.1.0"
+description = "User service for Genealogy Tree Creator"
+dependencies = [
+    "fastapi>=0.95.0",
+    "uvicorn[standard]>=0.20.0",
+    "pydantic>=1.10.0",
+    "python-jose[cryptography]>=3.3.0",
+    "passlib[bcrypt]>=1.7.4",
+    "motor>=3.1.1",
+    "pymongo>=4.3.0"
+]
+
+[tool.uv]
+run = { module = "app.main" }

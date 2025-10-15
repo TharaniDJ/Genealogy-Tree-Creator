@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import AuthGuard from '@/components/AuthGuard';
 import ReactFlow, {
   Controls,
   Background,
@@ -73,7 +74,9 @@ const LanguageTreePage = () => {
     category?: string;
   } | null>(null);
 
-  const { messages, connectionStatus, connect, disconnect, sendMessage } = useWebSocket('ws://localhost:8001/ws/relationships');
+  const wsBase = process.env.NEXT_PUBLIC_LANGUAGE_API_URL || 'http://localhost:8001';
+  const wsUrl = wsBase.replace(/^http/, 'ws') + '/ws/relationships';
+  const { messages, connectionStatus, connect, disconnect, sendMessage } = useWebSocket(wsUrl);
 
   // Track which messages have been processed to avoid losing earlier batches when multiple arrive quickly.
   const lastProcessedIndexRef = useRef(0);
@@ -465,7 +468,8 @@ const LanguageTreePage = () => {
         node_count: nodes.length,
         relationships: rels,
       };
-      const res = await fetch('http://localhost:8001/graphs', {
+  const base = process.env.NEXT_PUBLIC_LANGUAGE_API_URL || 'http://localhost:8001';
+  const res = await fetch(`${base}/graphs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -760,5 +764,10 @@ const LanguageTreePageWrapper = () => (
     </ReactFlowProvider>
 );
 
-
-export default LanguageTreePageWrapper;
+export default function ProtectedLanguageTree(){
+  return (
+    <AuthGuard>
+      <LanguageTreePageWrapper />
+    </AuthGuard>
+  );
+}
