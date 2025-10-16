@@ -112,15 +112,22 @@ const handleClassifyRelationships = useCallback((relationships: any[]) => {
   };
 
   return (
-    <main className="w-full h-screen overflow-hidden relative">
+    <main className="w-full h-screen overflow-hidden relative bg-[#0E0F19]">
+      {/* Animated Background */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 -left-48 w-96 h-96 bg-[#6B72FF] rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob"></div>
+        <div className="absolute top-1/3 -right-48 w-96 h-96 bg-[#8B7BFF] rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob animation-delay-2000"></div>
+        <div className="absolute -bottom-32 left-1/3 w-96 h-96 bg-[#6B72FF] rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob animation-delay-4000"></div>
+      </div>
+
       {/* Control Panel - Fixed position */}
-      <div className="absolute top-4 right-4 z-20 bg-white p-4 rounded-lg shadow-md max-w-sm">
-        <h1 className="text-xl font-bold mb-4">Genealogy Tree Creator</h1>
+      <div className="absolute top-4 right-4 z-20 backdrop-blur-xl bg-white/5 border border-white/10 p-6 rounded-2xl shadow-2xl max-w-sm">
+        <h1 className="text-xl font-bold mb-4 text-[#F5F7FA]">Family Tree Explorer</h1>
         
         {/* Connection Status */}
-        <div className="mb-4 p-2 bg-gray-50 rounded">
+        <div className="mb-4 p-3 backdrop-blur-md bg-white/5 border border-white/10 rounded-lg">
           <div className="flex items-center justify-between text-sm">
-            <span>WebSocket Status:</span>
+            <span className="text-[#9CA3B5]">WebSocket Status:</span>
             <span className={getConnectionStatusColor()}>
               {getConnectionStatusText()}
             </span>
@@ -129,7 +136,7 @@ const handleClassifyRelationships = useCallback((relationships: any[]) => {
 
         {/* Search Input */}
         <div className="mb-4">
-          <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="search" className="block text-sm font-medium text-[#9CA3B5] mb-2">
             Search Person
           </label>
           <input
@@ -138,7 +145,7 @@ const handleClassifyRelationships = useCallback((relationships: any[]) => {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Enter person's name (e.g., Albert Einstein)"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-4 py-2.5 backdrop-blur-md bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6B72FF] focus:border-transparent text-[#F5F7FA] placeholder-[#9CA3B5]/50"
             onKeyPress={(e) => {
               if (e.key === 'Enter') {
                 startGenealogySearch();
@@ -149,7 +156,7 @@ const handleClassifyRelationships = useCallback((relationships: any[]) => {
 
         {/* Depth Control */}
         <div className="mb-4">
-          <label htmlFor="depth" className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="depth" className="block text-sm font-medium text-[#9CA3B5] mb-2">
             Search Depth: {searchDepth}
           </label>
           <input
@@ -159,9 +166,9 @@ const handleClassifyRelationships = useCallback((relationships: any[]) => {
             max="4"
             value={searchDepth}
             onChange={(e) => setSearchDepth(parseInt(e.target.value))}
-            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+            className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#6B72FF]"
           />
-          <div className="flex justify-between text-xs text-gray-500 mt-1">
+          <div className="flex justify-between text-xs text-[#9CA3B5] mt-1">
             <span>1 (Close)</span>
             <span>4 (Extended)</span>
           </div>
@@ -172,7 +179,7 @@ const handleClassifyRelationships = useCallback((relationships: any[]) => {
           <button
             onClick={startGenealogySearch}
             disabled={connectionStatus !== 'connected' || !searchQuery.trim()}
-            className="w-full px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full px-4 py-2.5 bg-gradient-to-r from-[#6B72FF] to-[#8B7BFF] text-white rounded-lg hover:shadow-lg hover:shadow-[#6B72FF]/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-medium"
           >
             Search Genealogy Tree
           </button>
@@ -188,7 +195,7 @@ const handleClassifyRelationships = useCallback((relationships: any[]) => {
               }
             }}
             disabled={connectionStatus !== 'connected'}
-            className="w-full px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full px-4 py-2.5 backdrop-blur-md bg-[#8B7BFF]/20 border border-[#8B7BFF]/30 text-[#F5F7FA] rounded-lg hover:bg-[#8B7BFF]/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Test Albert Einstein
           </button>
@@ -196,7 +203,7 @@ const handleClassifyRelationships = useCallback((relationships: any[]) => {
           <button
             onClick={connect}
             disabled={connectionStatus === 'connected' || connectionStatus === 'connecting'}
-            className="w-full px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full px-4 py-2.5 backdrop-blur-md bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 rounded-lg hover:bg-emerald-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Connect to Server
           </button>
@@ -204,34 +211,34 @@ const handleClassifyRelationships = useCallback((relationships: any[]) => {
           <button
             onClick={disconnect}
             disabled={connectionStatus === 'disconnected'}
-            className="w-full px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full px-4 py-2.5 backdrop-blur-md bg-orange-500/20 border border-orange-500/30 text-orange-400 rounded-lg hover:bg-orange-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Disconnect
           </button>
           
           <button
             onClick={clearMessages}
-            className="w-full px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+            className="w-full px-4 py-2.5 backdrop-blur-md bg-red-500/20 border border-red-500/30 text-red-400 rounded-lg hover:bg-red-500/30 transition-all"
           >
             Clear Tree Data
           </button>
         </div>
 
         {/* Data Statistics */}
-        <div className="mt-4 text-sm text-gray-600 bg-gray-50 p-2 rounded">
+        <div className="mt-4 text-sm text-[#9CA3B5] backdrop-blur-md bg-white/5 border border-white/10 p-3 rounded-lg">
           <p>Messages received: {websocketData.length}</p>
           <p>People: {websocketData.filter(m => m.type === 'personal_details').length}</p>
           <p>Relationships: {websocketData.filter(m => m.type === 'relationship').length}</p>
-          <p className="text-purple-600 font-medium">QID-based expansion enabled</p>
+          <p className="text-[#8B7BFF] font-medium">QID-based expansion enabled</p>
         </div>
 
         {/* Recent Messages (Debug) */}
         {websocketData.length > 0 && (
-          <div className="mt-4 text-xs text-gray-600 bg-gray-50 p-2 rounded max-h-32 overflow-y-auto">
-            <p className="font-semibold mb-1">Recent Messages:</p>
+          <div className="mt-4 text-xs text-[#9CA3B5] backdrop-blur-md bg-white/5 border border-white/10 p-3 rounded-lg max-h-32 overflow-y-auto">
+            <p className="font-semibold mb-2 text-[#F5F7FA]">Recent Messages:</p>
             {websocketData.slice(-3).map((msg, index) => (
-              <div key={index} className="mb-1 p-1 bg-white rounded text-xs">
-                <span className="font-medium">{msg.type}:</span> {JSON.stringify(msg.data).slice(0, 50)}...
+              <div key={index} className="mb-2 p-2 backdrop-blur-sm bg-white/5 border border-white/10 rounded text-xs">
+                <span className="font-medium text-[#6B72FF]">{msg.type}:</span> <span className="text-[#9CA3B5]">{JSON.stringify(msg.data).slice(0, 50)}...</span>
               </div>
             ))}
           </div>

@@ -652,7 +652,7 @@ const handleClassifyRelationships = useCallback(() => {
 
     return (
       <div
-        className="fixed bg-white border border-gray-300 rounded-lg shadow-lg py-2 z-50"
+        className="fixed backdrop-blur-xl bg-white/10 border border-white/20 rounded-xl shadow-2xl py-2 z-50"
         style={{
           left: contextMenu.x,
           top: contextMenu.y,
@@ -663,9 +663,9 @@ const handleClassifyRelationships = useCallback(() => {
           <>
             {!isUserAdded && (
               <button
-                className={`w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center ${
+                className={`w-full px-4 py-2 text-left hover:bg-white/10 flex items-center text-[#F5F7FA] ${
                   isExpanding ? 'opacity-50 cursor-not-allowed' : 
-                  !hasWikipediaEntry ? 'opacity-75 text-gray-500' : ''
+                  !hasWikipediaEntry ? 'opacity-75 text-[#9CA3B5]' : ''
                 }`}
                 onClick={() => handleExpandNode(contextMenu.nodeId)}
                 disabled={isExpanding}
@@ -686,7 +686,7 @@ const handleClassifyRelationships = useCallback(() => {
             )}
             
             <button
-              className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center"
+              className="w-full px-4 py-2 text-left hover:bg-white/10 flex items-center text-[#F5F7FA]"
               onClick={() => handleAddSpouse(contextMenu.nodeId)}
             >
               <span className="mr-2">💑</span>
@@ -696,7 +696,7 @@ const handleClassifyRelationships = useCallback(() => {
         )}
 
         <button
-          className="w-full px-4 py-2 text-left hover:bg-gray-100 flex items-center"
+          className="w-full px-4 py-2 text-left hover:bg-white/10 flex items-center text-[#F5F7FA]"
           onClick={() => handleAddChild(contextMenu.nodeId)}
         >
           <span className="mr-2">👶</span>
@@ -705,17 +705,17 @@ const handleClassifyRelationships = useCallback(() => {
 
         {isUserAdded && userAddedCount > 0 && (
           <>
-            <div className="border-t border-gray-200 my-1"></div>
+            <div className="border-t border-white/10 my-1"></div>
             
             <button
-              className="w-full px-4 py-2 text-left hover:bg-red-100 text-red-600 flex items-center"
+              className="w-full px-4 py-2 text-left hover:bg-red-500/20 text-red-400 flex items-center"
               onClick={() => handleDeleteNode(contextMenu.nodeId)}
               title="This will remove all manually added people and marriages from the tree"
             >
               <span className="mr-2">🗑️</span>
               <div className="text-left">
                 <div className="font-medium">Clear All Added Nodes</div>
-                <div className="text-xs text-red-500">
+                <div className="text-xs text-red-400">
                   ({userAddedCount} item{userAddedCount !== 1 ? 's' : ''})
                 </div>
               </div>
@@ -1204,30 +1204,30 @@ parentChildRelationships.forEach((rel, index) => {
   }, [personDetails, relationships, setNodes, setEdges, expandedNodes, assignFamilyColors,classifiedRelationships]);
 
   return (
-    <div className="absolute inset-0 w-full h-full">
+    <div className="absolute inset-0 w-full h-full bg-[#0E0F19]">
       {/* Status Panel - Enhanced with adoption info */}
       {(status || progress > 0 || expandingNode) && (
-        <div className="absolute top-4 left-4 z-10 bg-white p-4 rounded-lg shadow-md max-w-md">
-          <h2 className="text-lg font-bold mb-2">
+        <div className="absolute top-4 left-4 z-10 backdrop-blur-xl bg-white/5 border border-white/10 p-4 rounded-2xl shadow-2xl max-w-md">
+          <h2 className="text-lg font-bold mb-2 text-[#F5F7FA]">
             {expandingNode ? 'Expanding Family Tree...' : 'Processing...'}
           </h2>
           {status && (
             <div className="mb-2">
-              <p className="text-sm text-gray-600">{status}</p>
-              <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+              <p className="text-sm text-[#9CA3B5]">{status}</p>
+              <div className="w-full bg-white/10 rounded-full h-2 mt-1">
                 <div 
-                  className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                  className="bg-gradient-to-r from-[#6B72FF] to-[#8B7BFF] h-2 rounded-full transition-all duration-300" 
                   style={{ width: `${progress}%` }}
                 ></div>
               </div>
             </div>
           )}
-          <div className="text-sm text-gray-500">
+          <div className="text-sm text-[#9CA3B5]">
             <p>People: {personDetails.size}</p>
             <p>Relationships: {relationships.length}</p>
             <p>Expanded nodes: {expandedNodes.size}</p>
             <p>Expansion depth: {expandDepth}</p>
-            <p className="text-purple-600">✓ Adoption support enabled</p>
+            <p className="text-[#8B7BFF]">✓ Adoption support enabled</p>
           </div>
         </div>
       )}
@@ -1236,7 +1236,7 @@ parentChildRelationships.forEach((rel, index) => {
         <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10">
           <button
             onClick={handleClassifyRelationships}
-            className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg shadow-lg font-semibold flex items-center space-x-2 transition-all"
+            className="bg-gradient-to-r from-[#8B7BFF] to-[#6B72FF] hover:shadow-lg hover:shadow-[#8B7BFF]/25 text-white px-6 py-3 rounded-lg font-semibold flex items-center space-x-2 transition-all"
             disabled={isClassifying}
           >
             <span>🔍</span>
@@ -1247,31 +1247,31 @@ parentChildRelationships.forEach((rel, index) => {
 
       {/* Classification Progress - Show while classifying */}
       {isClassifying && (
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 bg-purple-100 border-2 border-purple-500 p-4 rounded-lg shadow-lg max-w-md">
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 backdrop-blur-xl bg-[#8B7BFF]/20 border-2 border-[#8B7BFF] p-4 rounded-lg shadow-lg max-w-md">
           <div className="flex items-center space-x-3">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#8B7BFF]"></div>
             <div>
-              <p className="text-purple-800 font-semibold">Classifying relationships...</p>
-              <p className="text-purple-600 text-sm">Using AI to identify biological vs adoptive</p>
+              <p className="text-[#F5F7FA] font-semibold">Classifying relationships...</p>
+              <p className="text-[#9CA3B5] text-sm">Using AI to identify biological vs adoptive</p>
             </div>
           </div>
         </div>
       )}
       {/* Enhanced Instructions with adoption info */}
       {nodes.length > 0 && (
-        <div className="absolute bottom-4 left-4 z-10 bg-white p-3 rounded-lg shadow-md max-w-xs">
-          <div className="text-xs text-gray-600 space-y-1">
-            <p className="font-semibold mb-2">Instructions:</p>
+        <div className="absolute bottom-4 left-4 z-10 backdrop-blur-xl bg-white/5 border border-white/10 p-3 rounded-2xl shadow-2xl max-w-xs">
+          <div className="text-xs text-[#9CA3B5] space-y-1">
+            <p className="font-semibold mb-2 text-[#F5F7FA]">Instructions:</p>
             <p>• Right-click nodes for options</p>
             <p>• Expansion depth: {expandDepth} generations</p>
             <p>• Drag to pan, scroll to zoom</p>
-            <div className="mt-2 pt-2 border-t border-gray-200">
-              <p className="font-semibold">Edge Types:</p>
+            <div className="mt-2 pt-2 border-t border-white/10">
+              <p className="font-semibold text-[#F5F7FA]">Edge Types:</p>
               <p>💕 Pink: Marriage connections</p>
               <p>🌈 Colored: Family lineages</p>
               <p>— Solid: Biological/From marriage</p>
               <p>- - Dashed: Single parent/Other</p>
-              <p className="text-purple-600">⋯ Purple: Adoption relationships</p>
+              <p className="text-[#8B7BFF]">⋯ Purple: Adoption relationships</p>
             </div>
           </div>
         </div>
@@ -1279,24 +1279,24 @@ parentChildRelationships.forEach((rel, index) => {
 
       {/* Enhanced Color Legend */}
       {nodes.length > 0 && (
-        <div className="absolute top-4 right-4 z-10 bg-white p-3 rounded-lg shadow-md max-w-sm">
-          <div className="text-xs text-gray-600">
-            <p className="font-semibold mb-2">Relationship Types:</p>
+        <div className="absolute top-4 right-4 z-10 backdrop-blur-xl bg-white/5 border border-white/10 p-3 rounded-2xl shadow-2xl max-w-sm">
+          <div className="text-xs text-[#9CA3B5]">
+            <p className="font-semibold mb-2 text-[#F5F7FA]">Relationship Types:</p>
             <div className="space-y-1 mb-3">
               <div className="flex items-center space-x-2">
-                <div className="w-4 h-0.5 bg-gray-800"></div>
+                <div className="w-4 h-0.5 bg-[#F5F7FA]"></div>
                 <span>Biological</span>
               </div>
               <div className="flex items-center space-x-2">
-                <div className="w-4 h-0.5 border-t-2 border-dashed border-purple-500"></div>
+                <div className="w-4 h-0.5 border-t-2 border-dashed border-[#8B7BFF]"></div>
                 <span>Adopted</span>
               </div>
               <div className="flex items-center space-x-2">
-                <div className="w-4 h-0.5 border-t-2 border-dashed border-gray-500"></div>
+                <div className="w-4 h-0.5 border-t-2 border-dashed border-[#9CA3B5]"></div>
                 <span>Other/Single parent</span>
               </div>
             </div>
-            <p className="font-semibold mb-2">Family Line Colors:</p>
+            <p className="font-semibold mb-2 text-[#F5F7FA]">Family Line Colors:</p>
             <div className="grid grid-cols-2 gap-1">
               {FAMILY_COLORS.slice(0, 6).map((color, index) => (
                 <div key={index} className="flex items-center space-x-2">
@@ -1308,7 +1308,7 @@ parentChildRelationships.forEach((rel, index) => {
                 </div>
               ))}
             </div>
-            <p className="mt-2 text-gray-500">Each spouse's family line has a unique color. Adoption relationships are shown with purple dashed lines.</p>
+            <p className="mt-2 text-[#9CA3B5]">Each spouse&apos;s family line has a unique color. Adoption relationships are shown with purple dashed lines.</p>
           </div>
         </div>
       )}
@@ -1332,10 +1332,10 @@ parentChildRelationships.forEach((rel, index) => {
         zoomOnPinch
         zoomOnDoubleClick
         preventScrolling={false}
-        className="w-full h-full"
+        className="w-full h-full bg-[#0E0F19]"
       >
-        <Controls position="bottom-right" />
-        <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
+        <Controls position="bottom-right" className="!bg-white/5 !border-white/10 backdrop-blur-xl [&_button]:!bg-white/5 [&_button]:!border-white/10 [&_button]:!text-[#F5F7FA] [&_button:hover]:!bg-white/10" />
+        <Background variant={BackgroundVariant.Dots} gap={12} size={1} className="!bg-[#0E0F19] opacity-30" color="#6B72FF" />
       </ReactFlow>
     </div>
   );
