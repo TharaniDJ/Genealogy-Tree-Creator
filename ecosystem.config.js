@@ -55,6 +55,7 @@ module.exports = {
       watch: false,
       env: {
         PYTHONUNBUFFERED: '1',
+        PYTHONIOENCODING: 'utf-8',
         ENV: 'development'
       }
     },
@@ -67,20 +68,21 @@ module.exports = {
       watch: false,
       env: {
         PYTHONUNBUFFERED: '1',
+        PYTHONIOENCODING: 'utf-8',
         ENV: 'development'
       }
     },
-    {
-      name: 'frontend',
-      cwd: './frontend',
-      // Use pnpm dev for development; for production run `pnpm build` then `pnpm start` (next start)
-      script: 'pnpm',
-      args: 'dev',
-      autorestart: true,
-      watch: false,
-      env: {
-        NODE_ENV: 'development'
-      }
-    }
+    // {
+    //   name: 'frontend',
+    //   cwd: './frontend',
+    //   script: 'npm.cmd',
+    //   args: 'run dev',
+    //   interpreter: 'none',
+    //   autorestart: true,
+    //   watch: false,
+    //   env: {
+    //     NODE_ENV: 'development'
+    //   }
+    // }
   ]
 };

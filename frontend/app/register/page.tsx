@@ -4,10 +4,12 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
 function useAuth() {
-  // Minimal local stub for the auth hook — replace with your real hook or move to a shared file.
+  // API Gateway base URL
+  const API_BASE = process.env.NEXT_PUBLIC_API_GATEWAY_URL || 'http://localhost:8080';
+  
   const register = async ({ email, password, full_name }: { email: string; password: string; full_name: string }) => {
     try {
-      const res = await fetch('/api/register', {
+      const res = await fetch(`${API_BASE}/api/users/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, full_name }),
