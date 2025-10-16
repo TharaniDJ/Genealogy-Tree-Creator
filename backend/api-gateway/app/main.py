@@ -53,19 +53,48 @@ async def proxy(service: str, path: str, request: Request):
         if user is None:
             raise HTTPException(status_code=401, detail='Unauthorized')
 
-    async with httpx.AsyncClient() as client:
-        body = await request.body()
-        print(f"Using method: {request.method}")
-        print(f"Forwarding to: {url}")
-        print(f"Request body: {body}")
-        resp = await client.request(request.method, url, content=body, headers=headers, params=request.query_params)
-    # Try to return JSON if possible, otherwise return plain text
+    body = await request.body()
+    print(f"[PROXY] Service: {service}, Path: {path}")
+    print(f"[PROXY] Method: {request.method}")
+    print(f"[PROXY] Forwarding to: {url}")
+    
     try:
-        content = resp.json()
-    except Exception:
-        content = resp.text
-        print(content)
-    return JSONResponse(status_code=resp.status_code, content=content)
+        async with httpx.AsyncClient(timeout=300.0) as client:
+            resp = await client.request(
+                request.method, 
+                url, 
+                content=body, 
+                headers=headers, 
+                params=request.query_params
+            )
+        
+        # Try to return JSON if possible, otherwise return plain text
+        try:
+            content = resp.json()
+        except Exception:
+            content = resp.text
+            
+        return JSONResponse(status_code=resp.status_code, content=content)
+        
+    except httpx.ConnectError as e:
+        print(f"[PROXY ERROR] Cannot connect to service '{service}' at {target}")
+        print(f"[PROXY ERROR] Details: {str(e)}")
+        raise HTTPException(
+            status_code=503, 
+            detail=f"Service '{service}' is unavailable. Make sure it's running on {target}"
+        )
+    except httpx.ReadTimeout:
+        print(f"[PROXY ERROR] Service '{service}' timed out after 30 seconds")
+        raise HTTPException(
+            status_code=504, 
+            detail=f"Service '{service}' took too long to respond"
+        )
+    except Exception as e:
+        print(f"[PROXY ERROR] Unexpected error: {type(e).__name__}: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Error communicating with service '{service}': {str(e)}"
+        )
 
 
 @app.get('/')
