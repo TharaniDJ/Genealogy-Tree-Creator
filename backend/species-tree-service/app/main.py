@@ -24,13 +24,13 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_event():
     """Startup event handler"""
-    print(f"🌟 {config.SERVICE_NAME} v{config.VERSION} is starting up...")
-    print(f"🔬 Ready to explore taxonomic relationships!")
+    print(f"[*] {config.SERVICE_NAME} v{config.VERSION} is starting up...")
+    print(f"[*] Ready to explore taxonomic relationships!")
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Shutdown event handler"""
-    print(f"🛑 {config.SERVICE_NAME} is shutting down...")
+    print(f"[*] {config.SERVICE_NAME} is shutting down...")
 
 # Include API routes
 app.include_router(api_router, prefix=config.API_PREFIX)

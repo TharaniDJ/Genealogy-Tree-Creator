@@ -14,6 +14,7 @@ module.exports = {
       watch: false,
       env: {
         PYTHONUNBUFFERED: '1',
+        PYTHONIOENCODING: 'utf-8',
         ENV: 'development'
       }
     },
@@ -26,6 +27,7 @@ module.exports = {
       watch: false,
       env: {
         PYTHONUNBUFFERED: '1',
+        PYTHONIOENCODING: 'utf-8',
         ENV: 'development'
       }
     },
@@ -39,6 +41,7 @@ module.exports = {
       watch: false,
       env: {
         PYTHONUNBUFFERED: '1',
+        PYTHONIOENCODING: 'utf-8',
         ENV: 'development'
       }
     },
