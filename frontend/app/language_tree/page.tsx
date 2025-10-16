@@ -845,36 +845,45 @@ const LanguageTreePage = () => {
   }, [getNodes, language]);
 
   return (
-    <div className="h-screen w-full flex flex-col bg-gradient-to-br from-slate-900 via-gray-900 to-slate-800">
+    <div className="h-screen w-full flex flex-col bg-[#0E0F19] relative overflow-hidden">
+      {/* Animated gradient background */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -inset-[10px] opacity-30">
+          <div className="absolute top-0 -left-4 w-96 h-96 bg-[#6B72FF] rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
+          <div className="absolute top-0 -right-4 w-96 h-96 bg-[#8B7BFF] rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
+          <div className="absolute -bottom-8 left-20 w-96 h-96 bg-[#5B62FF] rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
+        </div>
+      </div>
+
       {/* Modern Dark Header with Glass Effect */}
-      <div className="relative bg-gray-900/80 backdrop-blur-xl border-b border-gray-700/30 shadow-lg shadow-purple-500/10">
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-600/10 via-blue-600/10 to-cyan-600/10"></div>
+      <div className="relative backdrop-blur-xl bg-white/5 border-b border-white/10 shadow-lg shadow-[#6B72FF]/10">
         <div className="relative px-6 py-4">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-cyan-600 rounded-lg flex items-center justify-center shadow-lg">
-                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-10 h-10 bg-gradient-to-br from-[#6B72FF] to-[#8B7BFF] rounded-xl flex items-center justify-center shadow-lg shadow-[#6B72FF]/30">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
               </div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-[#6B72FF] to-[#8B7BFF] bg-clip-text text-transparent">
                 Language Tree Explorer
               </h1>
             </div>
             
             {/* Connection Status with Modern Badge */}
             <div className="flex items-center space-x-2">
-              <div className={`px-3 py-1 rounded-full text-xs font-medium border ${
+              <div className={`px-3 py-1.5 rounded-lg text-xs font-medium backdrop-blur-lg bg-white/5 border ${
                 connectionStatus === 'connected' 
-                  ? 'bg-emerald-900/50 text-emerald-300 border-emerald-500/30' 
+                  ? 'border-emerald-500/30 text-emerald-300' 
                   : connectionStatus === 'connecting'
-                  ? 'bg-amber-900/50 text-amber-300 border-amber-500/30'
-                  : 'bg-red-900/50 text-red-300 border-red-500/30'
+                  ? 'border-amber-500/30 text-amber-300'
+                  : 'border-red-500/30 text-red-300'
               }`}>
-                <div className="flex items-center space-x-1">
+                <div className="flex items-center space-x-1.5">
                   <div className={`w-2 h-2 rounded-full ${
-                    connectionStatus === 'connected' ? 'bg-emerald-400' : 
-                    connectionStatus === 'connecting' ? 'bg-amber-400' : 'bg-red-400'
+                    connectionStatus === 'connected' ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]' : 
+                    connectionStatus === 'connecting' ? 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.6)] animate-pulse' : 
+                    'bg-red-400 shadow-[0_0_8px_rgba(248,113,113,0.6)]'
                   }`}></div>
                   <span>{connectionStatus === 'connected' ? 'Connected' : connectionStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}</span>
                 </div>
@@ -892,9 +901,9 @@ const LanguageTreePage = () => {
                   value={language} 
                   onChange={(e) => setLanguage(e.target.value)} 
                   placeholder="Enter language name..."
-                  className="w-full px-4 py-3 pl-10 bg-gray-800/70 backdrop-blur-sm border border-gray-600/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400 transition-all duration-200 shadow-sm hover:shadow-md text-gray-100 placeholder-gray-400"
+                  className="w-full px-4 py-3 pl-10 backdrop-blur-lg bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#6B72FF]/50 focus:border-[#6B72FF] transition-all duration-200 shadow-sm hover:shadow-md text-[#F5F7FA] placeholder-[#9CA3B5]"
                 />
-                <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#9CA3B5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </div>
@@ -909,7 +918,7 @@ const LanguageTreePage = () => {
                 placeholder="Depth"
                 min="1"
                 max="5"
-                className="w-full px-3 py-3 bg-gray-800/70 backdrop-blur-sm border border-gray-600/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400 transition-all duration-200 shadow-sm hover:shadow-md text-gray-100 text-center"
+                className="w-full px-3 py-3 backdrop-blur-lg bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#6B72FF]/50 focus:border-[#6B72FF] transition-all duration-200 shadow-sm hover:shadow-md text-[#F5F7FA] text-center"
               />
             </div>
 
@@ -917,7 +926,7 @@ const LanguageTreePage = () => {
             <button 
               onClick={handleSearch} 
               disabled={connectionStatus !== 'connected'} 
-              className="px-6 py-3 bg-gradient-to-r from-purple-500 to-cyan-600 hover:from-purple-600 hover:to-cyan-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-medium rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl disabled:cursor-not-allowed disabled:shadow-sm transform hover:scale-105 disabled:hover:scale-100"
+              className="px-6 py-3 bg-gradient-to-r from-[#6B72FF] to-[#8B7BFF] hover:from-[#7B82FF] hover:to-[#9B8BFF] disabled:from-gray-600 disabled:to-gray-700 text-white font-medium rounded-xl transition-all duration-200 shadow-lg shadow-[#6B72FF]/30 hover:shadow-[#6B72FF]/50 disabled:cursor-not-allowed disabled:shadow-sm transform hover:scale-105 disabled:hover:scale-100"
             >
               <div className="flex items-center space-x-2">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -930,7 +939,7 @@ const LanguageTreePage = () => {
             <button
               onClick={handleSearchFull}
               disabled={connectionStatus !== 'connected'}
-              className="px-6 py-3 bg-gradient-to-r from-blue-500 to-emerald-600 hover:from-blue-600 hover:to-emerald-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-medium rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl disabled:cursor-not-allowed disabled:shadow-sm transform hover:scale-105 disabled:hover:scale-100"
+              className="px-6 py-3 bg-gradient-to-r from-[#5B62FF] to-[#7B72FF] hover:from-[#6B72FF] hover:to-[#8B82FF] disabled:from-gray-600 disabled:to-gray-700 text-white font-medium rounded-xl transition-all duration-200 shadow-lg shadow-[#5B62FF]/30 hover:shadow-[#5B62FF]/50 disabled:cursor-not-allowed disabled:shadow-sm transform hover:scale-105 disabled:hover:scale-100"
             >
               <div className="flex items-center space-x-2">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -946,8 +955,8 @@ const LanguageTreePage = () => {
                 onClick={() => changeLayout('TB')} 
                 className={`p-3 rounded-xl transition-all duration-200 shadow-sm hover:shadow-md ${
                   layoutDirection === 'TB' 
-                    ? 'bg-purple-900/50 text-purple-300 border border-purple-500/30' 
-                    : 'bg-gray-800/70 text-gray-300 border border-gray-600/30 hover:bg-purple-900/30'
+                    ? 'bg-[#6B72FF]/20 text-[#8B7BFF] border border-[#6B72FF]/30 shadow-[#6B72FF]/20' 
+                    : 'backdrop-blur-lg bg-white/5 text-[#9CA3B5] border border-white/10 hover:bg-[#6B72FF]/10'
                 }`}
                 title="Vertical Layout"
               >
@@ -959,8 +968,8 @@ const LanguageTreePage = () => {
                 onClick={() => changeLayout('LR')} 
                 className={`p-3 rounded-xl transition-all duration-200 shadow-sm hover:shadow-md ${
                   layoutDirection === 'LR' 
-                    ? 'bg-purple-900/50 text-purple-300 border border-purple-500/30' 
-                    : 'bg-gray-800/70 text-gray-300 border border-gray-600/30 hover:bg-purple-900/30'
+                    ? 'bg-[#6B72FF]/20 text-[#8B7BFF] border border-[#6B72FF]/30 shadow-[#6B72FF]/20' 
+                    : 'backdrop-blur-lg bg-white/5 text-[#9CA3B5] border border-white/10 hover:bg-[#6B72FF]/10'
                 }`}
                 title="Horizontal Layout"
               >
@@ -976,9 +985,9 @@ const LanguageTreePage = () => {
                 type="checkbox" 
                 checked={autoLayoutOnComplete} 
                 onChange={e => setAutoLayoutOnComplete(e.target.checked)}
-                className="w-4 h-4 text-purple-600 bg-gray-800 border-2 border-gray-600 rounded focus:ring-purple-500 focus:ring-2"
+                className="w-4 h-4 text-[#6B72FF] bg-white/5 border-2 border-white/20 rounded focus:ring-[#6B72FF] focus:ring-2"
               />
-              <span className="text-sm font-medium text-gray-300">Auto layout</span>
+              <span className="text-sm font-medium text-[#F5F7FA]">Auto layout</span>
             </label>
           </div>
 
@@ -986,12 +995,12 @@ const LanguageTreePage = () => {
           {(status !== 'Not connected' && status !== 'Completed') && (
             <div className="mt-4 space-y-2">
               <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-gray-200">{status}</span>
-                
+                <span className="text-sm font-medium text-[#F5F7FA]">{status}</span>
+                <span className="text-sm font-medium text-[#9CA3B5]">{progress}%</span>
               </div>
-              <div className="w-full bg-gray-700/50 rounded-full h-2 overflow-hidden">
+              <div className="w-full backdrop-blur-lg bg-white/5 rounded-full h-2 overflow-hidden border border-white/10">
                 <div 
-                  className="h-full bg-gradient-to-r from-purple-500 to-cyan-600 rounded-full transition-all duration-300 ease-out"
+                  className="h-full bg-gradient-to-r from-[#6B72FF] to-[#8B7BFF] rounded-full transition-all duration-300 ease-out shadow-lg shadow-[#6B72FF]/50"
                   style={{ width: `${progress}%` }}
                 ></div>
               </div>
@@ -1021,26 +1030,26 @@ const LanguageTreePage = () => {
           style={{ background: 'transparent' }}
         >
           <Controls 
-            className="!bg-gray-900/80 !backdrop-blur-xl !border-gray-700/30 !shadow-lg !rounded-xl"
+            className="!bg-white/5 !backdrop-blur-xl !border-white/10 !shadow-lg !rounded-xl"
             style={{
-              background: 'rgba(17, 24, 39, 0.8)',
+              background: 'rgba(255, 255, 255, 0.05)',
               backdropFilter: 'blur(12px)',
-              border: '1px solid rgba(55, 65, 81, 0.3)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
               borderRadius: '12px',
-              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
+              boxShadow: '0 8px 32px rgba(107, 114, 255, 0.2)'
             }}
           />
           <Background 
-            color="#374151" 
+            color="#9CA3B5" 
             gap={20}
             size={1}
-            className="opacity-20"
+            className="opacity-10"
           />
           {/* Floating toolbar for CRUD operations */}
-          <div className="absolute top-4 right-4 z-10 flex items-center gap-2 bg-gray-900/80 backdrop-blur-xl border border-gray-700/30 rounded-xl p-2 shadow-lg">
+          <div className="absolute top-4 right-4 z-10 flex items-center gap-2 backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl p-2 shadow-lg shadow-[#6B72FF]/10">
             <button
               onClick={addStandaloneNode}
-              className="px-3 py-2 text-sm rounded-lg bg-gradient-to-r from-purple-500 to-cyan-600 text-white hover:from-purple-600 hover:to-cyan-700 transition-colors shadow"
+              className="px-3 py-2 text-sm rounded-lg bg-gradient-to-r from-[#6B72FF] to-[#8B7BFF] text-white hover:from-[#7B82FF] hover:to-[#9B8BFF] transition-all shadow-lg shadow-[#6B72FF]/30 hover:scale-105"
               title="Add node"
             >
               Add Node
@@ -1048,7 +1057,7 @@ const LanguageTreePage = () => {
             <button
               onClick={addChildNode}
               disabled={!selectedNodeId}
-              className={`px-3 py-2 text-sm rounded-lg transition-colors shadow ${selectedNodeId ? 'bg-gray-800/70 text-gray-200 hover:bg-purple-900/40 border border-gray-600/40' : 'bg-gray-800/40 text-gray-500 border border-gray-700/30 cursor-not-allowed'}`}
+              className={`px-3 py-2 text-sm rounded-lg transition-all shadow ${selectedNodeId ? 'backdrop-blur-lg bg-white/5 text-[#F5F7FA] hover:bg-[#6B72FF]/20 border border-white/10' : 'bg-white/5 text-[#9CA3B5] border border-white/10 cursor-not-allowed opacity-50'}`}
               title="Add child to selected"
             >
               Add Child
@@ -1056,7 +1065,7 @@ const LanguageTreePage = () => {
             <button
               onClick={editSelectedNode}
               disabled={!selectedNodeId}
-              className={`px-3 py-2 text-sm rounded-lg transition-colors shadow ${selectedNodeId ? 'bg-gray-800/70 text-gray-200 hover:bg-purple-900/40 border border-gray-600/40' : 'bg-gray-800/40 text-gray-500 border border-gray-700/30 cursor-not-allowed'}`}
+              className={`px-3 py-2 text-sm rounded-lg transition-all shadow ${selectedNodeId ? 'backdrop-blur-lg bg-white/5 text-[#F5F7FA] hover:bg-[#6B72FF]/20 border border-white/10' : 'bg-white/5 text-[#9CA3B5] border border-white/10 cursor-not-allowed opacity-50'}`}
               title="Edit selected node"
             >
               Edit
@@ -1064,27 +1073,27 @@ const LanguageTreePage = () => {
             <button
               onClick={deleteSelectedNode}
               disabled={!selectedNodeId}
-              className={`px-3 py-2 text-sm rounded-lg transition-colors shadow ${selectedNodeId ? 'bg-rose-600/80 text-white hover:bg-rose-600' : 'bg-gray-800/40 text-gray-500 border border-gray-700/30 cursor-not-allowed'}`}
+              className={`px-3 py-2 text-sm rounded-lg transition-all shadow ${selectedNodeId ? 'bg-rose-600/80 text-white hover:bg-rose-600 hover:scale-105' : 'bg-white/5 text-[#9CA3B5] border border-white/10 cursor-not-allowed opacity-50'}`}
               title="Delete selected node"
             >
               Delete
             </button>
-                        <button
+            <button
               onClick={deleteSelectedNode}
               disabled={!selectedNodeId}
               title="Delete Selected Node"
-              className="p-2 rounded-lg bg-gray-800/80 hover:bg-red-600/80 text-gray-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg border border-gray-700/50"
+              className="p-2 rounded-lg backdrop-blur-lg bg-white/5 hover:bg-red-600/80 text-[#9CA3B5] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg border border-white/10 hover:scale-105"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
               </svg>
             </button>
-            <div className="w-px h-6 bg-gray-700/50 mx-1" />
+            <div className="w-px h-6 bg-white/10 mx-1" />
             <button
               onClick={exportAsPNG}
               disabled={nodes.length === 0}
               title="Export as PNG"
-              className="p-2 rounded-lg bg-gray-800/80 hover:bg-blue-600/80 text-gray-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg border border-gray-700/50"
+              className="p-2 rounded-lg backdrop-blur-lg bg-white/5 hover:bg-blue-600/80 text-[#9CA3B5] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg border border-white/10 hover:scale-105"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -1094,7 +1103,7 @@ const LanguageTreePage = () => {
               onClick={exportAsPDF}
               disabled={nodes.length === 0}
               title="Export as PDF"
-              className="p-2 rounded-lg bg-gray-800/80 hover:bg-purple-600/80 text-gray-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg border border-gray-700/50"
+              className="p-2 rounded-lg backdrop-blur-lg bg-white/5 hover:bg-purple-600/80 text-[#9CA3B5] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg border border-white/10 hover:scale-105"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
@@ -1112,6 +1121,23 @@ const LanguageTreePage = () => {
         qid={selectedLanguage?.qid}
         category={selectedLanguage?.category}
       />
+
+      <style jsx>{`
+        @keyframes blob {
+          0%, 100% { transform: translate(0px, 0px) scale(1); }
+          33% { transform: translate(30px, -50px) scale(1.1); }
+          66% { transform: translate(-20px, 20px) scale(0.9); }
+        }
+        .animate-blob {
+          animation: blob 7s infinite;
+        }
+        .animation-delay-2000 {
+          animation-delay: 2s;
+        }
+        .animation-delay-4000 {
+          animation-delay: 4s;
+        }
+      `}</style>
     </div>
   );
 };
