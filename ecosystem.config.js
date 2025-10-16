@@ -9,7 +9,7 @@ module.exports = {
       name: 'family-tree-service',
       cwd: './backend/family-tree-service',
       script: 'uv',
-      args: 'run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload',
+      args: 'run python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload',
       autorestart: true,
       watch: false,
       env: {
@@ -22,7 +22,7 @@ module.exports = {
       name: 'language-tree-service',
       cwd: './backend/language-tree-service',
       script: 'uv',
-      args: 'run uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload',
+      args: 'run python -m uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload',
       autorestart: true,
       watch: false,
       env: {
@@ -36,7 +36,7 @@ module.exports = {
       cwd: './backend/species-tree-service',
       script: 'uv',
       // docker-compose maps species service to port 8002; align with that
-      args: 'run uvicorn app.main:app --host 0.0.0.0 --port 8002',
+      args: 'run python -m uvicorn app.main:app --host 0.0.0.0 --port 8002',
       autorestart: true,
       watch: false,
       env: {

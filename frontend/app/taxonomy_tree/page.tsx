@@ -168,6 +168,12 @@ const TaxonomyTreePage = () => {
     });
   }, [setEdges]);
 
+  // Get authentication token from localStorage
+  const getAuthToken = () => {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem('token');
+  };
+
   // Create initial graph from scientific name
   const createTaxonomyGraph = useCallback(async (speciesName: string) => {
     setLoading(true);
@@ -178,7 +184,21 @@ const TaxonomyTreePage = () => {
       let data;
       try {
         const base = process.env.NEXT_PUBLIC_SPECIES_API_URL || 'http://127.0.0.1:8002';
-        const response = await fetch(`${base}/api/v1/taxonomy/${encodeURIComponent(speciesName)}`);
+        const token = getAuthToken();
+        
+        const headers: HeadersInit = {
+          'Content-Type': 'application/json',
+        };
+        
+        // Add Authorization header if token exists
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        
+        const response = await fetch(`${base}/taxonomy/${encodeURIComponent(speciesName)}`, {
+          headers
+        });
+        
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
@@ -273,8 +293,22 @@ const TaxonomyTreePage = () => {
       // Try the real API first, fallback to mock data if service is not available
       let data;
       try {
-  const base = process.env.NEXT_PUBLIC_SPECIES_API_URL || 'http://127.0.0.1:8002';
-  const response = await fetch(`${base}/api/v1/expand/${encodeURIComponent(taxonName)}/${encodeURIComponent(rank.toLowerCase())}`);
+        const base = process.env.NEXT_PUBLIC_SPECIES_API_URL || 'http://127.0.0.1:8002';
+        const token = getAuthToken();
+        
+        const headers: HeadersInit = {
+          'Content-Type': 'application/json',
+        };
+        
+        // Add Authorization header if token exists
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        
+        const response = await fetch(`${base}/expand/${encodeURIComponent(taxonName)}/${encodeURIComponent(rank.toLowerCase())}`, {
+          headers
+        });
+        
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }

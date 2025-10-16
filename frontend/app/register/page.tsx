@@ -9,14 +9,35 @@ function useAuth() {
   
   const register = async ({ email, password, full_name }: { email: string; password: string; full_name: string }) => {
     try {
+      console.log('Sending registration request:', { email, full_name, password: '***' });
+      
       const res = await fetch(`${API_BASE}/api/users/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, full_name }),
       });
-      return res.ok;
-    } catch {
-      return false;
+      
+      console.log('Response status:', res.status);
+      
+      if (!res.ok) {
+        const error = await res.json();
+        console.error('Registration error:', error);
+        
+        // Handle validation errors (422)
+        if (error.errors && Array.isArray(error.errors)) {
+          throw new Error(error.errors.join(', '));
+        }
+        
+        // Handle other errors
+        throw new Error(error.detail || 'Registration failed');
+      }
+      
+      const data = await res.json();
+      console.log('Registration successful:', data);
+      return { success: true };
+    } catch (err) {
+      console.error('Registration exception:', err);
+      return { success: false, error: err instanceof Error ? err.message : 'Registration failed' };
     }
   };
 
@@ -45,9 +66,12 @@ export default function RegisterPage() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    const ok = await register({ email, password, full_name: fullName });
-    if (ok) router.push('/login');
-    else setError('Registration failed');
+    const result = await register({ email, password, full_name: fullName });
+    if (result.success) {
+      router.push('/login');
+    } else {
+      setError(result.error || 'Registration failed');
+    }
   };
 
   return (

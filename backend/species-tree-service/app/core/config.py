@@ -14,7 +14,7 @@ class Config:
     DEBUG: bool = os.getenv("DEBUG", "False").lower() == "true"
     
     # API settings
-    API_PREFIX: str = "/api/v1"
+    API_PREFIX: str = "/api/species"
     
     # External services
     WIKIDATA_ENDPOINT: str = "https://query.wikidata.org/sparql"

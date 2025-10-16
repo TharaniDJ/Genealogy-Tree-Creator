@@ -49,25 +49,7 @@ const RELATIONSHIP_STYLES = {
   },
 };
 
-interface WebSocketMessage {
-  type: 'status' | 'personal_details' | 'relationship' | 'classified_relationships';
-  data: any;
-}
-
-interface PersonDetails {
-  entity: string;
-  qid: string;
-  birth_year?: string;
-  death_year?: string;
-  image_url?: string;
-}
-
-interface Relationship {
-  entity1: string;
-  relationship: string;
-  entity2: string;
-  classification?: string;
-}
+import { WebSocketMessage, PersonDetails, Relationship } from '@/types/websocket';
 
 interface ContextMenu {
   show: boolean;
