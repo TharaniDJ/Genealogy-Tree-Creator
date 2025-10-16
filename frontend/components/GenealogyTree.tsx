@@ -23,29 +23,22 @@ const nodeTypes = {
 
 // Family line colors for visual distinction
 const FAMILY_COLORS = [
-  '#3b82f6', // Blue
-  '#ef4444', // Red
-  '#10b981', // Green
-  '#f59e0b', // Amber
-  '#8b5cf6', // Purple
-  '#06b6d4', // Cyan
-  '#f97316', // Orange
-  '#84cc16', // Lime
+  '#3b82f6', '#ef4444', '#10b981', '#f59e0b',
+  '#8b5cf6', '#06b6d4', '#f97316', '#84cc16',
 ];
 
 // Edge styles for different relationship types
 const RELATIONSHIP_STYLES = {
-  
-  'child of': {  // Changed from 'biological child of'
+  'child of': {
     stroke: '#1f2937', 
     strokeWidth: 3, 
-    strokeDasharray: undefined, // Solid for biological
+    strokeDasharray: undefined,
     label: '' 
   },
-  'adopted by': {  // Changed from 'adopted child of'
+  'adopted by': {
     stroke: '#7c3aed', 
     strokeWidth: 3, 
-    strokeDasharray: '8,4', // Dashed for adopted
+    strokeDasharray: '8,4',
     label: 'adopted' 
   },
   'spouse of': { 
@@ -57,7 +50,7 @@ const RELATIONSHIP_STYLES = {
 };
 
 interface WebSocketMessage {
-  type: 'status' | 'personal_details' | 'relationship';
+  type: 'status' | 'personal_details' | 'relationship' | 'classified_relationships';
   data: any;
 }
 
@@ -73,6 +66,7 @@ interface Relationship {
   entity1: string;
   relationship: string;
   entity2: string;
+  classification?: string;
 }
 
 interface ContextMenu {
@@ -87,6 +81,7 @@ interface GenealogyTreeProps {
   websocketData?: WebSocketMessage[];
   onExpandNode?: (personName: string, depth: number) => void;
   onExpandNodeByQid?: (qid: string, depth: number, entityName?: string) => void;
+  onClassifyRelationships?: (relationships: any[]) => void;
   expandDepth?: number;
 }
 
@@ -94,7 +89,8 @@ function GenealogyTreeInternal({
   websocketData = [], 
   onExpandNode,
   onExpandNodeByQid,
-  expandDepth = 3
+  onClassifyRelationships,
+  expandDepth = 2
 }: GenealogyTreeProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -102,6 +98,7 @@ function GenealogyTreeInternal({
   const [relationships, setRelationships] = useState<Relationship[]>([]);
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState('');
+  const [mainWs, setMainWs] = useState<WebSocket | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenu>({
     show: false,
     x: 0,
@@ -111,13 +108,15 @@ function GenealogyTreeInternal({
   });
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set());
   const [expandingNode, setExpandingNode] = useState<string | null>(null);
+  const [isClassifying, setIsClassifying] = useState(false);
+  const [showClassificationButton, setShowClassificationButton] = useState(false);
+  const [classifiedRelationships, setClassifiedRelationships] = useState<Map<string, string>>(new Map());
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
     [setEdges]
   );
 
-  // Handle node right-click
   const onNodeContextMenu = useCallback((event: React.MouseEvent, node: Node) => {
     event.preventDefault();
     setContextMenu({
@@ -129,24 +128,151 @@ function GenealogyTreeInternal({
     });
   }, []);
 
-  // Hide context menu on click outside
   useEffect(() => {
     const handleClick = () => setContextMenu(prev => ({ ...prev, show: false }));
     document.addEventListener('click', handleClick);
     return () => document.removeEventListener('click', handleClick);
   }, []);
 
-  // Helper function to get node by ID
+useEffect(() => {
+  if (websocketData.length === 0) return;
+  
+  const latestMessage = websocketData[websocketData.length - 1];
+  
+  if (latestMessage.type === 'classified_relationships') {
+    console.log('Received classified relationships:', latestMessage.data);
+    
+    const classified = latestMessage.data.relationships;
+    const classificationMap = new Map<string, string>();
+    
+    // Build classification map using entity names
+    classified.forEach((rel: any) => {
+      if (rel.classification) {
+        const key1 = `${rel.entity1}-${rel.entity2}`;
+        const key2 = `${rel.entity2}-${rel.entity1}`;
+        classificationMap.set(key1, rel.classification);
+        classificationMap.set(key2, rel.classification);
+        
+        console.log(`Classified: ${key1} = ${rel.classification}`);
+      }
+    });
+    
+    // Capture current nodes snapshot
+    const currentNodes = nodes;
+    
+    // Build node ID map - map entity names to node IDs
+    const nodeIdMap = new Map<string, string>();
+    currentNodes.forEach(node => {
+      if (node.data.entity) {
+        nodeIdMap.set(node.data.entity, node.id);
+      }
+    });
+    
+    console.log('Classification map size:', classificationMap.size);
+    console.log('Node ID map size:', nodeIdMap.size);
+    setClassifiedRelationships(classificationMap);
+    setIsClassifying(false);
+    setStatus('Classification complete! Relationships updated.');
+    
+    // Update edges with new classifications
+    setEdges(currentEdges => {
+      console.log('Updating edges, current count:', currentEdges.length);
+      
+      return currentEdges.map(edge => {
+        // Only process parent-child edges
+        if (edge.id.includes('parent-child')) {
+          console.log(`\nChecking edge: ${edge.id}`);
+          console.log(`  Source ID: ${edge.source}, Target ID: ${edge.target}`);
+          
+          // Get entity names from node IDs using captured snapshot
+          const sourceNode = currentNodes.find(n => n.id === edge.source);
+          const targetNode = currentNodes.find(n => n.id === edge.target);
+          
+          if (sourceNode && targetNode) {
+            const parentEntity = sourceNode.data.entity;
+            const childEntity = targetNode.data.entity;
+            
+            console.log(`  Parent: ${parentEntity}, Child: ${childEntity}`);
+            
+            // Check classification
+            const key1 = `${childEntity}-${parentEntity}`;
+            const key2 = `${parentEntity}-${childEntity}`;
+            
+            const classification = classificationMap.get(key1) || classificationMap.get(key2);
+            
+            console.log(`  Classification: ${classification || 'none'}`);
+            
+            if (classification === 'ADOPTIVE') {
+              console.log(`  ✓✓✓ UPDATING to ADOPTIVE style!`);
+              return {
+                ...edge,
+                style: {
+                  stroke: '#7c3aed',
+                  strokeWidth: 3,
+                  strokeDasharray: '8,4',
+                },
+                label: 'adopted',
+                markerEnd: {
+                  type: MarkerType.ArrowClosed,
+                  color: '#7c3aed',
+                },
+              };
+            }
+          } else {
+            console.log(`  ⚠️ Could not find nodes for edge`);
+          }
+        }
+        return edge;
+      });
+    });
+    
+    setTimeout(() => setStatus(''), 3000);
+  }
+}, [websocketData, setEdges]); // Removed 'nodes' dependency to prevent infinite loop
+  useEffect(() => {
+    if (relationships.length > 0 && personDetails.size > 0) {
+      setShowClassificationButton(true);
+    }
+  }, [relationships, personDetails]);
+
+  // Update handleClassifyRelationships:
+const handleClassifyRelationships = useCallback(() => {
+  if (isClassifying || !onClassifyRelationships) {
+    console.log('Cannot classify:', { isClassifying, hasCallback: !!onClassifyRelationships });
+    return;
+  }
+
+  setIsClassifying(true);
+  setStatus('Classifying relationships...');
+
+  const relationshipsToClassify = relationships
+    .filter(rel => 
+      rel.relationship.includes('child of') || 
+      rel.relationship.includes('parent of')
+    )
+    .map(rel => ({
+      entity1: rel.entity1,
+      entity2: rel.entity2,
+      relationship: rel.relationship
+    }));
+
+  console.log('Sending classification request:', {
+    count: relationshipsToClassify.length,
+    sample: relationshipsToClassify.slice(0, 2)
+  });
+
+  // Use the callback passed from parent
+  onClassifyRelationships(relationshipsToClassify);
+}, [relationships, isClassifying, onClassifyRelationships]);
+
+  
   const getNodeById = useCallback((nodeId: string) => {
     return nodes.find(node => node.id === nodeId);
   }, [nodes]);
 
-  // Enhanced assign family colors with adoption awareness
   const assignFamilyColors = useCallback((marriages: Map<string, any>, parentChildRels: Relationship[]) => {
     const familyColors = new Map<string, string>();
-    const usedColors = new Set<string>();
     
-    // Helper to get all ancestors of a person, including adoptive ancestors
     const getAncestors = (person: string, visited: Set<string> = new Set()): string[] => {
       if (visited.has(person)) return [];
       visited.add(person);
@@ -164,7 +290,6 @@ function GenealogyTreeInternal({
       return [...new Set(ancestors)];
     };
 
-    // Helper to assign color to person and all their ancestors
     const assignLineageColor = (person: string, color: string) => {
       if (familyColors.has(person)) return;
       
@@ -177,7 +302,6 @@ function GenealogyTreeInternal({
       });
     };
 
-    // Helper to find an available color that doesn't conflict with existing family members
     const findAvailableColor = (conflictingFamilies: string[]): string => {
       const conflictingColors = new Set(
         conflictingFamilies.map(person => familyColors.get(person)).filter(Boolean)
@@ -192,33 +316,26 @@ function GenealogyTreeInternal({
       return FAMILY_COLORS[Math.floor(Math.random() * FAMILY_COLORS.length)];
     };
 
-    // Process marriages - ensure spouses and their families get different colors
     Array.from(marriages.values()).forEach(marriage => {
       const spouse1 = marriage.spouse1;
       const spouse2 = marriage.spouse2;
       
-      // Get all family members that would conflict with spouse1's color choice
       const spouse1Ancestors = getAncestors(spouse1);
       const spouse2Ancestors = getAncestors(spouse2);
       
-      // Assign color to spouse1's family if not already assigned
       if (!familyColors.has(spouse1)) {
         const conflictingFamilies = [spouse2, ...spouse2Ancestors];
         const spouse1Color = findAvailableColor(conflictingFamilies);
         assignLineageColor(spouse1, spouse1Color);
-        usedColors.add(spouse1Color);
       }
       
-      // Assign color to spouse2's family if not already assigned
       if (!familyColors.has(spouse2)) {
         const conflictingFamilies = [spouse1, ...spouse1Ancestors, ...Array.from(familyColors.keys())];
         const spouse2Color = findAvailableColor(conflictingFamilies);
         assignLineageColor(spouse2, spouse2Color);
-        usedColors.add(spouse2Color);
       }
     });
 
-    // Assign colors to any remaining uncolored people
     Array.from(parentChildRels).forEach(rel => {
       [rel.entity1, rel.entity2].forEach(person => {
         if (!familyColors.has(person)) {
@@ -231,7 +348,6 @@ function GenealogyTreeInternal({
     return familyColors;
   }, []);
 
-  // Enhanced error handling and connection management
   useEffect(() => {
     if (websocketData.length === 0) return;
 
@@ -245,8 +361,6 @@ function GenealogyTreeInternal({
           setExpandingNode(null);
         }
         
-        console.warn('Family tree expansion error:', message);
-        
         setTimeout(() => {
           setStatus('');
           setProgress(0);
@@ -255,23 +369,19 @@ function GenealogyTreeInternal({
     }
   }, [websocketData, expandingNode]);
 
-  // Enhanced expand node functionality
   const handleExpandNode = useCallback((nodeId: string) => {
     const node = getNodeById(nodeId);
     if (node && node.data.qid && onExpandNodeByQid) {
       const qid = node.data.qid;
       const entityName = node.data.entity;
 
-      // Skip expansion if QID is not valid
       if (qid === 'temp' || qid === 'unknown' || !qid.startsWith('Q')) {
         setStatus(`Cannot expand ${entityName}: No valid Wikipedia/Wikidata entry available`);
         setTimeout(() => setStatus(''), 3000);
         return;
       }
 
-      // Prevent duplicate expansion requests
       if (expandingNode === nodeId) {
-        console.log('Node expansion already in progress');
         return;
       }
 
@@ -291,7 +401,6 @@ function GenealogyTreeInternal({
     setContextMenu(prev => ({ ...prev, show: false }));
   }, [getNodeById, onExpandNodeByQid, expandDepth, expandingNode]);
 
-  // Enhanced delete node functionality
   const handleDeleteNode = useCallback((nodeId: string) => {
     const nodeToDelete = nodes.find(node => node.id === nodeId);
     if (!nodeToDelete) return;
@@ -368,7 +477,6 @@ function GenealogyTreeInternal({
     setContextMenu(prev => ({ ...prev, show: false }));
   }, [nodes, edges, setNodes, setEdges]);
 
-  // Enhanced add spouse functionality with name input
   const handleAddSpouse = useCallback((nodeId: string) => {
     const node = getNodeById(nodeId);
     if (!node || node.type !== 'person') return;
@@ -435,7 +543,6 @@ function GenealogyTreeInternal({
     setContextMenu(prev => ({ ...prev, show: false }));
   }, [getNodeById, nodes, edges, setNodes, setEdges]);
 
-  // Enhanced add child functionality with relationship type selection
   const handleAddChild = useCallback((nodeId: string) => {
     const node = getNodeById(nodeId);
     if (!node) return;
@@ -446,7 +553,6 @@ function GenealogyTreeInternal({
       return;
     }
 
-    // Ask for relationship type
     const relationshipType = prompt(
       'Enter relationship type:\n' +
       '1. biological (default)\n' +
@@ -455,8 +561,8 @@ function GenealogyTreeInternal({
       '1'
     );
 
-    let relType = 'child of'; // Changed from 'biological child of'
-    if (relationshipType === '2') relType = 'adopted by'; // Changed from 'adopted child of'
+    let relType = 'child of';
+    if (relationshipType === '2') relType = 'adopted by';
     else if (relationshipType === '3') relType = 'child of';
 
     const childId = `${nodeId}-child-${Date.now()}`;
@@ -464,12 +570,11 @@ function GenealogyTreeInternal({
     let childY = node.position.y + 350;
     let sourceId = nodeId;
 
-    // Get style config with fallback
     const styleConfig = RELATIONSHIP_STYLES[relType as keyof typeof RELATIONSHIP_STYLES] || RELATIONSHIP_STYLES['child of'];
 
     let edgeStyle = {
-      stroke: styleConfig?.stroke || '#1f2937', // Fallback color
-      strokeWidth: styleConfig?.strokeWidth || 3, // Fallback width
+      stroke: styleConfig?.stroke || '#1f2937',
+      strokeWidth: styleConfig?.strokeWidth || 3,
       strokeDasharray: styleConfig?.strokeDasharray,
     };
 
@@ -477,7 +582,7 @@ function GenealogyTreeInternal({
       childX = node.position.x - 25;
       childY = node.position.y + 150;
       sourceId = nodeId;
-      edgeStyle.strokeDasharray = undefined; // Solid line from marriage
+      edgeStyle.strokeDasharray = undefined;
     } 
     else if (node.type === 'person') {
       const marriageNode = nodes.find(n => 
@@ -519,7 +624,7 @@ function GenealogyTreeInternal({
         qid: 'temp',
         nodeType: 'entity' as const,
         isUserAdded: true,
-        relationshipType: relType, // Store relationship type
+        relationshipType: relType,
       },
     };
 
@@ -541,7 +646,6 @@ function GenealogyTreeInternal({
     setContextMenu(prev => ({ ...prev, show: false }));
   }, [getNodeById, nodes, edges, setNodes, setEdges]);
 
-  // Clear expanding state when new data arrives
   useEffect(() => {
     if (expandingNode && websocketData.length > 0) {
       const hasNewData = websocketData.some(msg => 
@@ -553,7 +657,6 @@ function GenealogyTreeInternal({
     }
   }, [websocketData, expandingNode]);
 
-  // Enhanced context menu with adoption support
   const ContextMenuComponent = () => {
     if (!contextMenu.show) return null;
 
@@ -641,7 +744,6 @@ function GenealogyTreeInternal({
     );
   };
 
-  // Process WebSocket messages
   useEffect(() => {
     if (websocketData.length === 0) return;
 
@@ -671,7 +773,6 @@ function GenealogyTreeInternal({
     setProgress(latestProgress);
   }, [websocketData]);
 
-  // Enhanced graph generation with adoption relationship support
   useEffect(() => {
     if (personDetails.size === 0) return;
 
@@ -679,14 +780,11 @@ function GenealogyTreeInternal({
     const newEdges: Edge[] = [];
     
     const PERSON_WIDTH = 200;
-    const PERSON_HEIGHT = 120;
-    const MARRIAGE_WIDTH = 60;
-    const MARRIAGE_HEIGHT = 60;
     const HORIZONTAL_SPACING = 300;
     const VERTICAL_SPACING = 350;
+    const MARRIAGE_WIDTH = 60;
     const MARRIAGE_OFFSET_Y = 220;
     
-    // Separate relationships by type - now including adoption
     const marriageRelationships = relationships.filter(rel => 
       rel.relationship === 'spouse of' || 
       rel.relationship === 'married to' ||
@@ -704,7 +802,6 @@ function GenealogyTreeInternal({
       rel.relationship === 'mother of'
     );
 
-    // Create marriage mappings
     const marriages = new Map<string, { spouse1: string; spouse2: string; children: string[] }>();
     const personToMarriages = new Map<string, string[]>();
 
@@ -726,7 +823,6 @@ function GenealogyTreeInternal({
       }
     });
 
-    // Add children to marriages - enhanced for adoption
     const marriageChildren = new Map<string, string[]>();
 
     parentChildRelationships.forEach(rel => {
@@ -785,10 +881,8 @@ function GenealogyTreeInternal({
       }
     });
 
-    // Assign family colors with adoption awareness
     const familyColors = assignFamilyColors(marriages, parentChildRelationships);
 
-    // Generation calculation - enhanced for adoption
     const generations = new Map<string, number>();
     const visited = new Set<string>();
     
@@ -807,6 +901,7 @@ function GenealogyTreeInternal({
       !peopleWithParents.has(person)
     );
     
+        
     const rootPerson = rootCandidates.length > 0 ? rootCandidates[0] : Array.from(personDetails.keys())[0];
     
     const queue: { person: string; generation: number }[] = [{ person: rootPerson, generation: 0 }];
@@ -1037,74 +1132,86 @@ function GenealogyTreeInternal({
       });
 
     // Create parent-child relationships with enhanced adoption support
-    parentChildRelationships.forEach((rel, index) => {
-      let parent, child;
-      
-      if (rel.relationship === 'biological child of' || 
-          rel.relationship === 'adopted child of' || 
-          rel.relationship === 'child of') {
-        parent = rel.entity2;
-        child = rel.entity1;
-      } else if (rel.relationship === 'parent of' || 
-                 rel.relationship === 'father of' || 
-                 rel.relationship === 'mother of') {
-        parent = rel.entity1;
-        child = rel.entity2;
-      } else {
-        return;
-      }
-      
-      const hasParentNode = newNodes.some(n => n.id === parent);
-      const hasChildNode = newNodes.some(n => n.id === child);
-      
-      if (!hasParentNode || !hasChildNode) return;
-      
-      // Check if parent is in a marriage with children
-      let sourceId = parent;
-      let isFromMarriage = false;
-      const parentMarriages = personToMarriages.get(parent) || [];
-      
-      for (const marriageId of parentMarriages) {
-        const marriage = marriages.get(marriageId);
-        if (marriage && marriage.children.includes(child)) {
-          sourceId = marriageId;
-          isFromMarriage = true;
-          break;
-        }
-      }
-      
-      // Get relationship style based on relationship type
-      const styleConfig = RELATIONSHIP_STYLES[rel.relationship as keyof typeof RELATIONSHIP_STYLES] || 
-                         RELATIONSHIP_STYLES['child of'];
-      
-      const parentColor = familyColors.get(parent) || styleConfig.stroke;
-      
-      // Only create edge if we haven't already created one for this parent-child pair
-      const existingEdge = newEdges.find(edge => 
-        edge.source === sourceId && edge.target === child && edge.id.includes('parent-child')
-      );
-      
-      if (!existingEdge) {
-        newEdges.push({
-          id: `parent-child-${parent}-${child}-${index}`,
-          source: sourceId,
-          target: child,
-          type: 'smoothstep',
-          style: {
-            stroke: parentColor,
-            strokeWidth: styleConfig.strokeWidth,
-            strokeDasharray: styleConfig.strokeDasharray,
-          },
-          markerEnd: {
-            type: MarkerType.ArrowClosed,
-            color: parentColor,
-          },
-          label: isFromMarriage ? undefined : 
-                 (rel.relationship === 'adopted child of' ? 'adopted' : 
-                  !isFromMarriage ? `${parent.split(' ')[0]}'s child` : undefined),
-        });
-      }
+    // Create parent-child relationships with enhanced adoption support
+parentChildRelationships.forEach((rel, index) => {
+  let parent, child;
+  
+  if (rel.relationship === 'biological child of' || 
+      rel.relationship === 'adopted child of' || 
+      rel.relationship === 'child of') {
+    parent = rel.entity2;
+    child = rel.entity1;
+  } else if (rel.relationship === 'parent of' || 
+             rel.relationship === 'father of' || 
+             rel.relationship === 'mother of') {
+    parent = rel.entity1;
+    child = rel.entity2;
+  } else {
+    return;
+  }
+  
+  const hasParentNode = newNodes.some(n => n.id === parent);
+  const hasChildNode = newNodes.some(n => n.id === child);
+  
+  if (!hasParentNode || !hasChildNode) return;
+  
+  // Check if parent is in a marriage with children
+  let sourceId = parent;
+  let isFromMarriage = false;
+  const parentMarriages = personToMarriages.get(parent) || [];
+  
+  for (const marriageId of parentMarriages) {
+    const marriage = marriages.get(marriageId);
+    if (marriage && marriage.children.includes(child)) {
+      sourceId = marriageId;
+      isFromMarriage = true;
+      break;
+    }
+  }
+  
+  // Check if this relationship has been classified as adoptive
+  const classificationKey1 = `${parent}-${child}`;
+  const classificationKey2 = `${child}-${parent}`;
+  const isAdoptive = classifiedRelationships.get(classificationKey1) === 'ADOPTIVE' || 
+                     classifiedRelationships.get(classificationKey2) === 'ADOPTIVE';
+  
+  // Get relationship style based on relationship type OR classification
+  let styleConfig;
+  if (isAdoptive) {
+    styleConfig = RELATIONSHIP_STYLES['adopted by'];
+  } else {
+    styleConfig = RELATIONSHIP_STYLES[rel.relationship as keyof typeof RELATIONSHIP_STYLES] || 
+                  RELATIONSHIP_STYLES['child of'];
+  }
+  
+  const parentColor = isAdoptive ? '#7c3aed' : (familyColors.get(parent) || styleConfig.stroke);
+  
+  // Only create edge if we haven't already created one for this parent-child pair
+  const existingEdge = newEdges.find(edge => 
+    edge.source === sourceId && edge.target === child && edge.id.includes('parent-child')
+  );
+  
+  if (!existingEdge) {
+    newEdges.push({
+      id: `parent-child-${parent}-${child}-${index}`,
+      source: sourceId,
+      target: child,
+      type: 'smoothstep',
+      style: {
+        stroke: parentColor,
+        strokeWidth: styleConfig.strokeWidth,
+        strokeDasharray: styleConfig.strokeDasharray,
+      },
+      markerEnd: {
+        type: MarkerType.ArrowClosed,
+        color: parentColor,
+      },
+      label: isFromMarriage ? undefined : 
+             (isAdoptive || rel.relationship === 'adopted child of' ? 'adopted' : 
+              !isFromMarriage ? `${parent.split(' ')[0]}'s child` : undefined),
     });
+  }
+});
     
     console.log(`Generated tree with adoption support: ${newNodes.length} nodes, ${newEdges.length} edges`);
     console.log(`Marriages found: ${marriages.size}`);
@@ -1112,7 +1219,7 @@ function GenealogyTreeInternal({
 
     setNodes(newNodes);
     setEdges(newEdges);
-  }, [personDetails, relationships, setNodes, setEdges, expandedNodes, assignFamilyColors]);
+  }, [personDetails, relationships, setNodes, setEdges, expandedNodes, assignFamilyColors,classifiedRelationships]);
 
   return (
     <div className="absolute inset-0 w-full h-full">
@@ -1142,7 +1249,32 @@ function GenealogyTreeInternal({
           </div>
         </div>
       )}
+      {/* Classification Button - Add this AFTER the status panel */}
+      {showClassificationButton && !isClassifying && nodes.length > 0 && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10">
+          <button
+            onClick={handleClassifyRelationships}
+            className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg shadow-lg font-semibold flex items-center space-x-2 transition-all"
+            disabled={isClassifying}
+          >
+            <span>🔍</span>
+            <span>Classify Biological/Adoptive Relationships</span>
+          </button>
+        </div>
+      )}
 
+      {/* Classification Progress - Show while classifying */}
+      {isClassifying && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 bg-purple-100 border-2 border-purple-500 p-4 rounded-lg shadow-lg max-w-md">
+          <div className="flex items-center space-x-3">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
+            <div>
+              <p className="text-purple-800 font-semibold">Classifying relationships...</p>
+              <p className="text-purple-600 text-sm">Using AI to identify biological vs adoptive</p>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Enhanced Instructions with adoption info */}
       {nodes.length > 0 && (
         <div className="absolute bottom-4 left-4 z-10 bg-white p-3 rounded-lg shadow-md max-w-xs">
@@ -1235,3 +1367,4 @@ export default function GenealogyTree(props: GenealogyTreeProps) {
     </ReactFlowProvider>
   );
 }
+

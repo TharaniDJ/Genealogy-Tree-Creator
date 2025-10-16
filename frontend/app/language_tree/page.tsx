@@ -13,29 +13,169 @@ import ReactFlow, {
   Edge,
   Connection,
   Position,
+  MarkerType,
+  useReactFlow,
+  getRectOfNodes,
+  getTransformForBounds,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import dagre from 'dagre';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import LanguageNode from '../../components/LanguageNode';
 import LanguageDetailsSidebar from '../../components/LanguageDetailsSidebar';
+import { toPng, toJpeg } from 'html-to-image';
+import jsPDF from 'jspdf';
 
-// Dagre layouting
-const dagreGraph = new dagre.graphlib.Graph();
-dagreGraph.setDefaultEdgeLabel(() => ({}));
+const MIN_NODE_WIDTH = 200;
+const MAX_NODE_WIDTH = 360;
+const LABEL_CHAR_PIXEL_WIDTH = 7.5;
+const BASE_NODE_HEIGHT = 56;
+const LINE_HEIGHT = 18;
+const HEAVY_CHILD_THRESHOLD = 10;
+const HEAVY_PARENT_EXTRA_BASE = 80;
+const HEAVY_PARENT_EXTRA_PER_CHILD = 6;
 
-const nodeWidth = 172;
-const nodeHeight = 36;
-
-type LanguageNodeData = { label: string; meta?: string; category?: string; qid?: string; onExpand?: () => void };
+type LanguageNodeData = {
+  label: string;
+  meta?: string;
+  category?: string;
+  qid?: string;
+  onExpand?: () => void;
+};
 type LanguageRFNode = Node<LanguageNodeData>;
 
-const getLayoutedElements = (nodes: LanguageRFNode[], edges: Edge[], direction = 'TB') => {
-  const isHorizontal = direction === 'LR';
-  dagreGraph.setGraph({ rankdir: direction });
+type LevelAnalysis = {
+  levelMap: Map<string, number>;
+  adjacency: Map<string, string[]>;
+};
+
+type RelationshipRecord = {
+  language1: string;
+  language2: string;
+  relationship: string;
+  language1_qid?: string;
+  language2_qid?: string;
+  language1_category?: string;
+  language2_category?: string;
+};
+
+type InboundMessage = {
+  type: string;
+  data?: unknown;
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const toRelationshipRecord = (value: unknown): RelationshipRecord | null => {
+  if (!isRecord(value)) return null;
+  const language1 = typeof value.language1 === 'string' ? value.language1 : undefined;
+  const language2 = typeof value.language2 === 'string' ? value.language2 : undefined;
+  if (!language1 || !language2) return null;
+  const relationship = typeof value.relationship === 'string' ? value.relationship : 'Child of';
+  return {
+    language1,
+    language2,
+    relationship,
+    language1_qid: typeof value.language1_qid === 'string' ? value.language1_qid : undefined,
+    language2_qid: typeof value.language2_qid === 'string' ? value.language2_qid : undefined,
+    language1_category: typeof value.language1_category === 'string' ? value.language1_category : undefined,
+    language2_category: typeof value.language2_category === 'string' ? value.language2_category : undefined,
+  };
+};
+
+const calculateNodeDimensions = (node: LanguageRFNode) => {
+  const label = node.data?.label ?? '';
+  const meta = node.data?.meta ?? '';
+  const estimatedWidth = Math.min(
+    MAX_NODE_WIDTH,
+    Math.max(MIN_NODE_WIDTH, 80 + label.length * 6.5)
+  );
+  const charsPerLine = Math.max(14, Math.floor(estimatedWidth / LABEL_CHAR_PIXEL_WIDTH));
+  const labelLines = Math.max(1, Math.ceil(label.length / charsPerLine));
+  const metaLines = meta ? Math.max(1, Math.ceil(meta.length / charsPerLine)) : 0;
+  const height = BASE_NODE_HEIGHT + (labelLines - 1) * LINE_HEIGHT + metaLines * LINE_HEIGHT;
+  return { width: Math.round(estimatedWidth), height: Math.round(height) };
+};
+
+const computeHierarchyLevels = (nodes: LanguageRFNode[], edges: Edge[]): LevelAnalysis => {
+  const adjacency = new Map<string, string[]>();
+  const indegree = new Map<string, number>();
 
   nodes.forEach(node => {
-    dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight });
+    adjacency.set(node.id, []);
+    indegree.set(node.id, 0);
+  });
+
+  edges.forEach(edge => {
+    if (!edge.source || !edge.target) return;
+    if (!adjacency.has(edge.source)) {
+      adjacency.set(edge.source, []);
+    }
+    adjacency.get(edge.source)!.push(edge.target);
+    indegree.set(edge.target, (indegree.get(edge.target) ?? 0) + 1);
+    if (!indegree.has(edge.source)) {
+      indegree.set(edge.source, 0);
+    }
+  });
+
+  const queue: string[] = [];
+  indegree.forEach((deg, id) => {
+    if (deg === 0) {
+      queue.push(id);
+    }
+  });
+
+  const levelMap = new Map<string, number>();
+
+  queue.forEach(id => {
+    if (!levelMap.has(id)) {
+      levelMap.set(id, 0);
+    }
+  });
+
+  while (queue.length) {
+    const id = queue.shift()!;
+    const level = levelMap.get(id) ?? 0;
+
+    const neighbours = adjacency.get(id) ?? [];
+    neighbours.forEach(target => {
+      const candidateLevel = Math.max(levelMap.get(target) ?? 0, level + 1);
+      levelMap.set(target, candidateLevel);
+      const remaining = (indegree.get(target) ?? 0) - 1;
+      indegree.set(target, remaining);
+      if (remaining === 0) {
+        queue.push(target);
+      }
+    });
+  }
+
+  nodes.forEach(node => {
+    if (!levelMap.has(node.id)) {
+      levelMap.set(node.id, 0);
+    }
+  });
+
+  return { levelMap, adjacency };
+};
+
+const getLayoutedElements = (nodes: LanguageRFNode[], edges: Edge[], direction = 'TB') => {
+  const dagreGraph = new dagre.graphlib.Graph();
+  dagreGraph.setDefaultEdgeLabel(() => ({}));
+  const isHorizontal = direction === 'LR';
+  const { adjacency } = computeHierarchyLevels(nodes, edges);
+
+  const baseRankSep = isHorizontal ? 140 : 160;
+  const baseNodeSep = isHorizontal ? 120 : 110;
+
+  dagreGraph.setGraph({ rankdir: direction, ranksep: baseRankSep, nodesep: baseNodeSep });
+
+  const dimensionCache = new Map<string, { width: number; height: number }>();
+
+  nodes.forEach(node => {
+    const dims = calculateNodeDimensions(node);
+    dimensionCache.set(node.id, dims);
+    dagreGraph.setNode(node.id, { width: dims.width, height: dims.height });
   });
   edges.forEach(edge => {
     dagreGraph.setEdge(edge.source, edge.target);
@@ -43,12 +183,45 @@ const getLayoutedElements = (nodes: LanguageRFNode[], edges: Edge[], direction =
 
   dagre.layout(dagreGraph);
 
+  const heavySpacingOffsets = new Map<string, number>();
+  if (!isHorizontal) {
+  adjacency.forEach((children) => {
+      if (!children || children.length < HEAVY_CHILD_THRESHOLD) return;
+      const childCount = children.length;
+      const extra = HEAVY_PARENT_EXTRA_BASE + (childCount - HEAVY_CHILD_THRESHOLD) * HEAVY_PARENT_EXTRA_PER_CHILD;
+      const queue = [...children];
+      const visited = new Set<string>();
+      while (queue.length) {
+        const nodeId = queue.shift()!;
+        if (visited.has(nodeId)) continue;
+        visited.add(nodeId);
+        heavySpacingOffsets.set(nodeId, Math.max(heavySpacingOffsets.get(nodeId) ?? 0, extra));
+        const descendants = adjacency.get(nodeId);
+        if (descendants && descendants.length) {
+          queue.push(...descendants);
+        }
+      }
+    });
+  }
+
   nodes.forEach(node => {
     const pos = dagreGraph.node(node.id);
     if (!pos) return;
     node.targetPosition = isHorizontal ? Position.Left : Position.Top;
     node.sourcePosition = isHorizontal ? Position.Right : Position.Bottom;
-    node.position = { x: pos.x - nodeWidth / 2, y: pos.y - nodeHeight / 2 };
+    const dims = dimensionCache.get(node.id);
+    const width = dims?.width ?? MIN_NODE_WIDTH;
+    const height = dims?.height ?? BASE_NODE_HEIGHT;
+    const heavyOffset = !isHorizontal ? heavySpacingOffsets.get(node.id) ?? 0 : 0;
+    node.position = {
+      x: pos.x - width / 2,
+      y: pos.y - height / 2 + heavyOffset,
+    };
+    node.style = {
+      ...(node.style || {}),
+      width,
+      minWidth: width,
+    };
   });
   return { nodes, edges };
 };
@@ -74,6 +247,9 @@ const LanguageTreePage = () => {
     category?: string;
   } | null>(null);
 
+  const { getNodes } = useReactFlow();
+  const reactFlowRef = useRef<HTMLDivElement>(null);
+
   const wsBase = process.env.NEXT_PUBLIC_LANGUAGE_API_URL || 'http://localhost:8001';
   const wsUrl = wsBase.replace(/^http/, 'ws') + '/ws/relationships';
   const { messages, connectionStatus, connect, disconnect, sendMessage } = useWebSocket(wsUrl);
@@ -91,6 +267,31 @@ const LanguageTreePage = () => {
 
   const nodeTypes = useMemo(() => ({ language: LanguageNode }), []);
 
+  const defaultEdgeOptions = useMemo(() => ({
+    type: 'simplebezier' as const,
+    animated: true,
+    style: { stroke: '#38bdf8', strokeWidth: 2, opacity: 0.95 },
+    markerEnd: {
+      type: MarkerType.ArrowClosed,
+      width: 16,
+      height: 16,
+      color: '#38bdf8',
+    },
+  }), []);
+
+  const createEdge = useCallback((source: string, target: string) => {
+    const id = `e-${source}-${target}`;
+    return {
+      id,
+      source,
+      target,
+  type: 'simplebezier',
+      animated: true,
+      markerEnd: defaultEdgeOptions.markerEnd ? { ...defaultEdgeOptions.markerEnd } : undefined,
+      style: defaultEdgeOptions.style ? { ...defaultEdgeOptions.style } : undefined,
+    } as Edge;
+  }, [defaultEdgeOptions]);
+
   const layout = useCallback((direction: 'TB' | 'LR' = layoutDirection) => {
     setNodes(prevNodes => {
       setEdges(prevEdges => {
@@ -105,22 +306,31 @@ const LanguageTreePage = () => {
 
   // Mapping label -> node id to avoid duplicates; stored in ref to persist across renders without causing rerenders
   const labelToIdRef = useRef<Map<string,string>>(new Map());
-  const idCollisionCounterRef = useRef<Record<string, number>>({});
 
   const slugify = (label: string) => label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$|/g, '').slice(0,40) || 'lang';
+
+  const humanizeCategory = useCallback((cat?: string) => {
+    if (!cat) return '';
+    return cat.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase());
+  }, []);
+
+  const expandNodeByQid = useCallback((qid: string) => {
+    if (!qid) return;
+    if (expandedQidsRef.current.has(qid)) return;
+    expandedQidsRef.current.add(qid);
+    setStatus(`Expanding ${qid}...`);
+    setProgress(0);
+    sendMessage({ action: 'expand_by_qid', qid, depth: 1 });
+  }, [sendMessage]);
 
   const ensureNode = useCallback((label: string, category?: string, qid?: string) => {
     if (!label) return null;
     const map = labelToIdRef.current;
     if (map.has(label)) return map.get(label)!;
-    let base = slugify(label);
+    const base = slugify(label);
     // resolve collisions with existing ids mapping to different labels
     let id = base;
     let attempts = 1;
-    const existingIds = new Set<string>();
-    // collect existing node ids cheaply
-    // NOTE: using current nodes state directly is fine inside setNodes callback but here we rely on ref; resolve lazily
-    // We'll detect collisions when adding.
     while ([...map.values()].includes(id)) {
       attempts += 1;
       id = `${base}-${attempts}`;
@@ -156,12 +366,7 @@ const LanguageTreePage = () => {
       }];
     });
     return id;
-  }, [setNodes]);
-
-  const humanizeCategory = (cat?: string) => {
-    if (!cat) return '';
-    return cat.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase());
-  };
+  }, [expandNodeByQid, humanizeCategory, setNodes]);
 
   // Helpers to prompt user for input in a simple way
   const promptForLabel = useCallback((defaultValue = '') => {
@@ -219,10 +424,10 @@ const LanguageTreePage = () => {
     const edgeId = `e-${selectedNodeId}-${childId}`;
     setEdges(prev => {
       if (prev.some(e => e.id === edgeId)) return prev;
-      return [...prev, { id: edgeId, source: selectedNodeId, target: childId!, type: 'smoothstep', animated: true }];
+      return [...prev, createEdge(selectedNodeId, childId!)];
     });
     setTimeout(() => layout(layoutDirection), 0);
-  }, [ensureNode, layout, layoutDirection, nodes, selectedNodeId, promptForLabel, promptForCategory, setEdges]);
+  }, [createEdge, ensureNode, layout, layoutDirection, nodes, selectedNodeId, promptForLabel, promptForCategory, setEdges]);
 
   // CRUD: Edit the selected node's label/category
   const editSelectedNode = useCallback(() => {
@@ -281,20 +486,22 @@ const LanguageTreePage = () => {
   useEffect(() => {
     if (!messages.length) return;
     for (let i = lastProcessedIndexRef.current; i < messages.length; i++) {
-      const msg: any = messages[i];
-      if (!msg || i < searchSessionStartRef.current) continue;
+      const msg = messages[i] as InboundMessage;
+      if (!msg || typeof msg.type !== 'string' || i < searchSessionStartRef.current) continue;
+      const data = isRecord(msg.data) ? msg.data : undefined;
       switch (msg.type) {
         case 'status': {
-          if (msg.data) {
-            setStatus(msg.data.message || '');
-            if (typeof msg.data.progress === 'number') setProgress(msg.data.progress);
+          if (data) {
+            const messageText = typeof data.message === 'string' ? data.message : '';
+            const progressValue = typeof data.progress === 'number' ? data.progress : undefined;
+            if (messageText) setStatus(messageText);
+            if (typeof progressValue === 'number') setProgress(progressValue);
           }
           break; }
         case 'root_language': {
-          const d = msg.data || {};
-          const qid: string | undefined = d.qid || undefined;
-          const label: string | undefined = d.label || undefined;
-          const primaryType: string | undefined = d.primary_type || undefined;
+          const qid = data && typeof data.qid === 'string' ? data.qid : undefined;
+          const label = data && typeof data.label === 'string' ? data.label : undefined;
+          const primaryType = data && typeof data.primary_type === 'string' ? data.primary_type : undefined;
           if (label) {
             const id = labelToIdRef.current.get(label);
             if (id) {
@@ -315,67 +522,32 @@ const LanguageTreePage = () => {
           }
           break; }
         case 'relationship': {
-          const d = msg.data || {};
-          const l1: string = d.language1;
-          const l2: string = d.language2;
-          const c1: string | undefined = d.language1_category || undefined;
-          const c2: string | undefined = d.language2_category || undefined;
-          const qid1: string | undefined = d.language1_qid || undefined;
-          const qid2: string | undefined = d.language2_qid || undefined;
-          if (l1 && l2) {
-            const childLabel = d.relationship === 'Child of' ? l1 : l1; // current backend only emits 'Child of'
-            const parentLabel = d.relationship === 'Child of' ? l2 : l2;
-            const childQid = d.relationship === 'Child of' ? qid1 : qid1;
-            const parentQid = d.relationship === 'Child of' ? qid2 : qid2;
-            const parentId = ensureNode(parentLabel, c2, parentQid);
-            const childId = ensureNode(childLabel, c1, childQid);
-            if (parentId && childId) {
-              const edgeId = `e-${parentId}-${childId}`;
-              setEdges(prev => {
-                const edgeExists = prev.some(e => e.id === edgeId);
-                if (!edgeExists) {
-                  // Schedule layout after the edge is added
-                  setTimeout(() => layout('TB'), 100);
-                  return [...prev, { id: edgeId, source: parentId, target: childId, type: 'smoothstep', animated: true }];
-                }
-                return prev;
-              });
-
-              // Update nodes to include expand handlers if missing
-              setNodes(prev => prev.map(n => {
-                if (n.id === parentId && parentQid && !n.data.onExpand) {
-                  return { ...n, data: { ...n.data, qid: parentQid, onExpand: () => expandNodeByQid(parentQid) } };
-                }
-                if (n.id === childId && childQid && !n.data.onExpand) {
-                  return { ...n, data: { ...n.data, qid: childQid, onExpand: () => expandNodeByQid(childQid) } };
-                }
-                return n;
-              }));
-            }
-          }
-          break; }
-        case 'complete': {
-          completeRef.current = true;
-          setStatus('Completed');
-          setProgress(100);
-          if (autoLayoutOnComplete) setTimeout(() => layout(), 0);
-          // Optionally process any relationships included in final payload not seen during stream
-          const rels = msg.data?.relationships;
-          if (Array.isArray(rels)) {
-            for (const r of rels) {
-              const l1 = r.language1; const l2 = r.language2;
-              if (!l1 || !l2) continue;
-              const parentLabel = r.relationship === 'Child of' ? l2 : l2;
-              const childLabel = r.relationship === 'Child of' ? l1 : l1;
-              const parentQid = r.relationship === 'Child of' ? r.language2_qid : r.language2_qid;
-              const childQid = r.relationship === 'Child of' ? r.language1_qid : r.language1_qid;
-              const parentId = ensureNode(parentLabel, r.language2_category, parentQid);
-              const childId = ensureNode(childLabel, r.language1_category, childQid);
+          if (data) {
+            const l1 = typeof data.language1 === 'string' ? data.language1 : undefined;
+            const l2 = typeof data.language2 === 'string' ? data.language2 : undefined;
+            const c1 = typeof data.language1_category === 'string' ? data.language1_category : undefined;
+            const c2 = typeof data.language2_category === 'string' ? data.language2_category : undefined;
+            const qid1 = typeof data.language1_qid === 'string' ? data.language1_qid : undefined;
+            const qid2 = typeof data.language2_qid === 'string' ? data.language2_qid : undefined;
+            const relationship = typeof data.relationship === 'string' ? data.relationship : 'Child of';
+            if (l1 && l2) {
+              const childLabel = relationship === 'Child of' ? l1 : l1;
+              const parentLabel = relationship === 'Child of' ? l2 : l2;
+              const childQid = relationship === 'Child of' ? qid1 : qid1;
+              const parentQid = relationship === 'Child of' ? qid2 : qid2;
+              const parentId = ensureNode(parentLabel, c2, parentQid);
+              const childId = ensureNode(childLabel, c1, childQid);
               if (parentId && childId) {
                 const edgeId = `e-${parentId}-${childId}`;
-                setEdges(prev => prev.some(e => e.id === edgeId) ? prev : [...prev, { id: edgeId, source: parentId, target: childId, type: 'smoothstep', animated: true }]);
+                setEdges(prev => {
+                  const edgeExists = prev.some(e => e.id === edgeId);
+                  if (!edgeExists) {
+                    setTimeout(() => layout('TB'), 100);
+                    return [...prev, createEdge(parentId, childId)];
+                  }
+                  return prev;
+                });
 
-                // ensure expand handlers
                 setNodes(prev => prev.map(n => {
                   if (n.id === parentId && parentQid && !n.data.onExpand) {
                     return { ...n, data: { ...n.data, qid: parentQid, onExpand: () => expandNodeByQid(parentQid) } };
@@ -389,8 +561,46 @@ const LanguageTreePage = () => {
             }
           }
           break; }
+        case 'complete': {
+          completeRef.current = true;
+          setStatus('Completed');
+          setProgress(100);
+          if (autoLayoutOnComplete) setTimeout(() => layout(), 0);
+          // Optionally process any relationships included in final payload not seen during stream
+          if (data) {
+            const relationshipsValue = Array.isArray(data.relationships)
+              ? data.relationships
+              : [];
+            const parsedRelationships = relationshipsValue
+              .map(toRelationshipRecord)
+              .filter((r): r is RelationshipRecord => r !== null);
+            for (const r of parsedRelationships) {
+              const parentLabel = r.relationship === 'Child of' ? r.language2 : r.language2;
+              const childLabel = r.relationship === 'Child of' ? r.language1 : r.language1;
+              if (!parentLabel || !childLabel) continue;
+              const parentId = ensureNode(parentLabel, r.language2_category, r.language2_qid);
+              const childId = ensureNode(childLabel, r.language1_category, r.language1_qid);
+              if (parentId && childId) {
+                const edgeId = `e-${parentId}-${childId}`;
+                setEdges(prev => prev.some(e => e.id === edgeId) ? prev : [...prev, createEdge(parentId, childId)]);
+                setNodes(prev => prev.map(n => {
+                  if (n.id === parentId && r.language2_qid && !n.data.onExpand) {
+                    const qid = r.language2_qid;
+                    return { ...n, data: { ...n.data, qid, onExpand: () => expandNodeByQid(qid) } };
+                  }
+                  if (n.id === childId && r.language1_qid && !n.data.onExpand) {
+                    const qid = r.language1_qid;
+                    return { ...n, data: { ...n.data, qid, onExpand: () => expandNodeByQid(qid) } };
+                  }
+                  return n;
+                }));
+              }
+            }
+          }
+          break; }
         case 'error': {
-          setStatus(`Error: ${msg.data?.message || 'Unknown error'}`);
+          const messageText = data && typeof data.message === 'string' ? data.message : 'Unknown error';
+          setStatus(`Error: ${messageText}`);
           setProgress(100);
           break; }
         default:
@@ -398,38 +608,35 @@ const LanguageTreePage = () => {
       }
     }
     lastProcessedIndexRef.current = messages.length;
-  }, [messages, autoLayoutOnComplete, layout, ensureNode, setEdges]);
+  }, [messages, autoLayoutOnComplete, layout, ensureNode, setEdges, createEdge, expandNodeByQid, humanizeCategory, setNodes]);
 
-  const handleSearch = useCallback(() => {
-    console.info(`[RF] New search: language='${language}', depth=${depth}`);
-    // reset
+  const resetGraphState = useCallback((statusMessage: string) => {
     setNodes([]);
     setEdges([]);
     labelToIdRef.current = new Map();
-    setStatus('Searching...');
+    setStatus(statusMessage);
     setProgress(0);
     completeRef.current = false;
     searchSessionStartRef.current = messages.length;
     lastProcessedIndexRef.current = messages.length;
-    // create root node immediately
-    const rootLabel = language.trim();
-    //if (rootLabel) {
-    //  const rootId = rootLabel.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$|/g,'') || 'root';
-    //  labelToIdRef.current.set(rootLabel, rootId);
-    //  setNodes([{ id: rootId, data: { label: rootLabel }, position: { x: 0, y: 0 }, type: 'language' }]);
-    //}
-    sendMessage(`${language},${depth}`);
-  }, [language, depth, messages.length, sendMessage, setNodes, setEdges]);
+  }, [messages.length, setEdges, setNodes]);
 
-  // Expand logic: request depth-1 relationship
-  const expandNodeByQid = useCallback((qid: string) => {
-    if (!qid) return;
-    if (expandedQidsRef.current.has(qid)) return; // avoid duplicate expand calls
-    expandedQidsRef.current.add(qid);
-    setStatus(`Expanding ${qid}...`);
-    setProgress(0);
-    sendMessage({ action: 'expand_by_qid', qid, depth: 1 });
-  }, [sendMessage]);
+  const handleSearch = useCallback(() => {
+    console.info(`[RF] New search: language='${language}', depth=${depth}`);
+    resetGraphState('Searching...');
+    sendMessage(`${language},${depth}`);
+  }, [language, depth, resetGraphState, sendMessage]);
+
+  const handleSearchFull = useCallback(() => {
+    console.info(`[RF] New full-tree search: language='${language}'`);
+    const rootLabel = language.trim();
+    if (!rootLabel) {
+      setStatus('Please enter a language name.');
+      return;
+    }
+    resetGraphState('Fetching full language tree...');
+    sendMessage({ action: 'fetch_full_tree', language: rootLabel });
+  }, [language, resetGraphState, sendMessage]);
 
   const changeLayout = (dir: 'TB' | 'LR') => {
     setLayoutDirection(dir);
@@ -437,21 +644,22 @@ const LanguageTreePage = () => {
   };
 
   // Build current relationships payload from edges + nodes' labels/qids/categories
-  const buildRelationshipsPayload = useCallback(() => {
+  const buildRelationshipsPayload = useCallback((): RelationshipRecord[] => {
     const idToNode = new Map(nodes.map(n => [n.id, n] as const));
     // relationships: parent (source) -> child (target)
     return edges.map(e => {
       const parent = idToNode.get(e.source);
       const child = idToNode.get(e.target);
-      return {
-        language1: child?.data.label || '',
+      const record: RelationshipRecord = {
+        language1: child?.data.label ?? '',
         relationship: 'Child of',
-        language2: parent?.data.label || '',
+        language2: parent?.data.label ?? '',
         language1_qid: child?.data.qid,
         language2_qid: parent?.data.qid,
         language1_category: child?.data.category,
         language2_category: parent?.data.category,
-      } as any;
+      };
+      return record;
     });
   }, [edges, nodes]);
 
@@ -480,28 +688,37 @@ const LanguageTreePage = () => {
       }
       const saved = await res.json();
       setStatus(`Saved graph "${saved.name}"`);
-    } catch (err: any) {
-      console.error('Save graph failed', err);
-      setStatus(`Error saving graph: ${err?.message || err}`);
+    } catch (err: unknown) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      console.error('Save graph failed', error);
+      setStatus(`Error saving graph: ${error.message}`);
     }
   }, [buildRelationshipsPayload, depth, language, nodes.length]);
 
   // Highlight edges connected to selected node without mutating core edge state
   const displayEdges = useMemo(() => {
     if (!selectedNodeId) return edges;
+    const tintMarker = (marker: Edge['markerEnd'], color: string): Edge['markerEnd'] => {
+      if (marker && typeof marker === 'object') {
+        return { ...marker, color };
+      }
+      return marker;
+    };
     return edges.map(e => {
       const isConnected = e.source === selectedNodeId || e.target === selectedNodeId;
       if (isConnected) {
         return {
           ...e,
-          style: { ...(e.style || {}), stroke: '#8b5cf6', strokeWidth: 3 },
+          markerEnd: tintMarker(e.markerEnd, '#a855f7'),
+          style: { ...(e.style || {}), stroke: '#c084fc', strokeWidth: 3, opacity: 1 },
           animated: true,
           className: (e.className ? e.className + ' ' : '') + 'edge-highlight'
         };
       }
       return {
         ...e,
-        style: { ...(e.style || {}), stroke: '#64748b', strokeWidth: 1, opacity: 0.3 },
+        markerEnd: tintMarker(e.markerEnd, '#475569'),
+  style: { ...(e.style || {}), stroke: '#475569', strokeWidth: 1, opacity: 0.25 },
         className: (e.className ? e.className + ' ' : '') + 'edge-dim'
       };
     });
@@ -522,6 +739,89 @@ const LanguageTreePage = () => {
     setSidebarOpen(false);
     setSelectedLanguage(null);
   }, []);
+
+  // Export graph as PNG
+  const exportAsPNG = useCallback(() => {
+    const viewport = reactFlowRef.current?.querySelector('.react-flow__viewport') as HTMLElement;
+    if (!viewport) {
+      console.error('Viewport not found');
+      return;
+    }
+
+    const nodesBounds = getRectOfNodes(getNodes());
+    const transform = getTransformForBounds(
+      nodesBounds,
+      nodesBounds.width,
+      nodesBounds.height,
+      0.5,
+      2,
+      0.2
+    );
+
+    toPng(viewport, {
+      backgroundColor: '#0f172a',
+      width: nodesBounds.width,
+      height: nodesBounds.height,
+      style: {
+        width: `${nodesBounds.width}px`,
+        height: `${nodesBounds.height}px`,
+        transform: `translate(${transform[0]}px, ${transform[1]}px) scale(${transform[2]})`,
+      },
+    }).then((dataUrl) => {
+      const link = document.createElement('a');
+      link.download = `${language || 'language-tree'}-graph.png`;
+      link.href = dataUrl;
+      link.click();
+      setStatus('Graph exported as PNG');
+    }).catch((err) => {
+      console.error('Failed to export PNG:', err);
+      setStatus('Error exporting PNG');
+    });
+  }, [getNodes, language]);
+
+  // Export graph as PDF
+  const exportAsPDF = useCallback(() => {
+    const viewport = reactFlowRef.current?.querySelector('.react-flow__viewport') as HTMLElement;
+    if (!viewport) {
+      console.error('Viewport not found');
+      return;
+    }
+
+    const nodesBounds = getRectOfNodes(getNodes());
+    const transform = getTransformForBounds(
+      nodesBounds,
+      nodesBounds.width,
+      nodesBounds.height,
+      0.5,
+      2,
+      0.2
+    );
+
+    toJpeg(viewport, {
+      backgroundColor: '#0f172a',
+      width: nodesBounds.width,
+      height: nodesBounds.height,
+      quality: 0.95,
+      style: {
+        width: `${nodesBounds.width}px`,
+        height: `${nodesBounds.height}px`,
+        transform: `translate(${transform[0]}px, ${transform[1]}px) scale(${transform[2]})`,
+      },
+    }).then((dataUrl) => {
+      const pdf = new jsPDF({
+        orientation: nodesBounds.width > nodesBounds.height ? 'landscape' : 'portrait',
+        unit: 'px',
+        format: [nodesBounds.width, nodesBounds.height],
+      });
+
+      pdf.addImage(dataUrl, 'JPEG', 0, 0, nodesBounds.width, nodesBounds.height);
+      pdf.save(`${language || 'language-tree'}-graph.pdf`);
+      setStatus('Graph exported as PDF');
+    }).catch((err) => {
+      console.error('Failed to export PDF:', err);
+      setStatus('Error exporting PDF');
+    });
+  }, [getNodes, language]);
 
   return (
     <div className="h-screen w-full flex flex-col bg-gradient-to-br from-slate-900 via-gray-900 to-slate-800">
@@ -602,7 +902,20 @@ const LanguageTreePage = () => {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
-                <span>{connectionStatus === 'connected' ? 'Explore' : 'Connecting...'}</span>
+                <span>{connectionStatus === 'connected' ? 'Explore Depth' : 'Connecting...'}</span>
+              </div>
+            </button>
+
+            <button
+              onClick={handleSearchFull}
+              disabled={connectionStatus !== 'connected'}
+              className="px-6 py-3 bg-gradient-to-r from-blue-500 to-emerald-600 hover:from-blue-600 hover:to-emerald-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-medium rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl disabled:cursor-not-allowed disabled:shadow-sm transform hover:scale-105 disabled:hover:scale-100"
+            >
+              <div className="flex items-center space-x-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M12 5l7 7-7 7" />
+                </svg>
+                <span>{connectionStatus === 'connected' ? 'Explore Full Tree' : 'Connecting...'}</span>
               </div>
             </button>
 
@@ -667,13 +980,13 @@ const LanguageTreePage = () => {
       </div>
 
       {/* React Flow Container with Modern Styling */}
-      <div className="flex-1 relative">
+      <div className="flex-1 relative" ref={reactFlowRef}>
         <ReactFlow
           nodes={nodes}
           edges={displayEdges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
-          onConnect={(params: Connection) => setEdges((eds) => addEdge(params, eds))}
+          onConnect={(params: Connection) => setEdges((eds) => addEdge({ ...params, ...defaultEdgeOptions }, eds))}
           onNodeClick={handleNodeClick}
           onPaneClick={() => {
             setSelectedNodeId(null);
@@ -681,6 +994,7 @@ const LanguageTreePage = () => {
             setSelectedLanguage(null);
           }}
           nodeTypes={nodeTypes}
+          defaultEdgeOptions={defaultEdgeOptions}
           fitView
           className="bg-transparent"
           style={{ background: 'transparent' }}
@@ -734,13 +1048,36 @@ const LanguageTreePage = () => {
             >
               Delete
             </button>
+                        <button
+              onClick={deleteSelectedNode}
+              disabled={!selectedNodeId}
+              title="Delete Selected Node"
+              className="p-2 rounded-lg bg-gray-800/80 hover:bg-red-600/80 text-gray-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg border border-gray-700/50"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
             <div className="w-px h-6 bg-gray-700/50 mx-1" />
             <button
-              onClick={handleSaveGraph}
-              className="px-3 py-2 text-sm rounded-lg bg-gradient-to-r from-emerald-500 to-teal-600 text-white hover:from-emerald-600 hover:to-teal-700 transition-colors shadow"
-              title="Save current graph"
+              onClick={exportAsPNG}
+              disabled={nodes.length === 0}
+              title="Export as PNG"
+              className="p-2 rounded-lg bg-gray-800/80 hover:bg-blue-600/80 text-gray-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg border border-gray-700/50"
             >
-              Save Graph
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </button>
+            <button
+              onClick={exportAsPDF}
+              disabled={nodes.length === 0}
+              title="Export as PDF"
+              className="p-2 rounded-lg bg-gray-800/80 hover:bg-purple-600/80 text-gray-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg border border-gray-700/50"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+              </svg>
             </button>
           </div>
         </ReactFlow>

@@ -8,8 +8,12 @@ dependencies = [
     "aiohttp>=3.12.14",
     "fastapi>=0.116.1",
     "pydantic>=2.11.7",
+    "pydantic-settings>=2.0.0",  # ← ADD THIS (CRITICAL!)
     "python-dotenv>=1.1.1",
     "requests>=2.32.4",
     "uvicorn>=0.35.0",
     "websockets>=15.0.1",
+    "google-generativeai>=0.8.3",  # ← ADD THIS
+    "wikipedia-api>=0.7.1",
+    "numpy>=1.24.0",  # ← ADD THIS LINE
 ]

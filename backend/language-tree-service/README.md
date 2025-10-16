@@ -1,13 +1,13 @@
 # Language Tree Service
 
-A FastAPI backend service for exploring language family relationships and linguistic trees. This service provides APIs to retrieve language families, language relationships, and detailed information about languages using Wikidata and Wikipedia.
+A FastAPI backend service for exploring language family relationships and linguistic trees. The service now relies on Wikipedia infobox parsing combined with an LLM-powered normalisation step to infer parent/child relationships between languages.
 
 ## Features
 
-- **Language Relationships**: Get parent-child relationships between languages
-- **Language Details**: Retrieve detailed information about languages including family, speakers, writing systems
-- **Real-time Updates**: WebSocket support for real-time language tree exploration
-- **Depth Control**: Configurable depth for exploring language family trees
+- **Language Relationships**: Extract parent-child relationships directly from Wikipedia infobox data.
+- **LLM Normalisation**: Gemini turns mixed infobox/text signals into a clean hierarchy of `Child of` edges.
+- **Real-time Updates**: WebSocket support streams incremental relationships to the client.
+- **Depth Input (placeholder)**: The API accepts a depth parameter for future expansion, but the current pipeline operates on a single page.
 
 ## API Endpoints
 
@@ -45,8 +45,26 @@ uv install
 uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
 ```
 
+## Configuration
+
+Set an API key for Google Generative AI before starting the service:
+
+```
+set GOOGLE_GENAI_API_KEY=your_api_key_here
+```
+
+On PowerShell:
+
+```
+$env:GOOGLE_GENAI_API_KEY="your_api_key_here"
+```
+
+If the key is not provided the service will fall back to heuristic infobox parsing, but relationship quality may be limited.
+
 ## Data Sources
 
-This service uses:
-- **Wikidata**: For structured language family data
-- **Wikipedia**: For language information and validation
+This service now uses:
+- **Wikipedia**: Pulls infoboxes and relevant article sections via the MediaWiki API.
+- **Google Gemini**: Optional LLM step to merge and normalise the extracted relationships.
+
+> **Note:** Former Wikidata-powered endpoints such as distribution maps and detailed language info are currently placeholders while the new pipeline is being integrated.
