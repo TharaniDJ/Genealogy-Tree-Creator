@@ -87,6 +87,35 @@ def _get_genai_client() -> genai.Client:
     return _genai_client
 
 
+def _coerce_to_triples(graph_like: Optional[Sequence]) -> List[Tuple[str, str, str]]:
+    """Best-effort conversion of incoming graph data to list of (child, rel, parent) tuples.
+
+    Accepts:
+    - List of dicts with keys: language1, relationship, language2
+    - List of 3-tuples/lists
+    Ignores invalid entries.
+    """
+    triples: List[Tuple[str, str, str]] = []
+    if not graph_like:
+        return triples
+    for item in graph_like:
+        try:
+            if isinstance(item, dict):
+                c = str(item.get("language1", "")).strip()
+                r = str(item.get("relationship", "")).strip()
+                p = str(item.get("language2", "")).strip()
+                if c and r and p:
+                    triples.append((c, r, p))
+            elif isinstance(item, (list, tuple)) and len(item) == 3:
+                c, r, p = str(item[0]).strip(), str(item[1]).strip(), str(item[2]).strip()
+                if c and r and p:
+                    triples.append((c, r, p))
+        except Exception:
+            # ignore malformed entries
+            continue
+    return triples
+
+
 def fetch_wikitext(title: str, headers: Optional[dict] = None, max_retries: int = 3, backoff: float = 1.0) -> str:
     headers = headers or DEFAULT_HEADERS
     params = {
@@ -415,6 +444,229 @@ Produce ONLY the JSON object now with no extra commentary.
     return [], None
 
 
+def get_merged_and_refined_graph(
+    new_infobox_triples: List[Tuple[str, str, str]],
+    new_relevant_text: str,
+    node_being_expanded: str,
+    existing_graph: List[Tuple[str, str, str]],
+) -> List[Tuple[str, str, str]]:
+    """Merge new node data with an existing graph using the LLM, returning the full corrected graph.
+
+    This function mirrors the methodology prototyped in the notebook: it asks the
+    LLM to integrate new, more specific information from a node's page and to
+    update parents to reflect more accurate relationships while enforcing a
+    strictly hierarchical tree of 'is child of' links.
+    """
+    client = _get_genai_client()
+    models_to_try = _get_model_candidates()
+
+    new_infobox_str = "\n".join([str(t) for t in new_infobox_triples])
+    existing_graph_str = "\n".join([str(t) for t in existing_graph])
+
+    prompt = f"""
+You are an expert in historical linguistics. Your task is to expand and refine an existing language family tree with new, more specific information.
+
+You are given:
+1. An Existing Graph of known relationships.
+2. New Infobox Triples from the dedicated Wikipedia page for "{node_being_expanded}".
+3. New Relevant Text from the same page.
+
+CRITICAL INSTRUCTIONS:
+1. Integrate New Information: Merge the new data from "{node_being_expanded}" with the Existing Graph.
+2. Prioritize Specificity: The new data is from a more specific source. If it provides a more accurate parent for a language already in the tree, you MUST UPDATE the relationship to reflect this new, better information.
+3. Normalize ALL relationships to the single format: ('Child Language', 'is child of', 'Parent Language').
+4. Maintain a Strict Hierarchy: Each language must have only ONE direct parent. Eliminate any redundant "grandfather" links.
+5. Return the COMPLETE, MERGED, and CORRECTED graph. Your final output should contain all correct triples, both old and new.
+
+Final Output Format: A single JSON object with one key:
+{{
+  "triples": [["Child", "is child of", "Parent"], ...]
+}}
+
+---
+INPUT DATA
+
+1. Existing Graph to Expand:
+{existing_graph_str}
+
+2. New Infobox Triples for "{node_being_expanded}":
+{new_infobox_str}
+
+3. New Relevant Text for "{node_being_expanded}":
+{new_relevant_text}
+
+Produce ONLY the JSON object now with no extra commentary.
+"""
+
+    last_error: Optional[Exception] = None
+    for model in models_to_try:
+        try:
+            print(f"[wikipedia_service] Calling LLM '{model}' to merge graph for '{node_being_expanded}'.")
+            response = client.models.generate_content(model=model, contents=prompt)
+            response_text = getattr(response, "text", "")
+            if not response_text:
+                last_error = RuntimeError("LLM returned empty response during expansion.")
+                continue
+
+            cleaned_text = re.sub(r"```(?:json|python)?", "", response_text, flags=re.I).replace("```", "").strip()
+            print(cleaned_text)
+            match = re.search(r"\{.*\}", cleaned_text, re.DOTALL)
+            if not match:
+                last_error = RuntimeError("Could not find JSON object in expansion LLM response.")
+                continue
+
+            json_blob = match.group(0)
+            try:
+                import json as _json
+                parsed_json = _json.loads(json_blob)
+            except Exception:
+                try:
+                    parsed_json = ast.literal_eval(json_blob)  # type: ignore
+                except Exception as exc:
+                    print(f"[wikipedia_service] Expansion parser error: {exc}")
+                    last_error = exc
+                    continue
+
+            if not isinstance(parsed_json, dict):
+                last_error = RuntimeError("Expansion LLM returned non-object JSON.")
+                continue
+
+            llm_triples = parsed_json.get("triples")
+            if not isinstance(llm_triples, list):
+                last_error = RuntimeError("Expansion LLM 'triples' missing or not a list.")
+                continue
+
+            # Normalize labels from LLM according to existing graph preferred labels
+            preferred_map = _build_preferred_label_map(existing_graph)
+
+            merged_raw: List[Tuple[str, str, str]] = []
+            seen_raw: set[Tuple[str, str, str]] = set()
+            for item in llm_triples:
+                if isinstance(item, (list, tuple)) and len(item) == 3:
+                    child, rel, parent = (str(item[0]).strip(), str(item[1]).strip(), str(item[2]).strip())
+                    if rel == "is child of" and child and parent:
+                        t = (child, rel, parent)
+                        if t not in seen_raw:
+                            seen_raw.add(t)
+                            merged_raw.append(t)
+
+            # Apply preferred label mapping
+            def apply_preferred(label: str) -> str:
+                key = _canonical_label(label)
+                return preferred_map.get(key, label)
+
+            merged_normalized: List[Tuple[str, str, str]] = [
+                (apply_preferred(c), "is child of", apply_preferred(p)) for (c, _, p) in merged_raw
+            ]
+
+            # Combine with existing graph: update only children that appear in LLM output
+            # Build current parent map from existing graph
+            current_parent: Dict[str, str] = {}
+            for c, r, p in existing_graph:
+                if r == "is child of":
+                    current_parent[c] = p
+
+            # Apply LLM updates
+            for c, r, p in merged_normalized:
+                current_parent[c] = p
+
+            # Reconstruct merged graph edges from updated parent map and include non-child relations if any
+            merged_all: List[Tuple[str, str, str]] = []
+            seen_all: set[Tuple[str, str, str]] = set()
+            for c, p in current_parent.items():
+                t = (c, "is child of", p)
+                if t not in seen_all:
+                    seen_all.add(t)
+                    merged_all.append(t)
+
+            if merged_all:
+                print(f"[wikipedia_service] Expansion LLM produced {len(merged_normalized)} updates; merged graph now has {len(merged_all)} edges.")
+                return merged_all
+            last_error = RuntimeError("Expansion LLM produced no valid triples.")
+        except Exception as exc:
+            print(f"[wikipedia_service] Error during expansion LLM call with model '{model}': {exc}")
+            last_error = exc
+
+    if last_error:
+        print(f"[wikipedia_service] Expansion failed: {last_error}")
+    return existing_graph
+
+
+async def expand_node_in_graph(
+    original_graph: Sequence,
+    node_to_expand: str,
+    websocket_manager=None,
+    connection_id: Optional[str] = None,
+) -> Tuple[List[Tuple[str, str, str]], List[Tuple[str, str, str]]]:
+    """Expand a node by fetching its page data and merging it into the existing graph.
+
+    Returns a tuple: (newly_added_triples, merged_graph_triples)
+    """
+    await _send_status(f"Initiating expansion for '{node_to_expand}'...", 0, websocket_manager, connection_id)
+
+    # Coerce original_graph
+    original_triples = _coerce_to_triples(original_graph)
+
+    # Resolve node to page title
+    await _send_status("Resolving node to Wikipedia page...", 5, websocket_manager, connection_id)
+    resolved_title = await asyncio.to_thread(get_wikipedia_language_page_title, node_to_expand)
+    if not resolved_title:
+        raise ValueError(f"Could not resolve a Wikipedia page for '{node_to_expand}'.")
+    await _send_root_language(resolved_title, websocket_manager, connection_id)
+
+    # Fetch and parse new node data
+    await _send_status(f"Fetching and parsing '{resolved_title}'...", 20, websocket_manager, connection_id)
+    wikitext = await asyncio.to_thread(fetch_wikitext, resolved_title)
+    if not wikitext:
+        raise ValueError(f"Failed to fetch content for '{resolved_title}'.")
+
+    new_infobox_triples = await asyncio.to_thread(parse_infobox_from_wikitext, wikitext)
+    new_infobox_processed = [
+        (
+            (resolved_title if s == "__PAGE__" else s),
+            r,
+            (resolved_title if o == "__PAGE__" else o),
+        )
+        for s, r, o in new_infobox_triples
+    ]
+    sections = await asyncio.to_thread(extract_clean_sections, wikitext)
+    new_relevant_text = await asyncio.to_thread(select_relevant_chunks, sections) if sections else ""
+    await _send_status(
+        f"Extracted {len(new_infobox_processed)} new infobox triples; merging via LLM...",
+        55,
+        websocket_manager,
+        connection_id,
+    )
+
+    # Merge via LLM
+    merged_graph = await asyncio.to_thread(
+        get_merged_and_refined_graph,
+        new_infobox_processed,
+        new_relevant_text,
+        resolved_title,
+        original_triples,
+    )
+
+    # Preserve distant subtrees: if LLM did not mention some children of the originally selected root
+    # in the preceding full graph session, keep those edges. We'll keep all original edges whose child
+    # does not appear in any LLM update.
+    llm_children = {c for (c, r, p) in merged_graph if r == "is child of"}
+    preserved_edges = [t for t in original_triples if t[1] == "is child of" and t[0] not in llm_children]
+    combined_set = set(merged_graph) | set(preserved_edges)
+
+    original_set = set(original_triples)
+    merged_set = combined_set
+    newly_added_triples = list(merged_set - original_set)
+
+    await _send_status(
+        f"Expansion complete. Added {len(newly_added_triples)} relationship(s).",
+        95,
+        websocket_manager,
+        connection_id,
+    )
+    return newly_added_triples, list(merged_set)
+
+
 def get_wikipedia_language_page_title(input_name: str) -> Optional[str]:
     headers = DEFAULT_HEADERS
     params = {
@@ -500,6 +752,39 @@ def _get_model_candidates() -> List[str]:
         return ordered
 
     return DEFAULT_GENAI_MODELS
+
+
+def _canonical_label(label: str) -> str:
+    """Create a canonical key for label comparison to reduce duplicates.
+
+    Normalizations:
+    - lowercasing
+    - remove content in parentheses
+    - strip common suffix tokens: 'language(s)', 'dialect(s)'
+    - collapse whitespace and non-alphanumerics to single hyphen
+    """
+    s = label.strip().lower()
+    # remove parentheses content
+    s = re.sub(r"\([^)]*\)", "", s)
+    # strip common tokens
+    s = re.sub(r"\b(languages?|dialects?)\b", "", s)
+    # collapse separators
+    s = re.sub(r"[^a-z0-9]+", "-", s).strip("-")
+    return s
+
+
+def _build_preferred_label_map(existing_graph: List[Tuple[str, str, str]]) -> Dict[str, str]:
+    """Build a mapping from canonical label to the preferred label used in existing graph.
+
+    Preference strategy: first observed label per canonical key.
+    """
+    preferred: Dict[str, str] = {}
+    for child, rel, parent in existing_graph:
+        for lbl in (child, parent):
+            key = _canonical_label(lbl)
+            if key and key not in preferred:
+                preferred[key] = lbl
+    return preferred
 
 
 def _find_graph_root_label(
