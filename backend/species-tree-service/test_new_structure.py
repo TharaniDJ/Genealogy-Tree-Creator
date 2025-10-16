@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test script to validate the updated TaxonomicEntity structure
+Test script to validate th e updated TaxonomicEntity structure
 """
 
 import sys

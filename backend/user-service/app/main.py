@@ -23,7 +23,7 @@ app.add_middleware(
 )
 
 
-# Custom validation error handler
+# Custom validation  error handler
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     errors = exc.errors()

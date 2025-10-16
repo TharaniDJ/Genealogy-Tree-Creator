@@ -6,7 +6,7 @@ import "./globals.css"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Beautiful Animated Knowledge Graph",
+  title: "Beautiful Animated Know ledge Graph",
   description: "Interactive knowledge graph with stunning animations",
     generator: 'v0.dev'
 }
@@ -79,13 +79,12 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className="h-full">
+    <html lang="en">
       <body 
-        className={`${inter.className} h-full m-0 p-0 overflow-hidden`}
+        className={`${inter.className} min-h-screen m-0 p-0`}
         style={{ 
-          background: "linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)",
-          width: "100vw",
-          height: "100vh"
+          background: "#0E0F19",
+          width: "100vw"
         }}
       >
         {children}

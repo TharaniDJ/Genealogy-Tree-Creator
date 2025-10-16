@@ -46,6 +46,7 @@
     "dagre": "^0.8.5",
     "date-fns": "4.1.0",
     "embla-carousel-react": "8.5.1",
+    "framer-motion": "^12.23.24",
     "geist": "^1.4.2",
     "html-to-image": "^1.11.13",
     "input-otp": "1.4.1",

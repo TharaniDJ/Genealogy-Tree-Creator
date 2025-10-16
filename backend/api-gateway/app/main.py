@@ -15,7 +15,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Use localhost for local development (not Docker service names)
+# Use localhost for local devel opment (not Docker service names)
 BACKEND_MAP = {
     "family": "http://localhost:8000/api/family",
     "language": "http://localhost:8001/api/language",

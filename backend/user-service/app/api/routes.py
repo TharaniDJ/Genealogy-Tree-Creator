@@ -49,7 +49,7 @@ async def login(form_data: schemas.UserLogin):
     user = await authenticate_user(form_data.email, form_data.password)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
-    access_token = create_access_token(data={"sub": str(user["_id"])})
+    access_token = create_access_token(data={"sub": str(user["_id"]),"full_name": user["full_name"], "email": user["email"]})
     return {"access_token": access_token, "token_type": "bearer"}
 
 
