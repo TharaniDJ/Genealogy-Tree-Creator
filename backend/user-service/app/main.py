@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from app.api.routes import router as api_router
+from app.api.graph_routes import router as graph_router
 import logging
 
 # Configure logging
@@ -57,6 +58,7 @@ async def shutdown_event():
     pass
 
 app.include_router(api_router, prefix="/api/users")
+app.include_router(graph_router, prefix="/api/users", tags=["graphs"])
 
 
 @app.get('/')

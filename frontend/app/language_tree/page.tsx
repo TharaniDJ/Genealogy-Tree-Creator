@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import AuthGuard from '@/components/AuthGuard';
+import useAuth from '@/hooks/useAuth';
 import ReactFlow, {
   Controls,
   Background,
@@ -228,6 +230,8 @@ const getLayoutedElements = (nodes: LanguageRFNode[], edges: Edge[], direction =
 
 
 const LanguageTreePage = () => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [nodes, setNodes, onNodesChange] = useNodesState<LanguageNodeData>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge[]>([]);
   const [language, setLanguage] = useState('English');
@@ -247,12 +251,25 @@ const LanguageTreePage = () => {
     category?: string;
   } | null>(null);
 
+  // Graph saving state
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [showLoadModal, setShowLoadModal] = useState(false);
+  const [graphName, setGraphName] = useState('');
+  const [graphDescription, setGraphDescription] = useState('');
+  const [savedGraphs, setSavedGraphs] = useState<any[]>([]);
+  const [loadingGraphs, setLoadingGraphs] = useState(false);
+  const [savingGraph, setSavingGraph] = useState(false);
+  const [isFullTreeMode, setIsFullTreeMode] = useState(false);
+
   const { getNodes } = useReactFlow();
   const reactFlowRef = useRef<HTMLDivElement>(null);
+  const { getToken } = useAuth();
 
   const wsBase = process.env.NEXT_PUBLIC_LANGUAGE_API_URL || 'http://localhost:8001';
   const wsUrl = wsBase.replace(/^http/, 'ws') + '/ws/relationships';
-  const { messages, connectionStatus, connect, disconnect, sendMessage } = useWebSocket(wsUrl);
+  const { messages, connectionStatus, connect, disconnect, sendMessage } = useWebSocket(wsUrl, { 
+    token: getToken() 
+  });
 
   // Track which messages have been processed to avoid losing earlier batches when multiple arrive quickly.
   const lastProcessedIndexRef = useRef(0);
@@ -692,6 +709,7 @@ const LanguageTreePage = () => {
 
   const handleSearch = useCallback(() => {
     console.info(`[RF] New search: language='${language}', depth=${depth}`);
+    setIsFullTreeMode(false); // Depth-based search
     resetGraphState('Searching...');
     sendMessage(`${language},${depth}`);
   }, [language, depth, resetGraphState, sendMessage]);
@@ -703,6 +721,7 @@ const LanguageTreePage = () => {
       setStatus('Please enter a language name.');
       return;
     }
+    setIsFullTreeMode(true); // Full tree mode (no depth limit)
     resetGraphState('Fetching full language tree...');
     sendMessage({ action: 'fetch_full_tree', language: rootLabel });
   }, [language, resetGraphState, sendMessage]);
@@ -843,6 +862,196 @@ const LanguageTreePage = () => {
       setStatus('Error exporting PDF');
     });
   }, [getNodes, language]);
+
+  // Save graph to backend
+  const handleSaveGraph = useCallback(async () => {
+    if (!graphName.trim()) {
+      alert('Please enter a graph name');
+      return;
+    }
+
+    if (nodes.length === 0) {
+      alert('Cannot save an empty graph');
+      return;
+    }
+
+    setSavingGraph(true);
+    try {
+      const relationships = buildRelationshipsPayload();
+      const token = getToken();
+
+      const apiBase = process.env.NEXT_PUBLIC_API_GATEWAY_URL || 'http://localhost:8080';
+      const response = await fetch(`${apiBase}/api/users/graphs`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          graph_name: graphName,
+          graph_type: 'language',
+          depth_usage: !isFullTreeMode && depth > 0,
+          depth: !isFullTreeMode && depth > 0 ? depth : undefined,
+          graph_data: relationships,
+          description: graphDescription || undefined
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to save graph');
+      }
+
+      const savedGraph = await response.json();
+      setStatus(`Graph "${graphName}" saved successfully!`);
+      setShowSaveModal(false);
+      setGraphName('');
+      setGraphDescription('');
+    } catch (error: any) {
+      console.error('Error saving graph:', error);
+      alert(`Failed to save graph: ${error.message}`);
+      setStatus(`Error: ${error.message}`);
+    } finally {
+      setSavingGraph(false);
+    }
+  }, [graphName, graphDescription, nodes, buildRelationshipsPayload, depth, getToken, isFullTreeMode]);
+
+  // Load saved graphs list
+  const loadSavedGraphs = useCallback(async () => {
+    setLoadingGraphs(true);
+    try {
+      const token = getToken();
+      const apiBase = process.env.NEXT_PUBLIC_API_GATEWAY_URL || 'http://localhost:8080';
+      
+      const response = await fetch(`${apiBase}/api/users/graphs?graph_type=language`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to load saved graphs');
+      }
+
+      const graphs = await response.json();
+      setSavedGraphs(graphs);
+    } catch (error: any) {
+      console.error('Error loading graphs:', error);
+      alert(`Failed to load saved graphs: ${error.message}`);
+    } finally {
+      setLoadingGraphs(false);
+    }
+  }, [getToken]);
+
+  // Load a specific graph
+  const handleLoadGraph = useCallback(async (graphId: string) => {
+    try {
+      const token = getToken();
+      const apiBase = process.env.NEXT_PUBLIC_API_GATEWAY_URL || 'http://localhost:8080';
+      
+      const response = await fetch(`${apiBase}/api/users/graphs/${graphId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to load graph');
+      }
+
+      const graph = await response.json();
+      
+      // Clear existing graph
+      resetGraphState(`Loading "${graph.graph_name}"...`);
+      
+      // Rebuild graph from saved data
+      const relationships = graph.graph_data as RelationshipRecord[];
+      
+      relationships.forEach((rel: RelationshipRecord) => {
+        const parentLabel = rel.language2;
+        const childLabel = rel.language1;
+        
+        if (parentLabel && childLabel) {
+          const parentId = ensureNode(parentLabel, rel.language2_category, rel.language2_qid);
+          const childId = ensureNode(childLabel, rel.language1_category, rel.language1_qid);
+          
+          if (parentId && childId) {
+            const edgeId = `e-${parentId}-${childId}`;
+            setEdges(prev => {
+              if (prev.some(e => e.id === edgeId)) return prev;
+              return [...prev, createEdge(parentId, childId)];
+            });
+          }
+        }
+      });
+
+      setStatus(`Loaded "${graph.graph_name}" with ${relationships.length} relationships`);
+      setShowLoadModal(false);
+      
+      // Layout after a short delay
+      setTimeout(() => layout(), 100);
+    } catch (error: any) {
+      console.error('Error loading graph:', error);
+      alert(`Failed to load graph: ${error.message}`);
+    }
+  }, [getToken, resetGraphState, ensureNode, setEdges, createEdge, layout]);
+
+  // Delete a saved graph
+  const handleDeleteGraph = useCallback(async (graphId: string, graphName: string) => {
+    if (!confirm(`Are you sure you want to delete "${graphName}"?`)) {
+      return;
+    }
+
+    try {
+      const token = getToken();
+      const apiBase = process.env.NEXT_PUBLIC_API_GATEWAY_URL || 'http://localhost:8080';
+      
+      const response = await fetch(`${apiBase}/api/users/graphs/${graphId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete graph');
+      }
+
+      // Refresh the list
+      loadSavedGraphs();
+    } catch (error: any) {
+      console.error('Error deleting graph:', error);
+      alert(`Failed to delete graph: ${error.message}`);
+    }
+  }, [getToken, loadSavedGraphs]);
+
+  // Open save modal
+  const openSaveModal = useCallback(() => {
+    if (nodes.length === 0) {
+      alert('Cannot save an empty graph. Please create a graph first.');
+      return;
+    }
+    setGraphName(`${language} Language Tree - ${new Date().toLocaleDateString()}`);
+    setGraphDescription('');
+    setShowSaveModal(true);
+  }, [nodes.length, language]);
+
+  // Open load modal
+  const openLoadModal = useCallback(() => {
+    setShowLoadModal(true);
+    loadSavedGraphs();
+  }, [loadSavedGraphs]);
+
+  // Auto-load graph from URL parameter
+  useEffect(() => {
+    const loadGraphId = searchParams.get('loadGraph');
+    if (loadGraphId && connectionStatus === 'connected') {
+      // Auto-load the graph
+      handleLoadGraph(loadGraphId);
+      // Clean up URL parameter
+      router.replace('/language_tree', { scroll: false });
+    }
+  }, [searchParams, connectionStatus, handleLoadGraph, router]);
 
   return (
     <div className="h-screen w-full flex flex-col bg-[#0E0F19] relative overflow-hidden">
@@ -1090,6 +1299,26 @@ const LanguageTreePage = () => {
             </button>
             <div className="w-px h-6 bg-white/10 mx-1" />
             <button
+              onClick={openSaveModal}
+              disabled={nodes.length === 0}
+              title="Save Graph"
+              className="p-2 rounded-lg backdrop-blur-lg bg-white/5 hover:bg-green-600/80 text-[#9CA3B5] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg border border-white/10 hover:scale-105"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+              </svg>
+            </button>
+            <button
+              onClick={openLoadModal}
+              title="Load Saved Graph"
+              className="p-2 rounded-lg backdrop-blur-lg bg-white/5 hover:bg-amber-600/80 text-[#9CA3B5] hover:text-white transition-all shadow-md hover:shadow-lg border border-white/10 hover:scale-105"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z" />
+              </svg>
+            </button>
+            <div className="w-px h-6 bg-white/10 mx-1" />
+            <button
               onClick={exportAsPNG}
               disabled={nodes.length === 0}
               title="Export as PNG"
@@ -1112,6 +1341,159 @@ const LanguageTreePage = () => {
           </div>
         </ReactFlow>
       </div>
+
+      {/* Save Graph Modal */}
+      {showSaveModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-[#1E1F2E] border border-white/10 rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-[#F5F7FA]">Save Language Tree</h2>
+              <button
+                onClick={() => setShowSaveModal(false)}
+                className="text-[#9CA3B5] hover:text-[#F5F7FA] transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="graphName" className="block text-sm font-medium text-[#F5F7FA] mb-2">
+                  Graph Name *
+                </label>
+                <input
+                  id="graphName"
+                  type="text"
+                  value={graphName}
+                  onChange={(e) => setGraphName(e.target.value)}
+                  placeholder="e.g., Indo-European Language Family"
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6B72FF] text-[#F5F7FA] placeholder-[#9CA3B5]"
+                />
+              </div>
+              
+              <div>
+                <label htmlFor="graphDescription" className="block text-sm font-medium text-[#F5F7FA] mb-2">
+                  Description (Optional)
+                </label>
+                <textarea
+                  id="graphDescription"
+                  value={graphDescription}
+                  onChange={(e) => setGraphDescription(e.target.value)}
+                  placeholder="Add notes about this language tree..."
+                  rows={3}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6B72FF] text-[#F5F7FA] placeholder-[#9CA3B5] resize-none"
+                />
+              </div>
+
+              <div className="bg-[#6B72FF]/10 border border-[#6B72FF]/20 rounded-lg p-3">
+                <p className="text-sm text-[#9CA3B5]">
+                  💾 This will save {buildRelationshipsPayload().length} language relationships
+                  {!isFullTreeMode && depth > 0 && ` (depth: ${depth})`}
+                  {isFullTreeMode && ' (full tree - no depth limit)'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex space-x-3 mt-6">
+              <button
+                onClick={() => setShowSaveModal(false)}
+                disabled={savingGraph}
+                className="flex-1 px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-[#F5F7FA] rounded-lg transition-all disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveGraph}
+                disabled={!graphName.trim() || savingGraph}
+                className="flex-1 px-4 py-3 bg-gradient-to-r from-[#6B72FF] to-[#8B7BFF] hover:from-[#7B82FF] hover:to-[#9B8BFF] disabled:from-gray-600 disabled:to-gray-700 text-white rounded-lg transition-all disabled:cursor-not-allowed shadow-lg"
+              >
+                {savingGraph ? 'Saving...' : 'Save Graph'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Load Graph Modal */}
+      {showLoadModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-[#1E1F2E] border border-white/10 rounded-2xl shadow-2xl max-w-2xl w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-[#F5F7FA]">Load Saved Language Tree</h2>
+              <button
+                onClick={() => setShowLoadModal(false)}
+                className="text-[#9CA3B5] hover:text-[#F5F7FA] transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {loadingGraphs ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#6B72FF]"></div>
+              </div>
+            ) : savedGraphs.length === 0 ? (
+              <div className="text-center py-12">
+                <svg className="w-16 h-16 mx-auto text-[#9CA3B5] mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z" />
+                </svg>
+                <p className="text-[#9CA3B5]">No saved language trees found</p>
+                <p className="text-sm text-[#9CA3B5] mt-2">Create and save a tree to see it here</p>
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {savedGraphs.map((graph) => (
+                  <div
+                    key={graph.id}
+                    className="bg-white/5 border border-white/10 rounded-lg p-4 hover:bg-white/10 transition-all"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h3 className="text-[#F5F7FA] font-semibold">{graph.graph_name}</h3>
+                        {graph.description && (
+                          <p className="text-sm text-[#9CA3B5] mt-1">{graph.description}</p>
+                        )}
+                        <div className="flex items-center space-x-4 mt-2 text-xs text-[#9CA3B5]">
+                          <span>📊 {graph.nodes_count} relationships</span>
+                          {graph.depth_usage && <span>🔍 Depth: {graph.depth}</span>}
+                          <span>📅 {new Date(graph.updated_at).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2 ml-4">
+                        <button
+                          onClick={() => handleLoadGraph(graph.id)}
+                          className="px-3 py-2 bg-[#6B72FF]/20 hover:bg-[#6B72FF]/30 text-[#8B7BFF] rounded-lg transition-all text-sm"
+                        >
+                          Load
+                        </button>
+                        <button
+                          onClick={() => handleDeleteGraph(graph.id, graph.graph_name)}
+                          className="px-3 py-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded-lg transition-all text-sm"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="mt-6">
+              <button
+                onClick={() => setShowLoadModal(false)}
+                className="w-full px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-[#F5F7FA] rounded-lg transition-all"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Language Details Sidebar */}
       <LanguageDetailsSidebar

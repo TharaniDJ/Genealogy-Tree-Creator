@@ -26,12 +26,14 @@ export function useWebSocket(url: string, options?: { token?: string | null }): 
     setConnectionStatus('connecting');
     
     try {
-      // Add token to URL if provided
+      // Add token to URL query parameters if provided
       let wsUrl = url;
       if (options?.token) {
         const separator = url.includes('?') ? '&' : '?';
         wsUrl = `${url}${separator}token=${encodeURIComponent(options.token)}`;
       }
+      
+      console.log('Connecting to WebSocket:', wsUrl.replace(/token=[^&]+/, 'token=***'));
       
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
