@@ -309,6 +309,15 @@ const LanguageTreePage = () => {
 
   const slugify = (label: string) => label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$|/g, '').slice(0,40) || 'lang';
 
+  // Canonicalize labels to help unify variants like "Yola" vs "Yola dialect"
+  const canonical = useCallback((label: string): string => {
+    let s = (label || '').toLowerCase().trim();
+    s = s.replace(/\([^)]*\)/g, ''); // remove parentheses
+    s = s.replace(/\b(languages?|dialects?)\b/g, ''); // strip tokens
+    s = s.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    return s;
+  }, []);
+
   const humanizeCategory = useCallback((cat?: string) => {
     if (!cat) return '';
     return cat.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase());
@@ -322,6 +331,36 @@ const LanguageTreePage = () => {
     setProgress(0);
     sendMessage({ action: 'expand_by_qid', qid, depth: 1 });
   }, [sendMessage]);
+  
+  // Build current relationships payload from edges + nodes' labels/qids/categories
+  const buildRelationshipsPayload = useCallback((): RelationshipRecord[] => {
+    const idToNode = new Map(nodes.map(n => [n.id, n] as const));
+    // relationships: parent (source) -> child (target)
+    return edges.map(e => {
+      const parent = idToNode.get(e.source);
+      const child = idToNode.get(e.target);
+      const record: RelationshipRecord = {
+        language1: child?.data.label ?? '',
+        relationship: 'Child of',
+        language2: parent?.data.label ?? '',
+        language1_qid: child?.data.qid,
+        language2_qid: parent?.data.qid,
+        language1_category: child?.data.category,
+        language2_category: parent?.data.category,
+      };
+      return record;
+    });
+  }, [edges, nodes]);
+
+  // New: Expand a node by label using the refined backend expansion
+  const expandNodeByLabel = useCallback((label: string) => {
+    const name = (label || '').trim();
+    if (!name) return;
+    setStatus(`Expanding "${name}"...`);
+    setProgress(0);
+    const existingGraph = buildRelationshipsPayload();
+    sendMessage({ action: 'expand_node', label: name, existingGraph });
+  }, [buildRelationshipsPayload, sendMessage]);
 
   const ensureNode = useCallback((label: string, category?: string, qid?: string) => {
     if (!label) return null;
@@ -359,14 +398,15 @@ const LanguageTreePage = () => {
           category, 
           meta: category ? humanizeCategory(category) : undefined,
           qid,
-          onExpand: qid ? () => expandNodeByQid(qid) : undefined
+          // Always provide expand by label so every node can be expanded
+          onExpand: () => expandNodeByLabel(label)
         }, 
         position: { x: 0, y: 0 }, 
         type: 'language' 
       }];
     });
     return id;
-  }, [expandNodeByQid, humanizeCategory, setNodes]);
+  }, [expandNodeByLabel, humanizeCategory, setNodes]);
 
   // Helpers to prompt user for input in a simple way
   const promptForLabel = useCallback((defaultValue = '') => {
@@ -513,9 +553,8 @@ const LanguageTreePage = () => {
                   updates.category = primaryType;
                   updates.meta = humanizeCategory(primaryType);
                 }
-                if (qid && !n.data.onExpand) {
-                  updates.onExpand = () => expandNodeByQid(qid);
-                }
+                // Ensure expand uses label-based expansion
+                if (!n.data.onExpand) updates.onExpand = () => expandNodeByLabel(label);
                 return Object.keys(updates).length ? { ...n, data: { ...n.data, ...updates } } : n;
               }));
             }
@@ -549,17 +588,47 @@ const LanguageTreePage = () => {
                 });
 
                 setNodes(prev => prev.map(n => {
-                  if (n.id === parentId && parentQid && !n.data.onExpand) {
-                    return { ...n, data: { ...n.data, qid: parentQid, onExpand: () => expandNodeByQid(parentQid) } };
-                  }
-                  if (n.id === childId && childQid && !n.data.onExpand) {
-                    return { ...n, data: { ...n.data, qid: childQid, onExpand: () => expandNodeByQid(childQid) } };
-                  }
+                  // Always ensure label-based expand is present
+                  if (n.id === parentId && !n.data.onExpand) return { ...n, data: { ...n.data, onExpand: () => expandNodeByLabel(n.data.label) } };
+                  if (n.id === childId && !n.data.onExpand) return { ...n, data: { ...n.data, onExpand: () => expandNodeByLabel(n.data.label) } };
                   return n;
                 }));
               }
             }
           }
+          break; }
+        case 'expand_complete': {
+          // Backend response for expansion using refined local-neighborhood logic
+          type ExpandCompletePayload = { label?: string; added?: unknown[]; merged?: unknown[] };
+          const payload: ExpandCompletePayload = isRecord(data) ? (data as ExpandCompletePayload) : {};
+          const label = typeof payload.label === 'string' ? payload.label : undefined;
+          const added = Array.isArray(payload.added) ? payload.added : [];
+
+          // Normalize labels against existing nodes to avoid duplicates
+          const labelByCanonical = new Map<string, string>();
+          nodes.forEach(n => { labelByCanonical.set(canonical(n.data.label), n.data.label); });
+          const preferExistingLabel = (lbl: string) => labelByCanonical.get(canonical(lbl)) || lbl;
+
+          const parsedAdded = added.map(toRelationshipRecord).filter((r): r is RelationshipRecord => r !== null);
+
+          // Ensure nodes exist and append only new edges
+          for (const r of parsedAdded) {
+            const parentLabel = preferExistingLabel(r.language2);
+            const childLabel = preferExistingLabel(r.language1);
+            if (!parentLabel || !childLabel) continue;
+            const parentId = ensureNode(parentLabel, r.language2_category, r.language2_qid);
+            const childId = ensureNode(childLabel, r.language1_category, r.language1_qid);
+            if (!parentId || !childId) continue;
+            const eid = `e-${parentId}-${childId}`;
+            setEdges(prev => prev.some(e => e.id === eid) ? prev : [...prev, createEdge(parentId, childId)]);
+          }
+
+          // Ensure expand buttons remain available
+          setNodes(prev => prev.map(n => ({ ...n, data: { ...n.data, onExpand: () => expandNodeByLabel(n.data.label) } })));
+
+          const addedCount = parsedAdded.length;
+          if (label) setStatus(`Expanded "${label}": ${addedCount} new relationship(s).`);
+          if (autoLayoutOnComplete) setTimeout(() => layout(), 0);
           break; }
         case 'complete': {
           completeRef.current = true;
@@ -608,7 +677,7 @@ const LanguageTreePage = () => {
       }
     }
     lastProcessedIndexRef.current = messages.length;
-  }, [messages, autoLayoutOnComplete, layout, ensureNode, setEdges, createEdge, expandNodeByQid, humanizeCategory, setNodes]);
+  }, [messages, autoLayoutOnComplete, layout, ensureNode, setEdges, createEdge, expandNodeByQid, humanizeCategory, setNodes, expandNodeByLabel, canonical, nodes]);
 
   const resetGraphState = useCallback((statusMessage: string) => {
     setNodes([]);
@@ -643,57 +712,9 @@ const LanguageTreePage = () => {
     layout(dir);
   };
 
-  // Build current relationships payload from edges + nodes' labels/qids/categories
-  const buildRelationshipsPayload = useCallback((): RelationshipRecord[] => {
-    const idToNode = new Map(nodes.map(n => [n.id, n] as const));
-    // relationships: parent (source) -> child (target)
-    return edges.map(e => {
-      const parent = idToNode.get(e.source);
-      const child = idToNode.get(e.target);
-      const record: RelationshipRecord = {
-        language1: child?.data.label ?? '',
-        relationship: 'Child of',
-        language2: parent?.data.label ?? '',
-        language1_qid: child?.data.qid,
-        language2_qid: parent?.data.qid,
-        language1_category: child?.data.category,
-        language2_category: parent?.data.category,
-      };
-      return record;
-    });
-  }, [edges, nodes]);
+  
 
-  // Save current graph to backend
-  const handleSaveGraph = useCallback(async () => {
-    try {
-      const userId = '1234';
-      const graphName = window.prompt('Enter a name for this graph:', language.trim()) || language.trim() || 'Unnamed Graph';
-      const rels = buildRelationshipsPayload();
-      const payload = {
-        user_id: userId,
-        name: graphName,
-        depth: depth,
-        node_count: nodes.length,
-        relationships: rels,
-      };
-  const base = process.env.NEXT_PUBLIC_LANGUAGE_API_URL || 'http://localhost:8001';
-  const res = await fetch(`${base}/graphs`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || 'Failed to save graph');
-      }
-      const saved = await res.json();
-      setStatus(`Saved graph "${saved.name}"`);
-    } catch (err: unknown) {
-      const error = err instanceof Error ? err : new Error(String(err));
-      console.error('Save graph failed', error);
-      setStatus(`Error saving graph: ${error.message}`);
-    }
-  }, [buildRelationshipsPayload, depth, language, nodes.length]);
+  // (Save graph removed for now to reduce lint noise; can be reintroduced in toolbar when needed)
 
   // Highlight edges connected to selected node without mutating core edge state
   const displayEdges = useMemo(() => {
