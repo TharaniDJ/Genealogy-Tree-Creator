@@ -1,7 +1,10 @@
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import httpx
+from websockets.client import connect as ws_connect
+from websockets.exceptions import WebSocketException, ConnectionClosed
+import asyncio
 from app.core.config import settings
 from jose import jwt, JWTError
 
@@ -47,7 +50,7 @@ async def proxy(service: str, path: str, request: Request):
     headers = dict(request.headers)
     print(service, path)
     # Validate token for protected routes (simple rule: all except public auth endpoints)
-    if not path.startswith('auth') and (service != 'users'):
+    if not path.startswith('auth'):
         print("Validating token...")
         user = verify_token(headers.get('authorization'))
         if user is None:
@@ -100,3 +103,100 @@ async def proxy(service: str, path: str, request: Request):
 @app.get('/')
 async def root():
     return {"message": "API Gateway running"}
+
+
+# WebSocket proxy endpoints
+@app.websocket('/api/{service}/ws/{path:path}')
+async def websocket_proxy(service: str, path: str, websocket: WebSocket):
+    """
+    Proxy WebSocket connections to backend services (with authentication)
+    """
+    # Accept the connection first to be able to send close messages
+    await websocket.accept()
+    
+    # Verify authentication token from query parameters
+    # WebSocket connections can't send custom headers easily, so we use query params
+    token = websocket.query_params.get('token')
+    
+    if not token:
+        await websocket.close(code=1008, reason="Authentication required: No token provided")
+        return
+    
+    # Verify the token
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        user_id = payload.get("sub")
+        if not user_id:
+            await websocket.close(code=1008, reason="Invalid token: No user ID")
+            return
+        print(f"WebSocket authenticated for user: {user_id}")
+    except JWTError as e:
+        await websocket.close(code=1008, reason=f"Invalid token: {str(e)}")
+        return
+    except Exception as e:
+        await websocket.close(code=1008, reason=f"Authentication error: {str(e)}")
+        return
+    
+    # Map service to WebSocket URL
+    ws_map = {
+        "language": "ws://localhost:8001/ws",
+        "family": "ws://localhost:8000/ws",
+        "species": "ws://localhost:8002/ws",
+    }
+    
+    backend_ws_base = ws_map.get(service)
+    if not backend_ws_base:
+        await websocket.close(code=1008, reason=f"Service '{service}' not found")
+        return
+    
+    backend_ws_url = f"{backend_ws_base}/{path}"
+    
+    backend_ws = None
+    try:
+        # Connect to the backend WebSocket
+        backend_ws = await ws_connect(backend_ws_url)
+        
+        # Create tasks to forward messages in both directions
+        async def forward_to_backend():
+            try:
+                while True:
+                    # Receive from frontend
+                    data = await websocket.receive_text()
+                    # Send to backend
+                    await backend_ws.send(data)
+            except WebSocketDisconnect:
+                print(f"Frontend WebSocket disconnected for {service}/{path}")
+            except Exception as e:
+                print(f"Error forwarding to backend: {e}")
+        
+        async def forward_to_frontend():
+            try:
+                while True:
+                    # Receive from backend
+                    data = await backend_ws.recv()
+                    # Send to frontend (handle both text and binary data)
+                    if isinstance(data, bytes):
+                        await websocket.send_bytes(data)
+                    else:
+                        await websocket.send_text(str(data))
+            except ConnectionClosed:
+                print(f"Backend WebSocket closed for {service}/{path}")
+            except Exception as e:
+                print(f"Error forwarding to frontend: {e}")
+        
+        # Run both forwarding tasks concurrently
+        await asyncio.gather(
+            forward_to_backend(),
+            forward_to_frontend(),
+            return_exceptions=True
+        )
+        
+    except WebSocketException as e:
+        print(f"WebSocket error connecting to backend {backend_ws_url}: {e}")
+        await websocket.close(code=1011, reason=f"Backend service error: {str(e)}")
+    except Exception as e:
+        print(f"Unexpected error in WebSocket proxy: {e}")
+        await websocket.close(code=1011, reason=f"Internal error: {str(e)}")
+    finally:
+        if backend_ws:
+            await backend_ws.close()
