@@ -837,6 +837,25 @@ def get_local_neighborhood_edges(
         t for t in existing_graph if t[1] == "is child of"
     ])
 
+    def _is_descendant(child_label: str, ancestor_label: str) -> bool:
+        """Return True if child_label is already (directly or indirectly) under ancestor_label in existing graph."""
+        if not child_label or not ancestor_label:
+            return False
+        target = _canonical_label(ancestor_label)
+        current = child_label
+        # climb up using existing_parent_map
+        safety = 0
+        while safety < 10000:
+            parent = existing_parent_map.get(current)
+            if not parent:
+                return False
+            # Prefer exact (case-insensitive) match, then canonical
+            if parent.lower() == ancestor_label.lower() or _canonical_label(parent) == target:
+                return True
+            current = parent
+            safety += 1
+        return False
+
     def _fmt_list(lst: List[str]) -> str:
         return ", ".join(lst) if lst else "(none)"
 
@@ -960,6 +979,26 @@ OUTPUT JSON ONLY with the following structure:
             additions: List[Tuple[str, str, str]] = []
             for t in edges:
                 c, r, p = t
+                # Skip any edge that would make a node directly connect to an ancestor it already descends from
+                # Example: avoid adding (Italian -> Latin) if Italian is already under Latin via Italo-Western...
+                try:
+                    if _is_descendant(c, node_label):
+                        continue
+                    # Also skip if the proposed parent is already an ancestor of the child (no shortcuts to existing ancestors)
+                    if _is_descendant(c, p):
+                        continue
+                except Exception:
+                    # Be conservative if any issue occurs
+                    pass
+                # Enforce single-parent constraint during expansion: if child already has a parent and it's different, skip
+                try:
+                    existing_p = existing_parent_map.get(c)
+                    if existing_p:
+                        if existing_p.lower() != p.lower() and _canonical_label(existing_p) != _canonical_label(p):
+                            # Child already has a different parent in the existing graph; do not add a second parent
+                            continue
+                except Exception:
+                    pass
                 # Allow correction of parent for the node itself
                 if c == node_label:
                     # If there is an existing parent and it differs, skip to avoid conflicts
