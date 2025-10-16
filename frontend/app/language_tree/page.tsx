@@ -598,72 +598,35 @@ const LanguageTreePage = () => {
           }
           break; }
         case 'expand_complete': {
-          // Backend response for expansion using refined merge logic
-          const label = data && typeof (data as any).label === 'string' ? (data as any).label : undefined;
-          const added = (isRecord(data) && Array.isArray((data as any).added)) ? (data as any).added as unknown[] : [];
-          const merged = (isRecord(data) && Array.isArray((data as any).merged)) ? (data as any).merged as unknown[] : [];
+          // Backend response for expansion using refined local-neighborhood logic
+          type ExpandCompletePayload = { label?: string; added?: unknown[]; merged?: unknown[] };
+          const payload: ExpandCompletePayload = isRecord(data) ? (data as ExpandCompletePayload) : {};
+          const label = typeof payload.label === 'string' ? payload.label : undefined;
+          const added = Array.isArray(payload.added) ? payload.added : [];
 
           // Normalize labels against existing nodes to avoid duplicates
-          const idToNode = new Map(nodes.map(n => [n.id, n] as const));
           const labelByCanonical = new Map<string, string>();
           nodes.forEach(n => { labelByCanonical.set(canonical(n.data.label), n.data.label); });
+          const preferExistingLabel = (lbl: string) => labelByCanonical.get(canonical(lbl)) || lbl;
 
-          const preferExistingLabel = (lbl: string) => {
-            const key = canonical(lbl);
-            return labelByCanonical.get(key) || lbl;
-          };
+          const parsedAdded = added.map(toRelationshipRecord).filter((r): r is RelationshipRecord => r !== null);
 
-          // Build a merged edge set by updating only affected children
-          const parsedMerged = merged.map(toRelationshipRecord).filter((r): r is RelationshipRecord => r !== null);
-          const updatedParents = new Map<string, string>(); // childLabel -> parentLabel
-          const ensureNodeAndMap = (label: string, category?: string, qid?: string) => ensureNode(preferExistingLabel(label), category, qid);
-
-          for (const r of parsedMerged) {
+          // Ensure nodes exist and append only new edges
+          for (const r of parsedAdded) {
             const parentLabel = preferExistingLabel(r.language2);
             const childLabel = preferExistingLabel(r.language1);
             if (!parentLabel || !childLabel) continue;
-            updatedParents.set(childLabel, parentLabel);
-            ensureNodeAndMap(parentLabel, r.language2_category, r.language2_qid);
-            ensureNodeAndMap(childLabel, r.language1_category, r.language1_qid);
+            const parentId = ensureNode(parentLabel, r.language2_category, r.language2_qid);
+            const childId = ensureNode(childLabel, r.language1_category, r.language1_qid);
+            if (!parentId || !childId) continue;
+            const eid = `e-${parentId}-${childId}`;
+            setEdges(prev => prev.some(e => e.id === eid) ? prev : [...prev, createEdge(parentId, childId)]);
           }
 
-          setEdges(prev => {
-            const idToNodeNow = new Map(nodes.map(n => [n.id, n] as const));
-            // Build current child->parent mapping from prev edges
-            const currentParent = new Map<string, string>();
-            prev.forEach(e => {
-              const parent = idToNodeNow.get(e.source)?.data.label;
-              const child = idToNodeNow.get(e.target)?.data.label;
-              if (parent && child) currentParent.set(child, parent);
-            });
+          // Ensure expand buttons remain available
+          setNodes(prev => prev.map(n => ({ ...n, data: { ...n.data, onExpand: () => expandNodeByLabel(n.data.label) } })));
 
-            // Apply updates
-            updatedParents.forEach((parent, child) => currentParent.set(child, parent));
-
-            // Rebuild edge list
-            const newEdges: Edge[] = [];
-            const usedEdgeIds = new Set<string>();
-            currentParent.forEach((parent, child) => {
-              const parentId = labelToIdRef.current.get(parent) || ensureNodeAndMap(parent);
-              const childId = labelToIdRef.current.get(child) || ensureNodeAndMap(child);
-              if (!parentId || !childId) return;
-              const eid = `e-${parentId}-${childId}`;
-              if (!usedEdgeIds.has(eid)) {
-                usedEdgeIds.add(eid);
-                newEdges.push(createEdge(parentId, childId));
-              }
-            });
-            return newEdges;
-          });
-
-          // Ensure every involved node has an expand button by label
-          setNodes(prev => prev.map(n => ({
-            ...n,
-            data: { ...n.data, onExpand: () => expandNodeByLabel(n.data.label) }
-          })));
-
-          // Provide a user-friendly status message
-          const addedCount = added.map(toRelationshipRecord).filter((r): r is RelationshipRecord => r !== null).length;
+          const addedCount = parsedAdded.length;
           if (label) setStatus(`Expanded "${label}": ${addedCount} new relationship(s).`);
           if (autoLayoutOnComplete) setTimeout(() => layout(), 0);
           break; }
@@ -714,7 +677,7 @@ const LanguageTreePage = () => {
       }
     }
     lastProcessedIndexRef.current = messages.length;
-  }, [messages, autoLayoutOnComplete, layout, ensureNode, setEdges, createEdge, expandNodeByQid, humanizeCategory, setNodes]);
+  }, [messages, autoLayoutOnComplete, layout, ensureNode, setEdges, createEdge, expandNodeByQid, humanizeCategory, setNodes, expandNodeByLabel, canonical, nodes]);
 
   const resetGraphState = useCallback((statusMessage: string) => {
     setNodes([]);
@@ -751,37 +714,7 @@ const LanguageTreePage = () => {
 
   
 
-  // Save current graph to backend
-  const handleSaveGraph = useCallback(async () => {
-    try {
-      const userId = '1234';
-      const graphName = window.prompt('Enter a name for this graph:', language.trim()) || language.trim() || 'Unnamed Graph';
-      const rels = buildRelationshipsPayload();
-      const payload = {
-        user_id: userId,
-        name: graphName,
-        depth: depth,
-        node_count: nodes.length,
-        relationships: rels,
-      };
-  const base = process.env.NEXT_PUBLIC_LANGUAGE_API_URL || 'http://localhost:8001';
-  const res = await fetch(`${base}/graphs`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || 'Failed to save graph');
-      }
-      const saved = await res.json();
-      setStatus(`Saved graph "${saved.name}"`);
-    } catch (err: unknown) {
-      const error = err instanceof Error ? err : new Error(String(err));
-      console.error('Save graph failed', error);
-      setStatus(`Error saving graph: ${error.message}`);
-    }
-  }, [buildRelationshipsPayload, depth, language, nodes.length]);
+  // (Save graph removed for now to reduce lint noise; can be reintroduced in toolbar when needed)
 
   // Highlight edges connected to selected node without mutating core edge state
   const displayEdges = useMemo(() => {

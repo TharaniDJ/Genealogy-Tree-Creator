@@ -299,6 +299,29 @@ def select_relevant_chunks(sections: Dict[str, str], top_k: int = 20) -> str:
     return "\n\n".join(chunks[i] for i in top_indices if 0 <= i < len(chunks))
 
 
+def select_relevant_chunks_for_node(sections: Dict[str, str], node_label: str, top_k: int = 20) -> str:
+    """Select text most relevant to immediate parent/children/siblings around a node label."""
+    if not sections or embed_model is None:
+        return ""
+    keywords = (
+        f"{node_label}. immediate parent, immediate children, siblings, same parent, subgroup, branch, dialect, variety, belongs to family," \
+        " part of, member of, descendant of, child of."
+    )
+    query_emb = embed_model.encode(keywords, normalize_embeddings=True)
+    chunks = [
+        f"Section: {title}\n{paragraph.strip()}"
+        for title, text in sections.items()
+        for paragraph in text.split("\n")
+        if paragraph.strip()
+    ]
+    if not chunks:
+        return ""
+    chunk_embs = embed_model.encode(chunks, normalize_embeddings=True)
+    similarities = np.dot(chunk_embs, query_emb)
+    top_indices = np.argsort(similarities)[-top_k:]
+    return "\n\n".join(chunks[i] for i in top_indices if 0 <= i < len(chunks))
+
+
 def parse_list_like_from_text(raw: str):
     if not raw:
         return None
@@ -630,33 +653,33 @@ async def expand_node_in_graph(
         for s, r, o in new_infobox_triples
     ]
     sections = await asyncio.to_thread(extract_clean_sections, wikitext)
-    new_relevant_text = await asyncio.to_thread(select_relevant_chunks, sections) if sections else ""
+    new_relevant_text = await asyncio.to_thread(select_relevant_chunks_for_node, sections, resolved_title) if sections else ""
     await _send_status(
-        f"Extracted {len(new_infobox_processed)} new infobox triples; merging via LLM...",
+        f"Extracted {len(new_infobox_processed)} new infobox triples; extracting local neighborhood via LLM...",
         55,
         websocket_manager,
         connection_id,
     )
 
-    # Merge via LLM
-    merged_graph = await asyncio.to_thread(
-        get_merged_and_refined_graph,
-        new_infobox_processed,
-        new_relevant_text,
-        resolved_title,
-        original_triples,
+    # Compute current immediate parent and children of the node from existing graph
+    current_parent_map, current_children_map = _build_relationship_graph([
+        t for t in original_triples if t[1] == "is child of"
+    ])
+    current_parent = current_parent_map.get(resolved_title)
+    current_children = sorted(list(current_children_map.get(resolved_title, set())))
+
+    # Ask LLM for only local neighborhood and return edges to attach
+    newly_added_triples = await asyncio.to_thread(
+        get_local_neighborhood_edges,
+        node_label=resolved_title,
+        new_infobox_triples=new_infobox_processed,
+        relevant_text=new_relevant_text,
+        current_parent=current_parent,
+        current_children=current_children,
+        existing_graph=original_triples,
     )
 
-    # Preserve distant subtrees: if LLM did not mention some children of the originally selected root
-    # in the preceding full graph session, keep those edges. We'll keep all original edges whose child
-    # does not appear in any LLM update.
-    llm_children = {c for (c, r, p) in merged_graph if r == "is child of"}
-    preserved_edges = [t for t in original_triples if t[1] == "is child of" and t[0] not in llm_children]
-    combined_set = set(merged_graph) | set(preserved_edges)
-
-    original_set = set(original_triples)
-    merged_set = combined_set
-    newly_added_triples = list(merged_set - original_set)
+    merged_set = set(original_triples) | set(newly_added_triples)
 
     await _send_status(
         f"Expansion complete. Added {len(newly_added_triples)} relationship(s).",
@@ -787,6 +810,179 @@ def _build_preferred_label_map(existing_graph: List[Tuple[str, str, str]]) -> Di
     return preferred
 
 
+def get_local_neighborhood_edges(
+    node_label: str,
+    new_infobox_triples: List[Tuple[str, str, str]],
+    relevant_text: str,
+    current_parent: Optional[str],
+    current_children: List[str],
+    existing_graph: List[Tuple[str, str, str]],
+) -> List[Tuple[str, str, str]]:
+    """Use LLM to extract only immediate children, siblings, and siblings' immediate children (no node parent).
+
+    Contract:
+    - Input: node_label, optional current_parent, list of current_children, new infobox triples and relevant text.
+        - Output: list of ('Child','is child of','Parent') edges to ATTACH. It should:
+            - Include zero or more children of node_label (edges: child -> node_label).
+            - Include zero or more siblings (nodes sharing the same parent as node_label). Use the provided current_parent if present; do NOT infer/alter the node's parent. Represent siblings as (sibling -> current_parent).
+            - Include zero or more children of those siblings (only one level down from siblings) as (sibling_child -> sibling).
+    - Must NOT rename node_label. If a canonical or alternate name is found, you may set node_alias but always use exactly node_label in edges where it appears as a parent.
+    - We will post-filter to avoid duplicates/conflicts with existing_graph.
+    """
+
+    client = _get_genai_client()
+    models_to_try = _get_model_candidates()
+
+    existing_parent_map, existing_children_map = _build_relationship_graph([
+        t for t in existing_graph if t[1] == "is child of"
+    ])
+
+    def _fmt_list(lst: List[str]) -> str:
+        return ", ".join(lst) if lst else "(none)"
+
+    infobox_str = "\n".join([str(t) for t in new_infobox_triples])
+    prompt = f"""
+You are an expert in historical linguistics. Extract ONLY the immediate neighborhood of the language node "{node_label}".
+
+Neighborhood definition (max distance 1 from the node except siblings' children):
+1) Immediate children of {node_label} (zero or more) — edges must be (child -> {node_label}).
+2) Siblings of {node_label} (languages that share the same immediate parent with {node_label}). If and only if a current_parent value is provided below, represent siblings as edges (sibling -> current_parent). Do NOT infer a new parent.
+3) Immediate children of those siblings (zero or more, only one level below siblings) — edges (sibling_child -> sibling).
+
+Use the inputs below: new Infobox triples and Relevant Text from the page "{node_label}". Focus on this local neighborhood only, do not infer distant ancestors or descendants.
+
+IMPORTANT RULES:
+- Never include an edge whose Child is exactly "{node_label}". Do NOT output or correct the parent of {node_label}.
+- Do NOT rename "{node_label}". If the text uses a different label for the same language, set "node_alias" but use exactly "{node_label}" when it appears as a parent.
+- Normalize ALL relationships to ("Child", "is child of", "Parent").
+- Each child must have only one parent in your output.
+- If you are uncertain about an item, omit it rather than guessing.
+- Prefer names exactly as they appear in the inputs. Do not add qualifiers like "language" unless present.
+
+CURRENT KNOWN IMMEDIATE RELATIONSHIPS:
+- current_parent: {current_parent or '(none)'}
+- current_children: {_fmt_list(current_children)}
+
+INPUT DATA:
+1) New Infobox Triples for "{node_label}":
+{infobox_str}
+
+2) Relevant Text (pre-filtered for children/sibling context):
+{relevant_text}
+
+OUTPUT JSON ONLY with the following structure:
+{{
+    "node": "{node_label}",
+    "node_alias": "<optional alternate label if text uses it, else empty string>",
+    "triples": [["Child", "is child of", "Parent"], ...]
+}}
+"""
+
+    last_error: Optional[Exception] = None
+    for model in models_to_try:
+        try:
+            print(f"[wikipedia_service] Calling LLM '{model}' for local neighborhood of '{node_label}'.")
+            response = client.models.generate_content(model=model, contents=prompt)
+            response_text = getattr(response, "text", "")
+            if not response_text:
+                last_error = RuntimeError("LLM returned empty response for local neighborhood.")
+                continue
+
+            cleaned_text = re.sub(r"```(?:json|python)?", "", response_text, flags=re.I).replace("```", "").strip()
+            match = re.search(r"\{.*\}", cleaned_text, re.DOTALL)
+            if not match:
+                last_error = RuntimeError("Could not find JSON object in local neighborhood response.")
+                continue
+            json_blob = match.group(0)
+
+            try:
+                import json as _json
+                parsed = _json.loads(json_blob)
+            except Exception:
+                try:
+                    parsed = ast.literal_eval(json_blob)  # type: ignore
+                except Exception as exc:
+                    print(f"[wikipedia_service] Local neighborhood parser error: {exc}")
+                    last_error = exc
+                    continue
+
+            if not isinstance(parsed, dict):
+                last_error = RuntimeError("Local neighborhood JSON not an object.")
+                continue
+
+            node_out = parsed.get("node")
+            if node_out and str(node_out).strip() != node_label:
+                print(
+                    f"[wikipedia_service] Warning: LLM returned node '{node_out}' different from requested '{node_label}'. Forcing to requested label."
+                )
+
+            triples = parsed.get("triples", [])
+            if not isinstance(triples, list):
+                last_error = RuntimeError("Local neighborhood 'triples' missing or not a list.")
+                continue
+
+            # Build preferred label map to avoid label drift for existing nodes
+            preferred_map = _build_preferred_label_map(existing_graph)
+
+            def apply_preferred(label: str) -> str:
+                key = _canonical_label(label)
+                return preferred_map.get(key, label)
+
+            edges: List[Tuple[str, str, str]] = []
+            seen: set[Tuple[str, str, str]] = set()
+            for item in triples:
+                if isinstance(item, (list, tuple)) and len(item) == 3:
+                    c, r, p = (str(item[0]).strip(), str(item[1]).strip(), str(item[2]).strip())
+                    if r != "is child of" or not c or not p:
+                        continue
+                    # Do not include any parent edge for the node itself (we are not changing/adding its parent)
+                    if _canonical_label(c) == _canonical_label(node_label):
+                        continue
+                    # Force the node label to remain exactly as requested when it appears as a parent
+                    if _canonical_label(p) == _canonical_label(node_label):
+                        p = node_label
+                    # Apply preferred labels to others
+                    c = apply_preferred(c)
+                    p = apply_preferred(p)
+                    t = (c, "is child of", p)
+                    if t not in seen:
+                        seen.add(t)
+                        edges.append(t)
+
+            if not edges:
+                # Nothing to add
+                return []
+
+            # Post-filter to avoid duplicates/conflicts
+            existing_set = set([
+                (c, r, p) for (c, r, p) in existing_graph if r == "is child of"
+            ])
+            additions: List[Tuple[str, str, str]] = []
+            for t in edges:
+                c, r, p = t
+                # Allow correction of parent for the node itself
+                if c == node_label:
+                    # If there is an existing parent and it differs, skip to avoid conflicts
+                    if current_parent and current_parent != p:
+                        continue
+                    # Add only if not duplicate
+                    if t not in existing_set:
+                        additions.append(t)
+                    continue
+                # For other children, only add if not already present
+                if t not in existing_set:
+                    additions.append(t)
+
+            return additions
+        except Exception as exc:
+            print(f"[wikipedia_service] Error during local neighborhood call with model '{model}': {exc}")
+            last_error = exc
+
+    if last_error:
+        print(f"[wikipedia_service] Local neighborhood extraction failed: {last_error}")
+    return []
+
+
 def _find_graph_root_label(
     root_label: str,
     parent_map: Dict[str, str],
@@ -839,12 +1035,25 @@ def _relationships_within_depth(
     parent_map: Dict[str, str],
     children_map: Dict[str, set[str]],
 ) -> List[Tuple[LanguageRelationship, str, int]]:
+    """Return edges within an undirected radius from root (full component when depth=None).
+
+    Behavior change:
+    - When depth is None ("full-tree"), include all 'is child of' edges in the connected component
+      that contains the root, including siblings/cousins under shared ancestors.
+    - When depth is a positive integer, include all edges where BOTH endpoints are within
+      the undirected BFS distance <= depth from the root; this naturally includes all branches
+      that fall within the radius.
+
+    Direction/level semantics preserved:
+    - For an edge (child -> parent):
+        * if dist(child) > dist(parent): direction = 'descendant', level = dist(child)
+        * if dist(child) < dist(parent): direction = 'ancestor', level = dist(parent)
+      Distances are computed via undirected BFS from the root with dist(root) = 0.
+    """
     if depth is not None and depth <= 0:
         return []
 
-    bounded: List[Tuple[LanguageRelationship, str, int]] = []
-    seen_edges: set[Tuple[str, str, str]] = set()
-
+    # Quick sanity: ensure root is present somewhere in the component
     if (
         root not in parent_map
         and root not in children_map
@@ -855,55 +1064,79 @@ def _relationships_within_depth(
         )
         return []
 
-    current = root
-    current_level = 1
-    while True:
-        parent = parent_map.get(current)
-        if not parent:
-            break
-        edge_key = (current, "is child of", parent)
-        if edge_key not in seen_edges:
-            bounded.append(
-                (
-                    LanguageRelationship(
-                        language1=current,
-                        relationship="is child of",
-                        language2=parent,
-                    ),
-                    "ancestor",
-                    current_level,
-                )
-            )
-            seen_edges.add(edge_key)
-        current = parent
-        current_level += 1
-        if depth is not None and current_level > depth:
-            break
+    # Build undirected adjacency for BFS
+    adjacency: Dict[str, set[str]] = defaultdict(set)
+    # add nodes that appear only as parents
+    graph_nodes = set(parent_map.keys()) | set(parent_map.values()) | set(children_map.keys())
+    for child, parent in parent_map.items():
+        adjacency[child].add(parent)
+        adjacency[parent].add(child)
+    for parent, children in children_map.items():
+        for child in children:
+            adjacency[parent].add(child)
+            adjacency[child].add(parent)
 
-    queue = deque([(root, 0)])
-    seen_nodes = {root}
-    while queue:
-        node, level = queue.popleft()
-        if depth is not None and level >= depth:
+    # Ensure all nodes exist in adjacency, even isolated (shouldn't happen in tree)
+    for node in graph_nodes:
+        adjacency.setdefault(node, set())
+
+    # BFS to compute undirected distances from root
+    distances: Dict[str, int] = {}
+    dq = deque([root])
+    distances[root] = 0
+    while dq:
+        node = dq.popleft()
+        for nb in adjacency.get(node, ()): 
+            if nb not in distances:
+                distances[nb] = distances[node] + 1
+                dq.append(nb)
+
+    # Collect edges within radius (or entire component if depth is None)
+    bounded: List[Tuple[LanguageRelationship, str, int]] = []
+    seen_edges: set[Tuple[str, str]] = set()  # (child,parent)
+
+    def _include_edge(c: str, p: str) -> bool:
+        if c not in distances or p not in distances:
+            return False
+        if depth is None:
+            return True
+        return max(distances[c], distances[p]) <= depth
+
+    for child, parent in parent_map.items():
+        if not _include_edge(child, parent):
             continue
-        for child in children_map.get(node, set()):
-            edge_key = (child, "is child of", node)
-            if edge_key not in seen_edges:
-                bounded.append(
-                    (
-                        LanguageRelationship(
-                            language1=child,
-                            relationship="is child of",
-                            language2=node,
-                        ),
-                        "descendant",
-                        level + 1,
-                    )
-                )
-                seen_edges.add(edge_key)
-            if child not in seen_nodes:
-                queue.append((child, level + 1))
-                seen_nodes.add(child)
+        key = (child, parent)
+        if key in seen_edges:
+            continue
+        seen_edges.add(key)
+
+        dc = distances.get(child)
+        dp = distances.get(parent)
+        if dc is None or dp is None:
+            continue
+
+        if dc > dp:
+            direction = "descendant"
+            level = dc
+        elif dc < dp:
+            direction = "ancestor"
+            level = dp
+        else:
+            # Equal distance should not occur in a tree; default to descendant
+            direction = "descendant"
+            level = dc
+
+        bounded.append(
+            (
+                LanguageRelationship(
+                    language1=child,
+                    relationship="is child of",
+                    language2=parent,
+                ),
+                direction,
+                level,
+            )
+        )
 
     return bounded
 
@@ -1007,9 +1240,11 @@ async def fetch_language_relationships(
         connection_id,
     )
     print(
+        
         f"[wikipedia_service] Completed extraction for '{resolved_title}' with "
         f"{len(relationships_payload)} relationships ({depth_desc})."
     )
+    
 
     return relationships_payload
 
