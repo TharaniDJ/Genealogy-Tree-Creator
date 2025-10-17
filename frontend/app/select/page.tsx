@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import AuthGuard from '@/components/AuthGuard';
 import { Network, GitBranch, Dna, ChevronRight, LogOut, User } from 'lucide-react';
 import useAuth from '@/hooks/useAuth';
-
+import Image from 'next/image';
 function SelectPageInner() {
   const router = useRouter();
   const { logout, getToken } = useAuth();
@@ -70,11 +70,17 @@ function SelectPageInner() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center space-x-3">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-[#6B72FF] to-[#8B7BFF] shadow-lg shadow-[#6B72FF]/30">
-                <Network className="w-6 h-6 text-white" />
+              <div className="relative">
+                <Image
+                  src="/logo.png"
+                  alt="GeneChain Logo"
+                  width={50}
+                  height={50}
+                  className="object-contain"
+                />
               </div>
               <span className="text-xl font-bold bg-gradient-to-r from-[#6B72FF] to-[#8B7BFF] bg-clip-text text-transparent">
-                GenealogyTree
+                GeneChain
               </span>
             </div>
 
@@ -131,19 +137,19 @@ function SelectPageInner() {
                 }}
               >
                 <div className={`absolute inset-0 bg-gradient-to-br ${option.gradient} opacity-0 group-hover:opacity-10 rounded-2xl transition-opacity duration-300`}></div>
-                
+
                 <div className="relative z-10">
                   <div className={`w-16 h-16 rounded-xl bg-gradient-to-br ${option.gradient} flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform duration-300`}
                     style={{ boxShadow: `0 10px 30px ${option.glowColor}30` }}
                   >
                     <Icon className="w-8 h-8 text-white" />
                   </div>
-                  
+
                   <h3 className="text-2xl font-bold text-[#F5F7FA] mb-3 flex items-center justify-between">
                     {option.title}
                     <ChevronRight className="w-6 h-6 text-[#9CA3B5] group-hover:text-[#F5F7FA] group-hover:translate-x-1 transition-all duration-300" />
                   </h3>
-                  
+
                   <p className="text-[#9CA3B5] leading-relaxed mb-6">
                     {option.description}
                   </p>

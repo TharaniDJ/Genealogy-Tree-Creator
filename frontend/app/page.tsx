@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import useAuth from '@/hooks/useAuth';
+import Image from 'next/image';
 import { Network, GitBranch, Dna, Sparkles, ChevronRight, User, LogIn, UserPlus } from 'lucide-react';
 
 export default function LandingPage() {
@@ -48,13 +49,19 @@ export default function LandingPage() {
       {/* Navbar */}
       <nav className="relative z-10 backdrop-blur-xl bg-white/5 border-b border-white/10 shadow-lg shadow-[#6B72FF]/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          <div className="flex justify-between items-center h-20">
             <div className="flex items-center space-x-3">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-[#6B72FF] to-[#8B7BFF] shadow-lg shadow-[#6B72FF]/30">
-                <Network className="w-6 h-6 text-white" />
+              <div className="relative">
+                <Image 
+                  src="/logo.png" 
+                  alt="GeneChain Logo" 
+                  width={50} 
+                  height={50}
+                  className="object-contain"
+                />
               </div>
               <span className="text-xl font-bold bg-gradient-to-r from-[#6B72FF] to-[#8B7BFF] bg-clip-text text-transparent">
-                GenealogyTree
+                GeneChain
               </span>
             </div>
             
@@ -257,13 +264,19 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="flex items-center space-x-3 mb-4 md:mb-0">
-              <div className="p-2 rounded-lg bg-gradient-to-br from-[#6B72FF] to-[#8B7BFF]">
-                <Network className="w-5 h-5 text-white" />
+              <div className="relative w-8 h-8">
+                <Image 
+                  src="/logo.png" 
+                  alt="GeneChain Logo" 
+                  width={32} 
+                  height={32}
+                  className="object-contain"
+                />
               </div>
-              <span className="text-[#F5F7FA] font-semibold">GenealogyTree Creator</span>
+              <span className="text-[#F5F7FA] font-semibold">GeneChain</span>
             </div>
             <p className="text-[#9CA3B5] text-sm">
-              © 2025 GenealogyTree. Powered by Wikipedia Data.
+              © 2025 GeneChain. Powered by Wikipedia Data.
             </p>
           </div>
         </div>
