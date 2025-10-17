@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import useAuth from '@/hooks/useAuth';
 import AuthGuard from '@/components/AuthGuard';
+import StyledButton from '@/components/ui/StyledButton';
+import StyledIconBox from '@/components/ui/StyledIconBox';
 
 type GraphType = 'language' | 'species' | 'family' | 'all';
 
@@ -165,7 +167,8 @@ const GraphsPage = () => {
           label: 'Language',
           color: 'from-blue-500 to-cyan-500',
           bgColor: 'bg-blue-500/10',
-          borderColor: 'border-blue-500/30'
+          borderColor: 'border-blue-500/30',
+          variant: 'blue' as const
         };
       case 'species':
         return {
@@ -177,7 +180,8 @@ const GraphsPage = () => {
           label: 'Species',
           color: 'from-green-500 to-emerald-500',
           bgColor: 'bg-green-500/10',
-          borderColor: 'border-green-500/30'
+          borderColor: 'border-green-500/30',
+          variant: 'green' as const
         };
       case 'family':
         return {
@@ -189,7 +193,8 @@ const GraphsPage = () => {
           label: 'Family',
           color: 'from-purple-500 to-pink-500',
           bgColor: 'bg-purple-500/10',
-          borderColor: 'border-purple-500/30'
+          borderColor: 'border-purple-500/30',
+          variant: 'purple' as const
         };
       default:
         return {
@@ -201,7 +206,8 @@ const GraphsPage = () => {
           label: 'Graph',
           color: 'from-gray-500 to-gray-600',
           bgColor: 'bg-gray-500/10',
-          borderColor: 'border-gray-500/30'
+          borderColor: 'border-gray-500/30',
+          variant: 'purple' as const
         };
     }
   };
@@ -419,7 +425,7 @@ const GraphsPage = () => {
                 <div
                   key={graph.id}
                   onClick={() => handleOpenGraph(graph)}
-                  className={`group relative p-6 rounded-2xl backdrop-blur-lg bg-white/5 border ${typeInfo.borderColor} hover:bg-white/10 transition-all duration-300 cursor-pointer hover:scale-105 hover:shadow-2xl`}
+                  className={`group relative p-6 rounded-2xl backdrop-blur-lg bg-white/1 border ${typeInfo.borderColor} hover:bg-black transition-all duration-300 cursor-pointer hover:scale-105 hover:shadow-2xl`}
                 >
                   {/* Type Badge */}
                   <div className="absolute top-4 right-4">
@@ -430,9 +436,9 @@ const GraphsPage = () => {
                   </div>
 
                   {/* Graph Icon */}
-                  <div className={`w-14 h-14 bg-gradient-to-br ${typeInfo.color} rounded-xl flex items-center justify-center mb-4 shadow-lg text-2xl`}>
+                  <StyledIconBox variant={typeInfo.variant} size="md">
                     {typeInfo.icon}
-                  </div>
+                  </StyledIconBox>
 
                   {/* Graph Info */}
                   <h3 className="text-lg font-bold text-[#F5F7FA] mb-2 pr-20 line-clamp-2 group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-[#6B72FF] group-hover:to-[#8B7BFF] group-hover:bg-clip-text transition-all">
@@ -473,15 +479,16 @@ const GraphsPage = () => {
 
                   {/* Actions */}
                   <div className="flex gap-2">
-                    <button
+                    <StyledButton
+                      variant={typeInfo.variant}
                       onClick={(e) => {
                         e.stopPropagation();
                         handleOpenGraph(graph);
                       }}
-                      className={`flex-1 px-4 py-2 bg-gradient-to-r ${typeInfo.color} hover:opacity-90 text-white rounded-lg transition-all text-sm font-medium shadow-lg`}
+                      className=''
                     >
                       Open
-                    </button>
+                    </StyledButton>
                     <button
                       onClick={(e) => handleDeleteGraph(graph.id, graph.graph_name, e)}
                       className="px-4 py-2 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 text-red-400 rounded-lg transition-all text-sm font-medium"
