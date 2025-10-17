@@ -107,6 +107,12 @@ function GenealogyTreeInternal({
   const [isClassifying, setIsClassifying] = useState(false);
   const [showClassificationButton, setShowClassificationButton] = useState(false);
   const [classifiedRelationships, setClassifiedRelationships] = useState<Map<string, string>>(new Map());
+  // Collapsible UI state for status panel and toolbar
+  const [isStatusCollapsed, setIsStatusCollapsed] = useState(true);
+  const [isToolbarCollapsed, setIsToolbarCollapsed] = useState(true);
+  // When user explicitly expands, keep it open even if idle until they collapse
+  const [statusPinnedOpen, setStatusPinnedOpen] = useState(false);
+  const [toolbarPinnedOpen, setToolbarPinnedOpen] = useState(false);
   
   // Get ReactFlow instance for fitView
   const { fitView, getNodes } = useReactFlow();
@@ -379,6 +385,27 @@ const handleClassifyRelationships = useCallback(() => {
       }
     }
   }, [websocketData, expandingNode]);
+
+  // Auto manage collapse/expand based on activity
+  useEffect(() => {
+    // Determine if there's an active event worth surfacing
+    const hasActiveProgress = progress > 0 && progress < 100;
+    const hasActiveStatus = Boolean(status && !/complete/i.test(status));
+    const eventActive = isClassifying || Boolean(expandingNode) || hasActiveProgress || hasActiveStatus;
+
+    if (eventActive) {
+      // Auto expand during activity (unless user explicitly collapsed and pinned closed; we don't pin close here, so expand)
+      setIsStatusCollapsed(false);
+      setIsToolbarCollapsed(false);
+    } else {
+      // Idle -> collapse after a short delay unless pinned open by user
+      const t = setTimeout(() => {
+        if (!statusPinnedOpen) setIsStatusCollapsed(true);
+        if (!toolbarPinnedOpen) setIsToolbarCollapsed(true);
+      }, 1200);
+      return () => clearTimeout(t);
+    }
+  }, [isClassifying, expandingNode, progress, status, statusPinnedOpen, toolbarPinnedOpen]);
 
   const handleExpandNode = useCallback((nodeId: string) => {
     const node = getNodeById(nodeId);
@@ -1234,20 +1261,40 @@ parentChildRelationships.forEach((rel, index) => {
 
   return (
     <div ref={reactFlowRef} className="absolute inset-0 w-full h-full bg-[#0E0F19]">
-      {/* Horizontal Status Bar */}
-      {(status || progress > 0 || expandingNode || isClassifying) && (
+      {/* Status toggle (collapsed) */}
+      {isStatusCollapsed && (
+        <button
+          onClick={() => { setIsStatusCollapsed(false); setStatusPinnedOpen(true); }}
+          className="absolute top-4 left-4 z-20 px-2 py-1 text-xs rounded-md bg-white/10 hover:bg-white/20 text-[#F5F7FA] border border-white/10 shadow"
+          title="Show status"
+        >
+          Status
+        </button>
+      )}
+
+      {/* Horizontal Status Bar (collapsible) */}
+      {!isStatusCollapsed && (
         <div className="absolute w-8/12 top-4 left-4 z-10 backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl shadow-lg">
-          <div className="px-6 py-3">
+          <div className="px-6 py-3 relative">
+            {/* Collapse control */}
+            <button
+              onClick={() => { setIsStatusCollapsed(true); setStatusPinnedOpen(false); }}
+              className="absolute top-2 right-2 text-xs px-2 py-1 rounded bg-white/10 hover:bg-white/20 text-[#F5F7FA] border border-white/10"
+              title="Hide status"
+            >
+              Hide
+            </button>
+
             <div className="space-y-2">
               {/* First Row: Status Message - Full Width */}
-              <div className="flex items-center space-x-2">
+              <div className="flex items-start space-x-2">
                 {isClassifying && (
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#8B7BFF]"></div>
                 )}
-                <span className="text-sm font-medium text-[#F5F7FA] flex-1">
-                  {isClassifying ? 'Classifying relationships...' : 
-                   expandingNode ? 'Expanding Family Tree...' : 
-                   status || 'Processing...'}
+                <span className="text-sm font-medium text-[#F5F7FA] flex-1 min-w-0 whitespace-pre-wrap break-words">
+                  {isClassifying ? 'Classifying relationships...' :
+                   expandingNode ? 'Expanding Family Tree...' :
+                   status || 'Idle'}
                 </span>
               </div>
 
@@ -1264,7 +1311,7 @@ parentChildRelationships.forEach((rel, index) => {
                   <div className="flex items-center space-x-3">
                     <span className="text-sm font-medium text-[#9CA3B5]">{progress}%</span>
                     <div className="w-32 backdrop-blur-lg bg-white/5 rounded-full h-2 overflow-hidden border border-white/10">
-                      <div 
+                      <div
                         className="h-full bg-gradient-to-r from-[#6B72FF] to-[#8B7BFF] rounded-full transition-all duration-300 ease-out shadow-lg shadow-[#6B72FF]/50"
                         style={{ width: `${progress}%` }}
                       ></div>
@@ -1277,8 +1324,27 @@ parentChildRelationships.forEach((rel, index) => {
         </div>
       )}
 
-      {/* Floating Toolbar for Actions */}
+      {/* Toolbar toggle (collapsed) */}
+      {isToolbarCollapsed && (
+        <button
+          onClick={() => { setIsToolbarCollapsed(false); setToolbarPinnedOpen(true); }}
+          className="absolute top-4 right-4 z-20 px-2 py-1 text-xs rounded-md bg-white/10 hover:bg-white/20 text-[#F5F7FA] border border-white/10 shadow"
+          title="Show tools"
+        >
+          Tools
+        </button>
+      )}
+
+      {/* Floating Toolbar for Actions (collapsible) */}
+      {!isToolbarCollapsed && (
       <div className="absolute top-4 right-4 z-10 flex items-center gap-2 backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl p-2 shadow-lg shadow-[#6B72FF]/10">
+        <button
+          onClick={() => { setIsToolbarCollapsed(true); setToolbarPinnedOpen(false); }}
+          className="px-2 py-1 text-xs rounded-md bg-white/10 hover:bg-white/20 text-[#F5F7FA] border border-white/10"
+          title="Hide tools"
+        >
+          Hide
+        </button>
         {showClassificationButton && !isClassifying && nodes.length > 0 && (
           <button
             onClick={handleClassifyRelationships}
@@ -1429,6 +1495,7 @@ parentChildRelationships.forEach((rel, index) => {
           </svg>
         </button>
       </div>
+      )}
       
 
       
