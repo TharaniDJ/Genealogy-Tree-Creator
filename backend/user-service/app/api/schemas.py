@@ -24,3 +24,16 @@ class UserOut(UserBase):
 class Token(BaseModel):
     access_token: str
     token_type: str
+
+
+class UserUpdateEmail(BaseModel):
+    new_email: EmailStr
+
+
+class UserUpdatePassword(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=6)
+
+
+class UserUpdateProfile(BaseModel):
+    full_name: Optional[str] = None

@@ -99,3 +99,101 @@ async def create_user(user_in):
 
 async def verify_password(plain, hashed):
     return verify_password_hash(plain, hashed)
+
+
+async def update_user_email(user_id: str, new_email: str):
+    """Update user's email address."""
+    try:
+        logger.info(f"Updating email for user ID: {user_id}")
+        col = users_collection()
+        
+        # Check if new email is already in use
+        existing = await col.find_one({"email": new_email})
+        if existing and str(existing["_id"]) != user_id:
+            logger.warning(f"Email {new_email} is already in use")
+            raise ValueError("Email already in use")
+        
+        result = await col.update_one(
+            {"_id": ObjectId(user_id)},
+            {"$set": {"email": new_email}}
+        )
+        
+        if result.modified_count == 0:
+            logger.warning(f"No changes made to user {user_id}")
+            return None
+            
+        logger.info(f"Email updated successfully for user {user_id}")
+        return await get_user_by_id(user_id)
+    except Exception as e:
+        logger.error(f"Error updating email: {str(e)}")
+        raise
+
+
+async def update_user_password(user_id: str, new_password: str):
+    """Update user's password."""
+    try:
+        logger.info(f"Updating password for user ID: {user_id}")
+        col = users_collection()
+        
+        hashed = hash_password(new_password)
+        result = await col.update_one(
+            {"_id": ObjectId(user_id)},
+            {"$set": {"password": hashed}}
+        )
+        
+        if result.modified_count == 0:
+            logger.warning(f"No changes made to user {user_id}")
+            return None
+            
+        logger.info(f"Password updated successfully for user {user_id}")
+        return await get_user_by_id(user_id)
+    except Exception as e:
+        logger.error(f"Error updating password: {str(e)}")
+        raise
+
+
+async def update_user_profile(user_id: str, full_name: str | None = None):
+    """Update user's profile information."""
+    try:
+        logger.info(f"Updating profile for user ID: {user_id}")
+        col = users_collection()
+        
+        update_data = {}
+        if full_name is not None:
+            update_data["full_name"] = full_name
+            
+        if not update_data:
+            return await get_user_by_id(user_id)
+        
+        result = await col.update_one(
+            {"_id": ObjectId(user_id)},
+            {"$set": update_data}
+        )
+        
+        if result.modified_count == 0:
+            logger.warning(f"No changes made to user {user_id}")
+            
+        logger.info(f"Profile updated successfully for user {user_id}")
+        return await get_user_by_id(user_id)
+    except Exception as e:
+        logger.error(f"Error updating profile: {str(e)}")
+        raise
+
+
+async def delete_user(user_id: str):
+    """Delete user account."""
+    try:
+        logger.info(f"Deleting user ID: {user_id}")
+        col = users_collection()
+        
+        result = await col.delete_one({"_id": ObjectId(user_id)})
+        
+        if result.deleted_count == 0:
+            logger.warning(f"User {user_id} not found for deletion")
+            return False
+            
+        logger.info(f"User {user_id} deleted successfully")
+        return True
+    except Exception as e:
+        logger.error(f"Error deleting user: {str(e)}")
+        raise
