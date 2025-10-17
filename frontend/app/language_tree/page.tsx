@@ -277,7 +277,7 @@ const LanguageTreePage = () => {
   const [savingGraph, setSavingGraph] = useState(false);
   const [isFullTreeMode, setIsFullTreeMode] = useState(false);
 
-  const { getNodes } = useReactFlow();
+  const { getNodes, fitView: fitViewApi } = useReactFlow();
   const reactFlowRef = useRef<HTMLDivElement>(null);
   const { getToken } = useAuth();
 
@@ -574,6 +574,17 @@ const LanguageTreePage = () => {
     setTimeout(() => layout(layoutDirection), 0);
   }, [layout, layoutDirection, nodes, selectedNodeId, setEdges, setNodes]);
 
+  // Programmatic fit view button handler (moved above effects that reference it)
+  const handleFitView = useCallback(() => {
+    try {
+      // Smoothly fit to all nodes with some padding
+      fitViewApi({ padding: 0.2, duration: 500 });
+      setStatus('Fitted view to graph');
+    } catch {
+      // ignore errors when no nodes are present
+    }
+  }, [fitViewApi]);
+
   // Process streaming messages from backend (status, relationship, complete, error)
   useEffect(() => {
     if (!messages.length) return;
@@ -718,6 +729,11 @@ const LanguageTreePage = () => {
               }
             }
           }
+          // After completion, auto-fit the view so the full graph is visible
+          // Use a slight delay to ensure layout/render commits before fitting
+          setTimeout(() => {
+            try { handleFitView(); } catch { /* no-op */ }
+          }, 250);
           break; }
         case 'error': {
           const messageText = data && typeof data.message === 'string' ? data.message : 'Unknown error';
@@ -729,7 +745,7 @@ const LanguageTreePage = () => {
       }
     }
     lastProcessedIndexRef.current = messages.length;
-  }, [messages, autoLayoutOnComplete, layout, ensureNode, setEdges, createEdge, expandNodeByQid, humanizeCategory, setNodes, expandNodeByLabel, canonical, nodes]);
+  }, [messages, autoLayoutOnComplete, layout, ensureNode, setEdges, createEdge, expandNodeByQid, humanizeCategory, setNodes, expandNodeByLabel, canonical, nodes, handleFitView]);
 
   const resetGraphState = useCallback((statusMessage: string) => {
     setNodes([]);
@@ -767,7 +783,6 @@ const LanguageTreePage = () => {
   };
 
   
-
   // (Save graph removed for now to reduce lint noise; can be reintroduced in toolbar when needed)
 
   // Highlight edges connected to selected node without mutating core edge state
