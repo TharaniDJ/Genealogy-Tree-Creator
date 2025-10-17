@@ -8,6 +8,7 @@ interface UseWebSocketReturn {
   disconnect: () => void;
   clearMessages: () => void;
   sendMessage: (message: any) => void;
+  addMessages: (newMessages: WebSocketMessage[]) => void;
 }
 
 export function useWebSocket(url: string, options?: { token?: string | null }): UseWebSocketReturn {
@@ -107,6 +108,10 @@ export function useWebSocket(url: string, options?: { token?: string | null }): 
     setMessages([]);
   }, []);
 
+  const addMessages = useCallback((newMessages: WebSocketMessage[]) => {
+    setMessages(newMessages);
+  }, []);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -120,6 +125,7 @@ export function useWebSocket(url: string, options?: { token?: string | null }): 
     connect,
     disconnect,
     clearMessages,
-    sendMessage
+    sendMessage,
+    addMessages
   };
 }

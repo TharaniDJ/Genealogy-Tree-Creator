@@ -11,6 +11,7 @@ import ReactFlow, {
   BackgroundVariant,
   ReactFlowProvider,
   MarkerType,
+  useReactFlow,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import PersonNode from './PersonNode';
@@ -65,6 +66,7 @@ interface GenealogyTreeProps {
   onExpandNodeByQid?: (qid: string, depth: number, entityName?: string) => void;
   onClassifyRelationships?: (relationships: any[]) => void;
   expandDepth?: number;
+  triggerFitView?: number;
 }
 
 function GenealogyTreeInternal({ 
@@ -72,7 +74,8 @@ function GenealogyTreeInternal({
   onExpandNode,
   onExpandNodeByQid,
   onClassifyRelationships,
-  expandDepth = 2
+  expandDepth = 2,
+  triggerFitView = 0
 }: GenealogyTreeProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -93,6 +96,18 @@ function GenealogyTreeInternal({
   const [isClassifying, setIsClassifying] = useState(false);
   const [showClassificationButton, setShowClassificationButton] = useState(false);
   const [classifiedRelationships, setClassifiedRelationships] = useState<Map<string, string>>(new Map());
+  
+  // Get ReactFlow instance for fitView
+  const { fitView } = useReactFlow();
+
+  // Trigger fitView when triggerFitView changes (e.g., after loading a graph)
+  useEffect(() => {
+    if (triggerFitView > 0 && nodes.length > 0) {
+      setTimeout(() => {
+        fitView({ padding: 0.2, duration: 800 });
+      }, 100);
+    }
+  }, [triggerFitView, nodes.length, fitView]);
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
