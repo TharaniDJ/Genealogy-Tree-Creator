@@ -142,54 +142,218 @@ export default function LandingPage() {
             </button>
           </div>
         </div>
+      </div>
 
-        {/* Feature Cards */}
-        <div id="features" className="grid md:grid-cols-3 gap-8 mt-24">
-          {/* Language Trees */}
-          <div className="group relative backdrop-blur-xl bg-white/5 border border-white/10 rounded-2xl p-8 hover:bg-white/10 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-[#6B72FF]/20">
-            <div className="absolute inset-0 bg-gradient-to-br from-[#6B72FF]/10 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            <div className="relative z-10">
-              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#6B72FF] to-[#8B7BFF] flex items-center justify-center mb-6 shadow-lg shadow-[#6B72FF]/30 group-hover:scale-110 transition-transform duration-300">
-                <GitBranch className="w-7 h-7 text-white" />
+      {/* Services Section */}
+      <div id="features" className="relative z-10">
+        {/* Language Tree Section */}
+        <div className="min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8 py-16">
+          <div className="max-w-7xl w-full mx-auto">
+            <div className="flex flex-col lg:flex-row items-center gap-12">
+              {/* Left - Image */}
+              <div className="flex-1 relative group">
+                <div className="absolute inset-0 bg-gradient-to-br from-[#6B72FF]/20 to-[#8B7BFF]/20 rounded-3xl blur-2xl group-hover:blur-3xl transition-all duration-500"></div>
+                <div className="relative overflow-hidden rounded-3xl border border-white/10 shadow-2xl shadow-[#6B72FF]/20">
+                  <Image 
+                    src="/language.jpeg" 
+                    alt="Language Tree" 
+                    width={600} 
+                    height={600}
+                    className="object-cover w-full h-full transform group-hover:scale-110 transition-transform duration-700"
+                  />
+                </div>
               </div>
-              <h3 className="text-2xl font-bold text-[#F5F7FA] mb-3">Language Trees</h3>
-              <p className="text-[#9CA3B5] leading-relaxed">
-                Explore linguistic evolution and relationships. Trace language families from ancient roots to modern dialects.
-              </p>
-            </div>
-          </div>
-
-          {/* Species Trees */}
-          <div className="group relative backdrop-blur-xl bg-white/5 border border-white/10 rounded-2xl p-8 hover:bg-white/10 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-[#8B7BFF]/20">
-            <div className="absolute inset-0 bg-gradient-to-br from-[#8B7BFF]/10 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            <div className="relative z-10">
-              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#7B72FF] to-[#9B8BFF] flex items-center justify-center mb-6 shadow-lg shadow-[#8B7BFF]/30 group-hover:scale-110 transition-transform duration-300">
-                <Dna className="w-7 h-7 text-white" />
+              
+              {/* Right - Content */}
+              <div className="flex-1 space-y-6">
+                <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full backdrop-blur-lg bg-white/5 border border-white/10">
+                  <GitBranch className="w-4 h-4 text-[#6B72FF]" />
+                  <span className="text-sm text-[#9CA3B5] font-medium">Linguistic Evolution</span>
+                </div>
+                
+                <h2 className="text-4xl md:text-5xl font-bold text-[#F5F7FA]">
+                  Language Tree <span className="bg-gradient-to-r from-[#6B72FF] to-[#8B7BFF] bg-clip-text text-transparent">Generation</span>
+                </h2>
+                
+                <p className="text-lg text-[#9CA3B5] leading-relaxed">
+                  Explore the fascinating connections between languages across the globe. Our Language Tree visualization 
+                  maps linguistic evolution from ancient roots to modern dialects, revealing how languages influence 
+                  and derive from one another through centuries of human communication.
+                </p>
+                
+                <div className="space-y-4">
+                  <div className="flex items-start space-x-3">
+                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#6B72FF] to-[#8B7BFF] flex items-center justify-center flex-shrink-0 mt-1">
+                      <ChevronRight className="w-4 h-4 text-white" />
+                    </div>
+                    <p className="text-[#9CA3B5]">Trace language families from Proto-Indo-European to modern languages</p>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#6B72FF] to-[#8B7BFF] flex items-center justify-center flex-shrink-0 mt-1">
+                      <ChevronRight className="w-4 h-4 text-white" />
+                    </div>
+                    <p className="text-[#9CA3B5]">Discover linguistic relationships and historical influences</p>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#6B72FF] to-[#8B7BFF] flex items-center justify-center flex-shrink-0 mt-1">
+                      <ChevronRight className="w-4 h-4 text-white" />
+                    </div>
+                    <p className="text-[#9CA3B5]">Interactive exploration with detailed language information</p>
+                  </div>
+                </div>
+                
+                <button
+                  onClick={() => router.push('/language_tree')}
+                  className="group inline-flex items-center space-x-2 px-8 py-4 rounded-xl bg-gradient-to-r from-[#6B72FF] to-[#8B7BFF] text-white font-bold shadow-xl shadow-[#6B72FF]/30 hover:shadow-[#6B72FF]/50 transition-all duration-300 hover:scale-105"
+                >
+                  <span>Explore Languages</span>
+                  <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </button>
               </div>
-              <h3 className="text-2xl font-bold text-[#F5F7FA] mb-3">Species Trees</h3>
-              <p className="text-[#9CA3B5] leading-relaxed">
-                Map taxonomic relationships and evolutionary paths. Discover biodiversity through interactive phylogenetic trees.
-              </p>
-            </div>
-          </div>
-
-          {/* Family Trees */}
-          <div className="group relative backdrop-blur-xl bg-white/5 border border-white/10 rounded-2xl p-8 hover:bg-white/10 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-[#5B62FF]/20">
-            <div className="absolute inset-0 bg-gradient-to-br from-[#5B62FF]/10 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            <div className="relative z-10">
-              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#5B62FF] to-[#7B72FF] flex items-center justify-center mb-6 shadow-lg shadow-[#5B62FF]/30 group-hover:scale-110 transition-transform duration-300">
-                <Network className="w-7 h-7 text-white" />
-              </div>
-              <h3 className="text-2xl font-bold text-[#F5F7FA] mb-3">Family Trees</h3>
-              <p className="text-[#9CA3B5] leading-relaxed">
-                Build personal genealogies and historical lineages. Connect generations and preserve family histories.
-              </p>
             </div>
           </div>
         </div>
 
-        {/* Features Highlight */}
-        <div className="mt-24 backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-12">
+        {/* Family Tree Section */}
+        <div className="min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8 py-16 bg-gradient-to-b from-transparent via-[#6B72FF]/5 to-transparent">
+          <div className="max-w-7xl w-full mx-auto">
+            <div className="flex flex-col lg:flex-row-reverse items-center gap-12">
+              {/* Right - Image */}
+              <div className="flex-1 relative group">
+                <div className="absolute inset-0 bg-gradient-to-br from-[#5B62FF]/20 to-[#7B72FF]/20 rounded-3xl blur-2xl group-hover:blur-3xl transition-all duration-500"></div>
+                <div className="relative overflow-hidden rounded-3xl border border-white/10 shadow-2xl shadow-[#5B62FF]/20">
+                  <Image 
+                    src="/family.jpg" 
+                    alt="Family Tree" 
+                    width={600} 
+                    height={600}
+                    className="object-cover w-full h-full transform group-hover:scale-110 transition-transform duration-700"
+                  />
+                </div>
+              </div>
+              
+              {/* Left - Content */}
+              <div className="flex-1 space-y-6">
+                <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full backdrop-blur-lg bg-white/5 border border-white/10">
+                  <Network className="w-4 h-4 text-[#5B62FF]" />
+                  <span className="text-sm text-[#9CA3B5] font-medium">Genealogical Heritage</span>
+                </div>
+                
+                <h2 className="text-4xl md:text-5xl font-bold text-[#F5F7FA]">
+                  Family Tree <span className="bg-gradient-to-r from-[#5B62FF] to-[#7B72FF] bg-clip-text text-transparent">Generation</span>
+                </h2>
+                
+                <p className="text-lg text-[#9CA3B5] leading-relaxed">
+                  Build and explore personal genealogies and historical lineages with our intuitive Family Tree creator. 
+                  Connect generations, preserve family histories, and discover the relationships that bind your heritage 
+                  together through an interactive and beautifully visualized family network.
+                </p>
+                
+                <div className="space-y-4">
+                  <div className="flex items-start space-x-3">
+                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#5B62FF] to-[#7B72FF] flex items-center justify-center flex-shrink-0 mt-1">
+                      <ChevronRight className="w-4 h-4 text-white" />
+                    </div>
+                    <p className="text-[#9CA3B5]">Create detailed family genealogies with multiple generations</p>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#5B62FF] to-[#7B72FF] flex items-center justify-center flex-shrink-0 mt-1">
+                      <ChevronRight className="w-4 h-4 text-white" />
+                    </div>
+                    <p className="text-[#9CA3B5]">Track relationships, marriages, and family connections</p>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#5B62FF] to-[#7B72FF] flex items-center justify-center flex-shrink-0 mt-1">
+                      <ChevronRight className="w-4 h-4 text-white" />
+                    </div>
+                    <p className="text-[#9CA3B5]">Preserve and share your family history for future generations</p>
+                  </div>
+                </div>
+                
+                <button
+                  onClick={() => router.push('/family_tree')}
+                  className="group inline-flex items-center space-x-2 px-8 py-4 rounded-xl bg-gradient-to-r from-[#5B62FF] to-[#7B72FF] text-white font-bold shadow-xl shadow-[#5B62FF]/30 hover:shadow-[#5B62FF]/50 transition-all duration-300 hover:scale-105"
+                >
+                  <span>Build Your Family Tree</span>
+                  <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Species Tree Section */}
+        <div className="min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8 py-16">
+          <div className="max-w-7xl w-full mx-auto">
+            <div className="flex flex-col lg:flex-row items-center gap-12">
+              {/* Left - Image */}
+              <div className="flex-1 relative group">
+                <div className="absolute inset-0 bg-gradient-to-br from-[#8B7BFF]/20 to-[#9B8BFF]/20 rounded-3xl blur-2xl group-hover:blur-3xl transition-all duration-500"></div>
+                <div className="relative overflow-hidden rounded-3xl border border-white/10 shadow-2xl shadow-[#8B7BFF]/20">
+                  <Image 
+                    src="/species.jpeg" 
+                    alt="Species Tree" 
+                    width={600} 
+                    height={600}
+                    className="object-cover w-full h-full transform group-hover:scale-110 transition-transform duration-700"
+                  />
+                </div>
+              </div>
+              
+              {/* Right - Content */}
+              <div className="flex-1 space-y-6">
+                <div className="inline-flex items-center space-x-2 px-4 py-2 rounded-full backdrop-blur-lg bg-white/5 border border-white/10">
+                  <Dna className="w-4 h-4 text-[#8B7BFF]" />
+                  <span className="text-sm text-[#9CA3B5] font-medium">Biodiversity Mapping</span>
+                </div>
+                
+                <h2 className="text-4xl md:text-5xl font-bold text-[#F5F7FA]">
+                  Species Tree <span className="bg-gradient-to-r from-[#8B7BFF] to-[#9B8BFF] bg-clip-text text-transparent">Generation</span>
+                </h2>
+                
+                <p className="text-lg text-[#9CA3B5] leading-relaxed">
+                  Navigate the tree of life with our comprehensive Species Tree visualization. Map taxonomic relationships, 
+                  explore evolutionary paths, and discover the incredible biodiversity of our planet through interactive 
+                  phylogenetic trees that span from microscopic organisms to complex life forms.
+                </p>
+                
+                <div className="space-y-4">
+                  <div className="flex items-start space-x-3">
+                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#8B7BFF] to-[#9B8BFF] flex items-center justify-center flex-shrink-0 mt-1">
+                      <ChevronRight className="w-4 h-4 text-white" />
+                    </div>
+                    <p className="text-[#9CA3B5]">Explore taxonomic hierarchies from kingdoms to species</p>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#8B7BFF] to-[#9B8BFF] flex items-center justify-center flex-shrink-0 mt-1">
+                      <ChevronRight className="w-4 h-4 text-white" />
+                    </div>
+                    <p className="text-[#9CA3B5]">Visualize evolutionary relationships and common ancestors</p>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#8B7BFF] to-[#9B8BFF] flex items-center justify-center flex-shrink-0 mt-1">
+                      <ChevronRight className="w-4 h-4 text-white" />
+                    </div>
+                    <p className="text-[#9CA3B5]">Access comprehensive biological and ecological information</p>
+                  </div>
+                </div>
+                
+                <button
+                  onClick={() => router.push('/taxonomy_tree')}
+                  className="group inline-flex items-center space-x-2 px-8 py-4 rounded-xl bg-gradient-to-r from-[#8B7BFF] to-[#9B8BFF] text-white font-bold shadow-xl shadow-[#8B7BFF]/30 hover:shadow-[#8B7BFF]/50 transition-all duration-300 hover:scale-105"
+                >
+                  <span>Discover Species</span>
+                  <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Features Highlight */}
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <div className="backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-12">
           <h2 className="text-4xl font-bold text-center mb-12">
             <span className="bg-gradient-to-r from-[#6B72FF] to-[#8B7BFF] bg-clip-text text-transparent">
               Powerful Features
