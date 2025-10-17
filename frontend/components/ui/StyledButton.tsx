@@ -30,7 +30,7 @@ const StyledWrapper = styled.div<{ variant: 'purple' | 'blue' | 'green' | 'red' 
     cursor: pointer;
     position: relative;
     padding: 10px 24px;
-    font-size: 18px;
+    font-size: 13px;
     ${props => {
       switch (props.variant) {
         case 'purple':
