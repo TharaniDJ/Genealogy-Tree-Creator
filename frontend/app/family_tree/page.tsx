@@ -299,164 +299,120 @@ const handleClassifyRelationships = useCallback((relationships: any[]) => {
   };
 
   return (
-    <main className="w-full h-screen overflow-hidden relative bg-[#0E0F19]">
+    <main className="w-full h-screen flex flex-col overflow-hidden relative bg-[#0E0F19]">
       {/* Animated Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 -left-48 w-96 h-96 bg-[#6B72FF] rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob"></div>
-        <div className="absolute top-1/3 -right-48 w-96 h-96 bg-[#8B7BFF] rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob animation-delay-2000"></div>
-        <div className="absolute -bottom-32 left-1/3 w-96 h-96 bg-[#6B72FF] rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-blob animation-delay-4000"></div>
+        <div className="absolute -inset-[10px] opacity-30">
+          <div className="absolute top-0 -left-4 w-96 h-96 bg-[#6B72FF] rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
+          <div className="absolute top-0 -right-4 w-96 h-96 bg-[#8B7BFF] rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
+          <div className="absolute -bottom-8 left-20 w-96 h-96 bg-[#5B62FF] rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
+        </div>
       </div>
 
-      {/* Control Panel - Fixed position */}
-      <div className="absolute top-4 right-4 z-20 backdrop-blur-xl bg-white/5 border border-white/10 p-6 rounded-2xl shadow-2xl max-w-sm">
-        <h1 className="text-xl font-bold mb-4 text-[#F5F7FA]">Family Tree Explorer</h1>
-        
-        {/* Connection Status */}
-        <div className="mb-4 p-3 backdrop-blur-md bg-white/5 border border-white/10 rounded-lg">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-[#9CA3B5]">WebSocket Status:</span>
-            <span className={getConnectionStatusColor()}>
-              {getConnectionStatusText()}
-            </span>
-          </div>
-        </div>
-
-        {/* Search Input */}
-        <div className="mb-4">
-          <label htmlFor="search" className="block text-sm font-medium text-[#9CA3B5] mb-2">
-            Search Person
-          </label>
-          <input
-            id="search"
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Enter person's name (e.g., Albert Einstein)"
-            className="w-full px-4 py-2.5 backdrop-blur-md bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6B72FF] focus:border-transparent text-[#F5F7FA] placeholder-[#9CA3B5]/50"
-            onKeyPress={(e) => {
-              if (e.key === 'Enter') {
-                startGenealogySearch();
-              }
-            }}
-          />
-        </div>
-
-        {/* Depth Control */}
-        <div className="mb-4">
-          <label htmlFor="depth" className="block text-sm font-medium text-[#9CA3B5] mb-2">
-            Search Depth: {searchDepth}
-          </label>
-          <input
-            id="depth"
-            type="range"
-            min="1"
-            max="4"
-            value={searchDepth}
-            onChange={(e) => setSearchDepth(parseInt(e.target.value))}
-            className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#6B72FF]"
-          />
-          <div className="flex justify-between text-xs text-[#9CA3B5] mt-1">
-            <span>1 (Close)</span>
-            <span>4 (Extended)</span>
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="space-y-2">
-          <button
-            onClick={startGenealogySearch}
-            disabled={connectionStatus !== 'connected' || !searchQuery.trim()}
-            className="w-full px-4 py-2.5 bg-gradient-to-r from-[#6B72FF] to-[#8B7BFF] text-white rounded-lg hover:shadow-lg hover:shadow-[#6B72FF]/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed font-medium"
-          >
-            Search Genealogy Tree
-          </button>
-
-          <div className="flex gap-2">
-            <button
-              onClick={openSaveModal}
-              disabled={currentGraphData.length === 0}
-              className="flex-1 px-4 py-2.5 backdrop-blur-md bg-green-500/20 border border-green-500/30 text-green-400 rounded-lg hover:bg-green-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              💾 Save
-            </button>
-            <button
-              onClick={openLoadModal}
-              className="flex-1 px-4 py-2.5 backdrop-blur-md bg-amber-500/20 border border-amber-500/30 text-amber-400 rounded-lg hover:bg-amber-500/30 transition-all"
-            >
-              📂 Load
-            </button>
-          </div>
-
-          <button
-            onClick={() => {
-              if (connectionStatus === 'connected') {
-                sendMessage({
-                  action: "fetch_relationships",
-                  page_title: "Albert_Einstein",
-                  depth: 2
-                });
-              }
-            }}
-            disabled={connectionStatus !== 'connected'}
-            className="w-full px-4 py-2.5 backdrop-blur-md bg-[#8B7BFF]/20 border border-[#8B7BFF]/30 text-[#F5F7FA] rounded-lg hover:bg-[#8B7BFF]/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Test Albert Einstein
-          </button>
-          
-          <button
-            onClick={connect}
-            disabled={connectionStatus === 'connected' || connectionStatus === 'connecting'}
-            className="w-full px-4 py-2.5 backdrop-blur-md bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 rounded-lg hover:bg-emerald-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Connect to Server
-          </button>
-          
-          <button
-            onClick={disconnect}
-            disabled={connectionStatus === 'disconnected'}
-            className="w-full px-4 py-2.5 backdrop-blur-md bg-orange-500/20 border border-orange-500/30 text-orange-400 rounded-lg hover:bg-orange-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Disconnect
-          </button>
-          
-          <button
-            onClick={clearMessages}
-            className="w-full px-4 py-2.5 backdrop-blur-md bg-red-500/20 border border-red-500/30 text-red-400 rounded-lg hover:bg-red-500/30 transition-all"
-          >
-            Clear Tree Data
-          </button>
-        </div>
-
-        {/* Data Statistics */}
-        <div className="mt-4 text-sm text-[#9CA3B5] backdrop-blur-md bg-white/5 border border-white/10 p-3 rounded-lg">
-          <p>Messages received: {websocketData.length}</p>
-          <p>People: {websocketData.filter(m => m.type === 'personal_details').length}</p>
-          <p>Relationships: {websocketData.filter(m => m.type === 'relationship').length}</p>
-          <p className="text-[#8B7BFF] font-medium">QID-based expansion enabled</p>
-        </div>
-
-        {/* Recent Messages (Debug) */}
-        {websocketData.length > 0 && (
-          <div className="mt-4 text-xs text-[#9CA3B5] backdrop-blur-md bg-white/5 border border-white/10 p-3 rounded-lg max-h-32 overflow-y-auto">
-            <p className="font-semibold mb-2 text-[#F5F7FA]">Recent Messages:</p>
-            {websocketData.slice(-3).map((msg, index) => (
-              <div key={index} className="mb-2 p-2 backdrop-blur-sm bg-white/5 border border-white/10 rounded text-xs">
-                <span className="font-medium text-[#6B72FF]">{msg.type}:</span> <span className="text-[#9CA3B5]">{JSON.stringify(msg.data).slice(0, 50)}...</span>
+      {/* Modern Dark Header with Glass Effect */}
+      <div className="relative backdrop-blur-xl bg-white/5 border-b border-white/10 shadow-lg shadow-[#6B72FF]/10">
+        <div className="relative px-6 py-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-[#6B72FF] to-[#8B7BFF] rounded-xl flex items-center justify-center shadow-lg shadow-[#6B72FF]/30">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
               </div>
-            ))}
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-[#6B72FF] to-[#8B7BFF] bg-clip-text text-transparent">
+                Family Tree Explorer
+              </h1>
+            </div>
+            
+            {/* Connection Status with Modern Badge */}
+            <div className="flex items-center space-x-2">
+              <div className={`px-3 py-1.5 rounded-lg text-xs font-medium backdrop-blur-lg bg-white/5 border ${
+                connectionStatus === 'connected' 
+                  ? 'border-emerald-500/30 text-emerald-300' 
+                  : connectionStatus === 'connecting'
+                  ? 'border-amber-500/30 text-amber-300'
+                  : 'border-red-500/30 text-red-300'
+              }`}>
+                <div className="flex items-center space-x-1.5">
+                  <div className={`w-2 h-2 rounded-full ${
+                    connectionStatus === 'connected' ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]' : 
+                    connectionStatus === 'connecting' ? 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.6)] animate-pulse' : 
+                    'bg-red-400 shadow-[0_0_8px_rgba(248,113,113,0.6)]'
+                  }`}></div>
+                  <span>{getConnectionStatusText()}</span>
+                </div>
+              </div>
+            </div>
           </div>
-        )}
+
+          {/* Search Controls in Modern Card Layout */}
+          <div className="flex items-center space-x-4 flex-wrap">
+            {/* Person Name Input */}
+            <div className="flex-1 min-w-48">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Enter person's name..."
+                  className="w-full px-4 py-3 pl-10 backdrop-blur-lg bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#6B72FF]/50 focus:border-[#6B72FF] transition-all duration-200 shadow-sm hover:shadow-md text-[#F5F7FA] placeholder-[#9CA3B5]"
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      startGenealogySearch();
+                    }
+                  }}
+                />
+                <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#9CA3B5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+            </div>
+
+            {/* Depth Input */}
+            <div className="w-24">
+              <input
+                type="number"
+                value={searchDepth}
+                onChange={(e) => setSearchDepth(parseInt(e.target.value, 10))}
+                placeholder="Depth"
+                min="1"
+                max="4"
+                className="w-full px-3 py-3 backdrop-blur-lg bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#6B72FF]/50 focus:border-[#6B72FF] transition-all duration-200 shadow-sm hover:shadow-md text-[#F5F7FA] text-center"
+              />
+            </div>
+
+            {/* Search Button */}
+            <button
+              onClick={startGenealogySearch}
+              disabled={connectionStatus !== 'connected' || !searchQuery.trim()}
+              className="px-6 py-3 bg-gradient-to-r from-[#6B72FF] to-[#8B7BFF] hover:from-[#7B82FF] hover:to-[#9B8BFF] disabled:from-gray-600 disabled:to-gray-700 text-white font-medium rounded-xl transition-all duration-200 shadow-lg shadow-[#6B72FF]/30 hover:shadow-[#6B72FF]/50 disabled:cursor-not-allowed disabled:shadow-sm transform hover:scale-105 disabled:hover:scale-100"
+            >
+              <div className="flex items-center space-x-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <span>{connectionStatus === 'connected' ? 'Explore Tree' : 'Connecting...'}</span>
+              </div>
+            </button>
+          </div>
+        </div>
       </div>
       
-      {/* Genealogy Tree - Takes full screen with BOTH expansion handlers */}
-      <GenealogyTree 
-        websocketData={websocketData} 
-        onExpandNode={handleExpandNode}          // For initial name-based searches
-        onExpandNodeByQid={handleExpandNodeByQid} // For QID-based node expansion
-        onClassifyRelationships={handleClassifyRelationships}  // ADD THIS LINE
-        expandDepth={2}                          // Default expansion depth for nodes
-        triggerFitView={triggerFitView}         // Trigger fitView after loading
-      />
+      {/* React Flow Container with Modern Styling */}
+      <div className="flex-1 relative">
+        <GenealogyTree 
+          websocketData={websocketData} 
+          onExpandNode={handleExpandNode}
+          onExpandNodeByQid={handleExpandNodeByQid}
+          onClassifyRelationships={handleClassifyRelationships}
+          expandDepth={2}
+          triggerFitView={triggerFitView}
+          onSaveGraph={openSaveModal}
+          onLoadGraph={openLoadModal}
+          onClearGraph={clearMessages}
+          graphDataLength={currentGraphData.length}
+        />
+      </div>
 
       {/* Save Graph Modal */}
       {showSaveModal && (
@@ -505,7 +461,7 @@ const handleClassifyRelationships = useCallback((relationships: any[]) => {
 
               <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-3">
                 <p className="text-sm text-[#9CA3B5]">
-                  💾 This will save {currentGraphData.length} family relationships
+                  This will save {currentGraphData.length} family relationships
                   {searchDepth > 0 && ` (depth: ${searchDepth})`}
                 </p>
               </div>
@@ -573,9 +529,9 @@ const handleClassifyRelationships = useCallback((relationships: any[]) => {
                           <p className="text-sm text-[#9CA3B5] mt-1">{graph.description}</p>
                         )}
                         <div className="flex items-center space-x-4 mt-2 text-xs text-[#9CA3B5]">
-                          <span>👥 {graph.nodes_count} items</span>
-                          {graph.depth_usage && <span>🔍 Depth: {graph.depth}</span>}
-                          <span>📅 {new Date(graph.updated_at).toLocaleDateString()}</span>
+                          <span>{graph.nodes_count} items</span>
+                          {graph.depth_usage && <span>Depth: {graph.depth}</span>}
+                          <span>{new Date(graph.updated_at).toLocaleDateString()}</span>
                         </div>
                       </div>
                       <div className="flex items-center space-x-2 ml-4">

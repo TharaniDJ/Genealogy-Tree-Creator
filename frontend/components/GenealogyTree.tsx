@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ReactFlow, {
   Node,
   Edge,
@@ -12,10 +12,14 @@ import ReactFlow, {
   ReactFlowProvider,
   MarkerType,
   useReactFlow,
+  getNodesBounds,
+  getViewportForBounds,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import PersonNode from './PersonNode';
 import MarriageNode from './MarriageNode';
+import { toPng, toJpeg } from 'html-to-image';
+import jsPDF from 'jspdf';
 
 const nodeTypes = {
   person: PersonNode,
@@ -64,18 +68,25 @@ interface GenealogyTreeProps {
   websocketData?: WebSocketMessage[];
   onExpandNode?: (personName: string, depth: number) => void;
   onExpandNodeByQid?: (qid: string, depth: number, entityName?: string) => void;
-  onClassifyRelationships?: (relationships: any[]) => void;
+  onClassifyRelationships?: (relationships: { entity1: string; entity2: string; relationship: string }[]) => void;
   expandDepth?: number;
   triggerFitView?: number;
+  onSaveGraph?: () => void;
+  onLoadGraph?: () => void;
+  onClearGraph?: () => void;
+  graphDataLength?: number;
 }
 
 function GenealogyTreeInternal({ 
   websocketData = [], 
-  onExpandNode,
   onExpandNodeByQid,
   onClassifyRelationships,
   expandDepth = 2,
-  triggerFitView = 0
+  triggerFitView = 0,
+  onSaveGraph,
+  onLoadGraph,
+  onClearGraph,
+  graphDataLength = 0
 }: GenealogyTreeProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -83,7 +94,7 @@ function GenealogyTreeInternal({
   const [relationships, setRelationships] = useState<Relationship[]>([]);
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState('');
-  const [mainWs, setMainWs] = useState<WebSocket | null>(null);
+  // WebSocket handling is managed by parent; no local socket state required here
   const [contextMenu, setContextMenu] = useState<ContextMenu>({
     show: false,
     x: 0,
@@ -98,7 +109,8 @@ function GenealogyTreeInternal({
   const [classifiedRelationships, setClassifiedRelationships] = useState<Map<string, string>>(new Map());
   
   // Get ReactFlow instance for fitView
-  const { fitView } = useReactFlow();
+  const { fitView, getNodes } = useReactFlow();
+  const reactFlowRef = useRef<HTMLDivElement>(null);
 
   // Trigger fitView when triggerFitView changes (e.g., after loading a graph)
   useEffect(() => {
@@ -139,11 +151,11 @@ useEffect(() => {
   if (latestMessage.type === 'classified_relationships') {
     console.log('Received classified relationships:', latestMessage.data);
     
-    const classified = latestMessage.data.relationships;
+    const classified: { entity1: string; entity2: string; classification?: string }[] = latestMessage.data.relationships;
     const classificationMap = new Map<string, string>();
     
     // Build classification map using entity names
-    classified.forEach((rel: any) => {
+    classified.forEach((rel) => {
       if (rel.classification) {
         const key1 = `${rel.entity1}-${rel.entity2}`;
         const key2 = `${rel.entity2}-${rel.entity1}`;
@@ -225,7 +237,8 @@ useEffect(() => {
     
     setTimeout(() => setStatus(''), 3000);
   }
-}, [websocketData, setEdges]); // Removed 'nodes' dependency to prevent infinite loop
+// eslint-disable-next-line react-hooks/exhaustive-deps
+}, [websocketData, setEdges]); // Intentionally excluding 'nodes' to prevent infinite loop; using snapshot inside
   useEffect(() => {
     if (relationships.length > 0 && personDetails.size > 0) {
       setShowClassificationButton(true);
@@ -267,7 +280,8 @@ const handleClassifyRelationships = useCallback(() => {
     return nodes.find(node => node.id === nodeId);
   }, [nodes]);
 
-  const assignFamilyColors = useCallback((marriages: Map<string, any>, parentChildRels: Relationship[]) => {
+  type MarriageRecord = { spouse1: string; spouse2: string; children: string[] };
+  const assignFamilyColors = useCallback((marriages: Map<string, MarriageRecord>, parentChildRels: Relationship[]) => {
     const familyColors = new Map<string, string>();
     
     const getAncestors = (person: string, visited: Set<string> = new Set()): string[] => {
@@ -569,7 +583,7 @@ const handleClassifyRelationships = useCallback(() => {
 
     const styleConfig = RELATIONSHIP_STYLES[relType as keyof typeof RELATIONSHIP_STYLES] || RELATIONSHIP_STYLES['child of'];
 
-    let edgeStyle = {
+    const edgeStyle = {
       stroke: styleConfig?.stroke || '#1f2937',
       strokeWidth: styleConfig?.strokeWidth || 3,
       strokeDasharray: styleConfig?.strokeDasharray,
@@ -957,7 +971,7 @@ const handleClassifyRelationships = useCallback(() => {
 
     // Positioning algorithm
     const generationGroups = new Map<number, { 
-      marriages: Array<{id: string, data: any}>, 
+      marriages: Array<{id: string, data: MarriageRecord}>, 
       singles: string[] 
     }>();
 
@@ -1219,114 +1233,205 @@ parentChildRelationships.forEach((rel, index) => {
   }, [personDetails, relationships, setNodes, setEdges, expandedNodes, assignFamilyColors,classifiedRelationships]);
 
   return (
-    <div className="absolute inset-0 w-full h-full bg-[#0E0F19]">
-      {/* Status Panel - Enhanced with adoption info */}
-      {(status || progress > 0 || expandingNode) && (
-        <div className="absolute top-4 left-4 z-10 backdrop-blur-xl bg-white/5 border border-white/10 p-4 rounded-2xl shadow-2xl max-w-md">
-          <h2 className="text-lg font-bold mb-2 text-[#F5F7FA]">
-            {expandingNode ? 'Expanding Family Tree...' : 'Processing...'}
-          </h2>
-          {status && (
-            <div className="mb-2">
-              <p className="text-sm text-[#9CA3B5]">{status}</p>
-              <div className="w-full bg-white/10 rounded-full h-2 mt-1">
-                <div 
-                  className="bg-gradient-to-r from-[#6B72FF] to-[#8B7BFF] h-2 rounded-full transition-all duration-300" 
-                  style={{ width: `${progress}%` }}
-                ></div>
+    <div ref={reactFlowRef} className="absolute inset-0 w-full h-full bg-[#0E0F19]">
+      {/* Horizontal Status Bar */}
+      {(status || progress > 0 || expandingNode || isClassifying) && (
+        <div className="absolute w-8/12 top-4 left-4 z-10 backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl shadow-lg">
+          <div className="px-6 py-3">
+            <div className="space-y-2">
+              {/* First Row: Status Message - Full Width */}
+              <div className="flex items-center space-x-2">
+                {isClassifying && (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#8B7BFF]"></div>
+                )}
+                <span className="text-sm font-medium text-[#F5F7FA] flex-1">
+                  {isClassifying ? 'Classifying relationships...' : 
+                   expandingNode ? 'Expanding Family Tree...' : 
+                   status || 'Processing...'}
+                </span>
+              </div>
+
+              {/* Second Row: Statistics and Progress Bar */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4 text-xs text-[#9CA3B5]">
+                  <span>People: {personDetails.size}</span>
+                  <span>Relationships: {relationships.length}</span>
+                  <span>Expanded: {expandedNodes.size}</span>
+                  <span>Depth: {expandDepth}</span>
+                </div>
+
+                {progress > 0 && (
+                  <div className="flex items-center space-x-3">
+                    <span className="text-sm font-medium text-[#9CA3B5]">{progress}%</span>
+                    <div className="w-32 backdrop-blur-lg bg-white/5 rounded-full h-2 overflow-hidden border border-white/10">
+                      <div 
+                        className="h-full bg-gradient-to-r from-[#6B72FF] to-[#8B7BFF] rounded-full transition-all duration-300 ease-out shadow-lg shadow-[#6B72FF]/50"
+                        style={{ width: `${progress}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-          )}
-          <div className="text-sm text-[#9CA3B5]">
-            <p>People: {personDetails.size}</p>
-            <p>Relationships: {relationships.length}</p>
-            <p>Expanded nodes: {expandedNodes.size}</p>
-            <p>Expansion depth: {expandDepth}</p>
-            <p className="text-[#8B7BFF]">✓ Adoption support enabled</p>
           </div>
         </div>
       )}
-      {/* Classification Button - Add this AFTER the status panel */}
-      {showClassificationButton && !isClassifying && nodes.length > 0 && (
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10">
+
+      {/* Floating Toolbar for Actions */}
+      <div className="absolute top-4 right-4 z-10 flex items-center gap-2 backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl p-2 shadow-lg shadow-[#6B72FF]/10">
+        {showClassificationButton && !isClassifying && nodes.length > 0 && (
           <button
             onClick={handleClassifyRelationships}
-            className="bg-gradient-to-r from-[#8B7BFF] to-[#6B72FF] hover:shadow-lg hover:shadow-[#8B7BFF]/25 text-white px-6 py-3 rounded-lg font-semibold flex items-center space-x-2 transition-all"
             disabled={isClassifying}
+            className="px-3 py-2 text-sm rounded-lg bg-gradient-to-r from-[#8B7BFF] to-[#6B72FF] text-white hover:from-[#9B8BFF] hover:to-[#7B82FF] transition-all shadow-lg shadow-[#8B7BFF]/30 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+            title="Classify biological vs adoptive relationships"
           >
-            <span>🔍</span>
-            <span>Classify Biological/Adoptive Relationships</span>
+            Classify Relations
           </button>
-        </div>
-      )}
+        )}
+        
+        <button
+          onClick={onSaveGraph}
+          disabled={!onSaveGraph || graphDataLength === 0}
+          title="Save Graph"
+          className="p-2 rounded-lg backdrop-blur-lg bg-white/5 hover:bg-green-600/80 text-[#9CA3B5] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg border border-white/10 hover:scale-105"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+          </svg>
+        </button>
+        
+        <button
+          onClick={onLoadGraph}
+          disabled={!onLoadGraph}
+          title="Load Saved Graph"
+          className="p-2 rounded-lg backdrop-blur-lg bg-white/5 hover:bg-amber-600/80 text-[#9CA3B5] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg border border-white/10 hover:scale-105"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z" />
+          </svg>
+        </button>
+        
+        <button
+          onClick={onClearGraph}
+          disabled={!onClearGraph}
+          title="Clear Tree Data"
+          className="p-2 rounded-lg backdrop-blur-lg bg-white/5 hover:bg-red-600/80 text-[#9CA3B5] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg border border-white/10 hover:scale-105"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+        </button>
+        
+        <div className="w-px h-6 bg-white/10 mx-1" />
+        
+        <button
+          onClick={() => {
+            const domViewport = reactFlowRef.current?.querySelector('.react-flow__viewport') as HTMLElement;
+            if (!domViewport) {
+              console.error('Viewport not found');
+              return;
+            }
 
-      {/* Classification Progress - Show while classifying */}
-      {isClassifying && (
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-10 backdrop-blur-xl bg-[#8B7BFF]/20 border-2 border-[#8B7BFF] p-4 rounded-lg shadow-lg max-w-md">
-          <div className="flex items-center space-x-3">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-[#8B7BFF]"></div>
-            <div>
-              <p className="text-[#F5F7FA] font-semibold">Classifying relationships...</p>
-              <p className="text-[#9CA3B5] text-sm">Using AI to identify biological vs adoptive</p>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* Enhanced Instructions with adoption info */}
-      {nodes.length > 0 && (
-        <div className="absolute bottom-4 left-4 z-10 backdrop-blur-xl bg-white/5 border border-white/10 p-3 rounded-2xl shadow-2xl max-w-xs">
-          <div className="text-xs text-[#9CA3B5] space-y-1">
-            <p className="font-semibold mb-2 text-[#F5F7FA]">Instructions:</p>
-            <p>• Right-click nodes for options</p>
-            <p>• Expansion depth: {expandDepth} generations</p>
-            <p>• Drag to pan, scroll to zoom</p>
-            <div className="mt-2 pt-2 border-t border-white/10">
-              <p className="font-semibold text-[#F5F7FA]">Edge Types:</p>
-              <p>💕 Pink: Marriage connections</p>
-              <p>🌈 Colored: Family lineages</p>
-              <p>— Solid: Biological/From marriage</p>
-              <p>- - Dashed: Single parent/Other</p>
-              <p className="text-[#8B7BFF]">⋯ Purple: Adoption relationships</p>
-            </div>
-          </div>
-        </div>
-      )}
+            const nodesBounds = getNodesBounds(getNodes());
+            const rfViewport = getViewportForBounds(
+              nodesBounds,
+              nodesBounds.width,
+              nodesBounds.height,
+              0.5,
+              2,
+              0.2
+            );
 
-      {/* Enhanced Color Legend */}
-      {nodes.length > 0 && (
-        <div className="absolute top-4 right-4 z-10 backdrop-blur-xl bg-white/5 border border-white/10 p-3 rounded-2xl shadow-2xl max-w-sm">
-          <div className="text-xs text-[#9CA3B5]">
-            <p className="font-semibold mb-2 text-[#F5F7FA]">Relationship Types:</p>
-            <div className="space-y-1 mb-3">
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-0.5 bg-[#F5F7FA]"></div>
-                <span>Biological</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-0.5 border-t-2 border-dashed border-[#8B7BFF]"></div>
-                <span>Adopted</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-0.5 border-t-2 border-dashed border-[#9CA3B5]"></div>
-                <span>Other/Single parent</span>
-              </div>
-            </div>
-            <p className="font-semibold mb-2 text-[#F5F7FA]">Family Line Colors:</p>
-            <div className="grid grid-cols-2 gap-1">
-              {FAMILY_COLORS.slice(0, 6).map((color, index) => (
-                <div key={index} className="flex items-center space-x-2">
-                  <div 
-                    className="w-3 h-3 rounded"
-                    style={{ backgroundColor: color }}
-                  ></div>
-                  <span>Family {index + 1}</span>
-                </div>
-              ))}
-            </div>
-            <p className="mt-2 text-[#9CA3B5]">Each spouse&apos;s family line has a unique color. Adoption relationships are shown with purple dashed lines.</p>
-          </div>
-        </div>
-      )}
+            toPng(domViewport, {
+              backgroundColor: '#0E0F19',
+              width: nodesBounds.width,
+              height: nodesBounds.height,
+              pixelRatio: 2,
+              cacheBust: true,
+              skipFonts: false,
+              style: {
+                width: `${nodesBounds.width}px`,
+                height: `${nodesBounds.height}px`,
+                transform: `translate(${rfViewport.x}px, ${rfViewport.y}px) scale(${rfViewport.zoom})`,
+              },
+            })
+              .then((dataUrl) => {
+                const link = document.createElement('a');
+                link.download = `family-tree-graph.png`;
+                link.href = dataUrl;
+                link.click();
+              })
+              .catch((err) => {
+                console.error('Failed to export PNG:', err);
+              });
+          }}
+          title="Export as PNG"
+          disabled={nodes.length === 0}
+          className="p-2 rounded-lg backdrop-blur-lg bg-white/5 hover:bg-white/10 text-[#9CA3B5] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all border border-white/10 hover:scale-105"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+        </button>
+        
+        <button
+          onClick={() => {
+            const domViewport = reactFlowRef.current?.querySelector('.react-flow__viewport') as HTMLElement;
+            if (!domViewport) {
+              console.error('Viewport not found');
+              return;
+            }
+
+            const nodesBounds = getNodesBounds(getNodes());
+            const rfViewport = getViewportForBounds(
+              nodesBounds,
+              nodesBounds.width,
+              nodesBounds.height,
+              0.5,
+              2,
+              0.2
+            );
+
+            toJpeg(domViewport, {
+              backgroundColor: '#0E0F19',
+              width: nodesBounds.width,
+              height: nodesBounds.height,
+              quality: 0.95,
+              cacheBust: true,
+              skipFonts: false,
+              style: {
+                width: `${nodesBounds.width}px`,
+                height: `${nodesBounds.height}px`,
+                transform: `translate(${rfViewport.x}px, ${rfViewport.y}px) scale(${rfViewport.zoom})`,
+              },
+            })
+              .then((dataUrl) => {
+                const pdf = new jsPDF({
+                  orientation: nodesBounds.width > nodesBounds.height ? 'landscape' : 'portrait',
+                  unit: 'px',
+                  format: [nodesBounds.width, nodesBounds.height],
+                });
+
+                pdf.addImage(dataUrl, 'JPEG', 0, 0, nodesBounds.width, nodesBounds.height);
+                pdf.save(`family-tree-graph.pdf`);
+              })
+              .catch((err) => {
+                console.error('Failed to export PDF:', err);
+              });
+          }}
+          title="Export as PDF"
+          disabled={nodes.length === 0}
+          className="p-2 rounded-lg backdrop-blur-lg bg-white/5 hover:bg-white/10 text-[#9CA3B5] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all border border-white/10 hover:scale-105"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+          </svg>
+        </button>
+      </div>
+      
+
+      
 
       <ContextMenuComponent />
       
@@ -1349,7 +1454,7 @@ parentChildRelationships.forEach((rel, index) => {
         preventScrolling={false}
         className="w-full h-full bg-[#0E0F19]"
       >
-        <Controls position="bottom-right" className="!bg-white/5 !border-white/10 backdrop-blur-xl [&_button]:!bg-white/5 [&_button]:!border-white/10 [&_button]:!text-[#F5F7FA] [&_button:hover]:!bg-white/10" />
+        <Controls position="bottom-left" className="!bg-white/50 !border-white/10 backdrop-blur-xl [&_button]:!bg-white/5 [&_button]:!border-white/10 [&_button]:!text-[#F5F7FA] [&_button:hover]:!bg-white/10" />
         <Background variant={BackgroundVariant.Dots} gap={12} size={1} className="!bg-[#0E0F19] opacity-30" color="#6B72FF" />
       </ReactFlow>
     </div>

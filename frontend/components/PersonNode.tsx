@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 import React from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 
@@ -39,8 +40,9 @@ export default function PersonNode({ data, selected }: NodeProps<PersonNodeData>
       }`}>
         <div className="w-16 h-16 mx-auto mb-2 rounded-full overflow-hidden bg-white/5 border border-white/20 flex items-center justify-center">
           {data.image_url ? (
-            <img 
-              src={data.image_url} 
+            <img
+              crossOrigin="anonymous"
+              src={`/api/image-proxy?url=${encodeURIComponent(data.image_url)}`}
               alt={data.entity}
               className="w-full h-full object-cover"
             />
