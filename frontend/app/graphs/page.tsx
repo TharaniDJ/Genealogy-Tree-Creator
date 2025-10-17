@@ -242,10 +242,10 @@ const GraphsPage = () => {
                 </svg>
               </div>
               <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-[#6B72FF] to-[#8B7BFF] bg-clip-text text-transparent">
+                <h1 className="text-[20px] leading-[1.1] font-semibold bg-gradient-to-r from-[#6B72FF] to-[#8B7BFF] bg-clip-text text-transparent">
                   My Graphs
                 </h1>
-                <p className="text-sm text-[#9CA3B5] mt-1">
+                <p className="text-[14px] leading-relaxed text-[#9CA3B5] mt-1">
                   View and manage all your saved genealogy trees
                 </p>
               </div>
@@ -253,7 +253,7 @@ const GraphsPage = () => {
 
             <button
               onClick={() => router.push('/select')}
-              className="px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-[#F5F7FA] rounded-xl transition-all duration-200 shadow-lg hover:scale-105"
+              className="h-12 px-6 bg-white/5 hover:bg-white/10 border-[1.5px] border-white/10 text-[#F5F7FA] text-[12px] font-medium rounded-[12px] transition-all duration-200 shadow-lg hover:scale-105"
             >
               ← Back to Home
             </button>
@@ -270,8 +270,8 @@ const GraphsPage = () => {
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-[#9CA3B5]">Total Graphs</p>
-                  <p className="text-2xl font-bold text-[#F5F7FA] mt-1">{stats.total}</p>
+                  <p className="text-[14px] leading-relaxed text-[#9CA3B5]">Total Graphs</p>
+                  <p className="text-[19px] leading-tight font-medium text-[#F5F7FA] mt-1">{stats.total}</p>
                 </div>
                 <div className="w-10 h-10 flex items-center justify-center">
                   <svg className="w-8 h-8 text-[#6B72FF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -290,8 +290,8 @@ const GraphsPage = () => {
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-[#9CA3B5]">Language Trees</p>
-                  <p className="text-2xl font-bold text-[#F5F7FA] mt-1">{stats.language}</p>
+                  <p className="text-[14px] leading-relaxed text-[#9CA3B5]">Language Trees</p>
+                  <p className="text-[19px] leading-tight font-medium text-[#F5F7FA] mt-1">{stats.language}</p>
                 </div>
                 <div className="w-10 h-10 flex items-center justify-center">
                   <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -310,8 +310,8 @@ const GraphsPage = () => {
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-[#9CA3B5]">Species Trees</p>
-                  <p className="text-2xl font-bold text-[#F5F7FA] mt-1">{stats.species}</p>
+                  <p className="text-[14px] leading-relaxed text-[#9CA3B5]">Species Trees</p>
+                  <p className="text-[19px] leading-tight font-medium text-[#F5F7FA] mt-1">{stats.species}</p>
                 </div>
                 <div className="w-10 h-10 flex items-center justify-center">
                   <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -330,8 +330,8 @@ const GraphsPage = () => {
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-[#9CA3B5]">Family Trees</p>
-                  <p className="text-2xl font-bold text-[#F5F7FA] mt-1">{stats.family}</p>
+                  <p className="text-[14px] leading-relaxed text-[#9CA3B5]">Family Trees</p>
+                  <p className="text-[19px] leading-tight font-medium text-[#F5F7FA] mt-1">{stats.family}</p>
                 </div>
                 <div className="w-10 h-10 flex items-center justify-center">
                   <svg className="w-8 h-8 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -352,7 +352,7 @@ const GraphsPage = () => {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search graphs by name or description..."
-                  className="w-full px-4 py-3 pl-12 backdrop-blur-lg bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#6B72FF]/50 focus:border-[#6B72FF] transition-all text-[#F5F7FA] placeholder-[#9CA3B5]"
+                  className="w-full h-12 px-4 pl-12 backdrop-blur-lg bg-white/5 border border-white/10 rounded-[12px] focus:outline-none focus:ring-2 focus:ring-[#6B72FF]/50 focus:border-[#6B72FF] transition-all text-[#F5F7FA] text-[12px] leading-[1.6] placeholder-[#9CA3B5]"
                 />
                 <svg className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#9CA3B5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -365,7 +365,7 @@ const GraphsPage = () => {
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as 'name' | 'date' | 'size')}
-                className="px-4 py-3 backdrop-blur-lg bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#6B72FF]/50 text-[#F5F7FA] cursor-pointer"
+                className="h-12 px-6 backdrop-blur-lg bg-white/5 border-[1.5px] border-white/10 rounded-[12px] focus:outline-none focus:ring-2 focus:ring-[#6B72FF]/50 text-[#F5F7FA] text-[12px] font-medium cursor-pointer"
               >
                 <option value="date">Sort by Date</option>
                 <option value="name">Sort by Name</option>
@@ -374,7 +374,7 @@ const GraphsPage = () => {
 
               <button
                 onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
-                className="px-4 py-3 backdrop-blur-lg bg-white/5 border border-white/10 rounded-xl hover:bg-white/10 transition-all text-[#F5F7FA]"
+                className="h-12 px-4 backdrop-blur-lg bg-white/5 border-[1.5px] border-white/10 rounded-[12px] hover:bg-white/10 transition-all text-[#F5F7FA] text-[12px] font-medium"
                 title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
               >
                 {sortOrder === 'asc' ? '↑' : '↓'}
@@ -399,10 +399,10 @@ const GraphsPage = () => {
                 </svg>
               </div>
             </div>
-            <h3 className="text-xl font-semibold text-[#F5F7FA] mb-2">
+            <h3 className="text-[28px] leading-tight font-medium text-[#F5F7FA] mb-2">
               {searchQuery || selectedType !== 'all' ? 'No graphs found' : 'No graphs yet'}
             </h3>
-            <p className="text-[#9CA3B5] mb-6">
+            <p className="text-[12px] leading-[1.6] text-[#9CA3B5] mb-6">
               {searchQuery || selectedType !== 'all' 
                 ? 'Try adjusting your filters or search query' 
                 : 'Create your first genealogy tree to get started'}
@@ -410,7 +410,7 @@ const GraphsPage = () => {
             {!searchQuery && selectedType === 'all' && (
               <button
                 onClick={() => router.push('/select')}
-                className="px-6 py-3 bg-gradient-to-r from-[#6B72FF] to-[#8B7BFF] hover:from-[#7B82FF] hover:to-[#9B8BFF] text-white rounded-xl transition-all shadow-lg hover:scale-105"
+                className="h-12 px-6 bg-gradient-to-r from-[#6B72FF] to-[#8B7BFF] hover:from-[#7B82FF] hover:to-[#9B8BFF] text-white text-[12px] font-medium rounded-[12px] transition-all shadow-lg hover:scale-105"
               >
                 Create a Graph
               </button>
@@ -427,32 +427,37 @@ const GraphsPage = () => {
                   onClick={() => handleOpenGraph(graph)}
                   className={`group relative p-6 rounded-2xl backdrop-blur-lg bg-white/1 border ${typeInfo.borderColor} hover:bg-black transition-all duration-300 cursor-pointer hover:scale-105 hover:shadow-2xl`}
                 >
-                  {/* Type Badge */}
-                  <div className="absolute top-4 right-4">
-                    <div className={`px-3 py-1 rounded-lg text-xs font-medium ${typeInfo.bgColor} border ${typeInfo.borderColor} text-[#F5F7FA] flex items-center gap-1`}>
-                      <span>{typeInfo.icon}</span>
-                      <span>{typeInfo.label}</span>
+                  {/* Type Badge and Icon Row */}
+                  <div className='flex flex-row items-center justify-between w-full mb-4'>
+                    {/* Graph Icon */}
+                    <div className="w-auto">
+                      <StyledIconBox variant={typeInfo.variant} size="md">
+                        {typeInfo.icon}
+                      </StyledIconBox>
+                    </div>
+
+                    {/* Type Badge */}
+                    <div className="w-auto">
+                      <div className={`px-3 py-1 rounded-lg text-[13px] font-normal ${typeInfo.bgColor} border ${typeInfo.borderColor} text-[#9CA3B5] flex items-center gap-1`}>
+                        <span>{typeInfo.icon}</span>
+                        <span>{typeInfo.label}</span>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Graph Icon */}
-                  <StyledIconBox variant={typeInfo.variant} size="md">
-                    {typeInfo.icon}
-                  </StyledIconBox>
-
                   {/* Graph Info */}
-                  <h3 className="text-lg font-bold text-[#F5F7FA] mb-2 pr-20 line-clamp-2 group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-[#6B72FF] group-hover:to-[#8B7BFF] group-hover:bg-clip-text transition-all">
+                  <h3 className="text-[16px] pt-5 items-center  leading-tight font-medium text-[#F5F7FA] mb-2  line-clamp-2 group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-[#6B72FF] group-hover:to-[#8B7BFF] group-hover:bg-clip-text transition-all">
                     {graph.graph_name}
                   </h3>
 
                   {graph.description && (
-                    <p className="text-sm text-[#9CA3B5] mb-4 line-clamp-2">
+                    <p className="text-[12px] leading-[1.6] text-[#9CA3B5] mb-4 line-clamp-2">
                       {graph.description}
                     </p>
                   )}
 
                   {/* Stats */}
-                  <div className="flex items-center gap-4 text-xs text-[#9CA3B5] mb-4">
+                  <div className="flex items-center gap-4 text-[13px] leading-relaxed text-[#9CA3B5] mb-4">
                     <div className="flex items-center gap-1">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -470,7 +475,7 @@ const GraphsPage = () => {
                   </div>
 
                   {/* Date */}
-                  <div className="flex items-center gap-2 text-xs text-[#9CA3B5] mb-4">
+                  <div className="flex items-center gap-2 text-[13px] leading-relaxed text-[#9CA3B5] mb-4">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
@@ -478,20 +483,20 @@ const GraphsPage = () => {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 items-start">
                     <StyledButton
                       variant={typeInfo.variant}
                       onClick={(e) => {
                         e.stopPropagation();
                         handleOpenGraph(graph);
                       }}
-                      className=''
+                      className='h-12 pr-6 text-[12px] font-medium rounded-[12px]'
                     >
                       Open
                     </StyledButton>
                     <button
                       onClick={(e) => handleDeleteGraph(graph.id, graph.graph_name, e)}
-                      className="px-4 py-2 bg-red-600/20 hover:bg-red-600/30 border border-red-500/30 text-red-400 rounded-lg transition-all text-sm font-medium"
+                      className="h-12 px-4 bg-red-600/20 hover:bg-red-600/30 border-[1.5px] border-red-500/30 text-red-400 rounded-[12px] transition-all text-[12px] font-medium"
                       title="Delete graph"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
