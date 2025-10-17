@@ -70,7 +70,7 @@ const TaxonomyNode: React.FC<NodeProps<TaxonomyNodeData>> = ({ data, selected })
       {/* Enhanced glow effect on hover */}
       <div className={`absolute -inset-1 bg-gradient-to-r ${colors.glow} rounded-2xl blur-md opacity-0 group-hover:opacity-70 transition-opacity duration-300`}></div>
       
-      <Handle type="target" position={Position.Top} className="!w-3 !h-3 !bg-gradient-to-r !from-[#6B72FF] !to-[#8B7BFF] !border-2 !border-white/20 !shadow-lg hover:!scale-125 !transition-transform !duration-200" />
+      <Handle type="target" position={Position.Left} className="!w-3 !h-3 !bg-gradient-to-r !from-[#6B72FF] !to-[#8B7BFF] !border-2 !border-white/20 !shadow-lg hover:!scale-125 !transition-transform !duration-200" />
       
       <div
         className={`
@@ -132,7 +132,7 @@ const TaxonomyNode: React.FC<NodeProps<TaxonomyNodeData>> = ({ data, selected })
         )}
       </div>
       
-      <Handle type="source" position={Position.Bottom} className="!w-3 !h-3 !bg-gradient-to-r !from-[#6B72FF] !to-[#8B7BFF] !border-2 !border-white/20 !shadow-lg hover:!scale-125 !transition-transform !duration-200" />
+      <Handle type="source" position={Position.Right} className="!w-3 !h-3 !bg-gradient-to-r !from-[#6B72FF] !to-[#8B7BFF] !border-2 !border-white/20 !shadow-lg hover:!scale-125 !transition-transform !duration-200" />
     </div>
   );
 };

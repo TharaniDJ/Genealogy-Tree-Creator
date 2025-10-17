@@ -23,7 +23,7 @@ const dagreGraph = new dagre.graphlib.Graph();
 dagreGraph.setDefaultEdgeLabel(() => ({}));
 
 const nodeWidth = 220;
-const nodeHeight = 60;
+const nodeHeight = 100;
 
 // TypeScript interfaces for the new API structure
 interface TaxonomicEntity {
@@ -88,8 +88,12 @@ const TaxonomyTreePage = () => {
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge[]>([]);
   const [scientificName, setScientificName] = useState('Homo sapiens');
   const [status, setStatus] = useState('Ready');
-  const [layoutDirection, setLayoutDirection] = useState<'TB' | 'LR'>('TB');
+  // Default to horizontal (Left-to-Right) layout for species/taxonomy trees
+  const [layoutDirection, setLayoutDirection] = useState<'TB' | 'LR'>('LR');
   const [loading, setLoading] = useState(false);
+  // Status bar visibility and auto-hide timer
+  const [showStatusBar, setShowStatusBar] = useState(false);
+  const statusTimeoutRef = useRef<number | null>(null);
   
   // Track expanded nodes to prevent duplicate expansions
   const expandedNodesRef = useRef<Set<string>>(new Set());
@@ -390,12 +394,45 @@ const TaxonomyTreePage = () => {
     setStatus('Graph cleared');
   }, [setNodes, setEdges]);
 
-  // Auto-load on component mount
+  // Auto-load on component mount (create graph then apply initial layout)
   useEffect(() => {
     if (scientificName) {
-      createTaxonomyGraph(scientificName);
+      // Create graph then apply horizontal layout by default
+      (async () => {
+        await createTaxonomyGraph(scientificName);
+        // ensure layout uses current layoutDirection (default LR)
+        layout(layoutDirection);
+      })();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Show the status bar when status text appears and auto-hide after idle
+  useEffect(() => {
+    // Clear existing timer
+    if (statusTimeoutRef.current) {
+      window.clearTimeout(statusTimeoutRef.current as unknown as number);
+      statusTimeoutRef.current = null;
+    }
+
+    if (status && status !== 'Ready' && status !== '') {
+      setShowStatusBar(true);
+      // Auto-hide after 4 seconds of idle
+      statusTimeoutRef.current = window.setTimeout(() => {
+        setShowStatusBar(false);
+      }, 4000);
+    } else {
+      // Hide immediately when status cleared or set to 'Ready'
+      setShowStatusBar(false);
+    }
+
+    return () => {
+      if (statusTimeoutRef.current) {
+        window.clearTimeout(statusTimeoutRef.current as unknown as number);
+        statusTimeoutRef.current = null;
+      }
+    };
+  }, [status]);
 
   return (
     <div className="flex flex-col h-screen bg-[#0E0F19] relative overflow-hidden">
@@ -498,19 +535,24 @@ const TaxonomyTreePage = () => {
             </div>
           </button>
         </div>
-        
-        <div className="mt-4 flex items-center space-x-2">
-          <div className={`px-3 py-1.5 rounded-lg text-sm font-medium backdrop-blur-lg bg-white/5 border border-white/10 text-[#F5F7FA]`}>
-            <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 rounded-full bg-[#6B72FF] shadow-[0_0_8px_rgba(107,114,255,0.6)]"></div>
-              <span>{status}</span>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* React Flow Graph */}
       <div className="flex-1 relative">
+        {/* Floating status overlay (does not take layout space). Centered horizontally near top of ReactFlow area. */}
+        <div
+          className={`absolute z-50 top-4 left-4 transition-all duration-300 flex items-center ${showStatusBar ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-95 pointer-events-none'}`}
+          style={{
+            border: '2px solid rgba(255,255,255,0.95)',
+            background: 'rgba(6,7,12,0.65)',
+            padding: '6px 12px',
+            borderRadius: 8,
+            whiteSpace: 'nowrap',
+            backdropFilter: 'blur(6px)'
+          }}
+        >
+          <div className="text-sm text-white">{status}</div>
+        </div>
         <ReactFlowProvider>
           <ReactFlow
             nodes={nodes}
