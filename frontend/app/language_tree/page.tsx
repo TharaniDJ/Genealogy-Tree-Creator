@@ -3,6 +3,7 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import AuthGuard from '@/components/AuthGuard';
+import VerticalNavbar from '@/components/VerticalNavbar';
 import useAuth from '@/hooks/useAuth';
 import ReactFlow, {
   Controls,
@@ -1109,6 +1110,9 @@ const LanguageTreePage = () => {
 
   return (
     <div className="h-screen w-full flex flex-col bg-[#0E0F19] relative overflow-hidden">
+      {/* Vertical Navbar */}
+      <VerticalNavbar />
+      
       {/* Animated gradient background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -inset-[10px] opacity-30">

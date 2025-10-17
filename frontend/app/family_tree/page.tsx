@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import GenealogyTree from '@/components/GenealogyTree';
+import VerticalNavbar from '@/components/VerticalNavbar';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import useAuth from '@/hooks/useAuth';
 import AuthGuard from '@/components/AuthGuard';
@@ -311,6 +312,9 @@ const handleClassifyRelationships = useCallback((relationships: any[]) => {
 
   return (
     <main className="w-full h-screen flex flex-col overflow-hidden relative bg-[#0E0F19]">
+      {/* Vertical Navbar */}
+      <VerticalNavbar />
+      
       {/* Animated Background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -inset-[10px] opacity-30">

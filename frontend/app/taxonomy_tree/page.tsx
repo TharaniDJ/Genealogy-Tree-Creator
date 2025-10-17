@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import AuthGuard from '@/components/AuthGuard';
+import VerticalNavbar from '@/components/VerticalNavbar';
 import ReactFlow, {
   Controls,
   Background,
@@ -826,6 +827,9 @@ const TaxonomyTreePage = () => {
 
   return (
     <div className="flex flex-col h-screen bg-[#0E0F19] relative overflow-hidden">
+      {/* Vertical Navbar */}
+      <VerticalNavbar />
+      
       {/* Animated gradient background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -inset-[10px] opacity-30">

@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import useAuth from '@/hooks/useAuth';
 import AuthGuard from '@/components/AuthGuard';
+import VerticalNavbar from '@/components/VerticalNavbar';
 
 interface UserProfile {
   id: string;
@@ -248,6 +249,7 @@ const AccountPage = () => {
   if (loading) {
     return (
       <div className="min-h-screen w-full bg-[#0E0F19] flex items-center justify-center">
+        <VerticalNavbar />
         <div className="text-white text-xl">Loading...</div>
       </div>
     );
@@ -255,6 +257,9 @@ const AccountPage = () => {
 
   return (
     <div className="min-h-screen w-full bg-[#0E0F19] relative overflow-hidden">
+      {/* Vertical Navbar */}
+      <VerticalNavbar />
+      
       {/* Animated gradient background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -inset-[10px] opacity-30">

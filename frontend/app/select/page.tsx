@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import AuthGuard from '@/components/AuthGuard';
+import VerticalNavbar from '@/components/VerticalNavbar';
 import { Network, GitBranch, Dna, ChevronRight, LogOut, User } from 'lucide-react';
 import useAuth from '@/hooks/useAuth';
 import Image from 'next/image';
@@ -59,6 +60,9 @@ function SelectPageInner() {
 
   return (
     <div className="min-h-screen relative bg-[#0E0F19]">
+      {/* Vertical Navbar */}
+      <VerticalNavbar />
+      
       {/* Animated gradient background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -inset-[10px] opacity-50">

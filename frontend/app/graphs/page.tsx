@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import useAuth from '@/hooks/useAuth';
 import AuthGuard from '@/components/AuthGuard';
+import VerticalNavbar from '@/components/VerticalNavbar';
 import StyledButton from '@/components/ui/StyledButton';
 import StyledIconBox from '@/components/ui/StyledIconBox';
 
@@ -222,6 +223,9 @@ const GraphsPage = () => {
 
   return (
     <div className="min-h-screen w-full bg-[#0E0F19] relative overflow-hidden">
+      {/* Vertical Navbar */}
+      <VerticalNavbar />
+      
       {/* Animated gradient background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -inset-[10px] opacity-30">
