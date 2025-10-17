@@ -10,6 +10,9 @@ const nextConfig = {
     unoptimized: true,
   },
   output: 'standalone',
+  compiler: {
+    styledComponents: true,
+  },
 }
 
 export default nextConfig

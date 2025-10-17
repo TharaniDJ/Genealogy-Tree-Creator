@@ -41,7 +41,8 @@ const LanguageDetailsSidebar: React.FC<LanguageDetailsSidebarProps> = ({
     setError(null);
     
     try {
-      const response = await fetch(`http://localhost:8001/info/${qid}`);
+      const base = process.env.NEXT_PUBLIC_LANGUAGE_API_URL || 'http://localhost:8001';
+      const response = await fetch(`${base}/info/${qid}`);
       if (!response.ok) {
         throw new Error(`Failed to fetch language info: ${response.statusText}`);
       }
@@ -88,37 +89,37 @@ const LanguageDetailsSidebar: React.FC<LanguageDetailsSidebarProps> = ({
       />
       
       {/* Sidebar */}
-      <div className="fixed right-0 top-0 h-full w-96 bg-gray-900/95 backdrop-blur-xl border-l border-gray-700/30 shadow-2xl z-50 transform transition-transform duration-300 ease-in-out">
+      <div className="fixed right-0 top-0 h-full w-96 backdrop-blur-xl bg-white/5 border-l border-white/10 shadow-2xl shadow-[#6B72FF]/10 z-50 transform transition-transform duration-300 ease-in-out">
         <div className="h-full flex flex-col">
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-700/50">
+          <div className="flex items-center justify-between p-6 border-b border-white/10">
             <div>
-              <h2 className="text-xl font-bold text-gray-100 truncate">{languageName}</h2>
+              <h2 className="text-xl font-bold text-[#F5F7FA] truncate">{languageName}</h2>
               {category && (
-                <p className="text-sm text-gray-400 mt-1">{humanizeCategory(category)}</p>
+                <p className="text-sm text-[#9CA3B5] mt-1">{humanizeCategory(category)}</p>
               )}
             </div>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-gray-800 rounded-lg transition-colors duration-200"
+              className="p-2 hover:bg-white/10 rounded-lg transition-colors duration-200"
             >
-              <X className="w-5 h-5 text-gray-400 hover:text-gray-200" />
+              <X className="w-5 h-5 text-[#9CA3B5] hover:text-[#F5F7FA]" />
             </button>
           </div>
 
           {/* Content */}
           <div className="flex-1 overflow-y-auto p-6">
             {!qid ? (
-              <div className="flex items-center justify-center h-32 text-gray-400">
+              <div className="flex items-center justify-center h-32 text-[#9CA3B5]">
                 <div className="text-center">
                   <Globe className="w-8 h-8 mx-auto mb-2 opacity-50" />
                   <p>No Wikidata ID available</p>
                 </div>
               </div>
             ) : loading ? (
-              <div className="flex items-center justify-center h-32 text-gray-400">
+              <div className="flex items-center justify-center h-32 text-[#9CA3B5]">
                 <div className="text-center">
-                  <Loader2 className="w-8 h-8 mx-auto mb-2 animate-spin" />
+                  <Loader2 className="w-8 h-8 mx-auto mb-2 animate-spin text-[#6B72FF]" />
                   <p>Loading language information...</p>
                 </div>
               </div>
@@ -129,7 +130,7 @@ const LanguageDetailsSidebar: React.FC<LanguageDetailsSidebarProps> = ({
                   <p className="text-sm">{error}</p>
                   <button 
                     onClick={fetchLanguageInfo}
-                    className="mt-2 text-purple-400 hover:text-purple-300 text-sm underline"
+                    className="mt-2 text-[#6B72FF] hover:text-[#8B7BFF] text-sm underline"
                   >
                     Try again
                   </button>
@@ -138,20 +139,20 @@ const LanguageDetailsSidebar: React.FC<LanguageDetailsSidebarProps> = ({
             ) : (
               <div className="space-y-6">
                 {/* Basic Information */}
-                <div className="bg-gray-800/60 backdrop-blur-sm rounded-xl p-4 border border-gray-600/30">
-                  <h3 className="font-semibold text-gray-100 mb-3 flex items-center">
-                    <Globe className="w-4 h-4 mr-2" />
+                <div className="backdrop-blur-lg bg-white/5 rounded-xl p-4 border border-white/10">
+                  <h3 className="font-semibold text-[#F5F7FA] mb-3 flex items-center">
+                    <Globe className="w-4 h-4 mr-2 text-[#6B72FF]" />
                     Basic Information
                   </h3>
                   
                   <div className="space-y-3">
                     {languageInfo?.speakers && (
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center text-gray-400">
+                        <div className="flex items-center text-[#9CA3B5]">
                           <Users className="w-4 h-4 mr-2" />
                           <span className="text-sm">Speakers</span>
                         </div>
-                        <span className="font-medium text-gray-200">
+                        <span className="font-medium text-[#F5F7FA]">
                           {formatSpeakers(languageInfo.speakers)}
                         </span>
                       </div>
@@ -159,11 +160,11 @@ const LanguageDetailsSidebar: React.FC<LanguageDetailsSidebarProps> = ({
                     
                     {languageInfo?.iso_code && (
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center text-gray-400">
+                        <div className="flex items-center text-[#9CA3B5]">
                           <MapPin className="w-4 h-4 mr-2" />
                           <span className="text-sm">ISO Code</span>
                         </div>
-                        <span className="font-mono font-medium text-gray-200 bg-gray-700 px-2 py-1 rounded text-sm">
+                        <span className="font-mono font-medium text-[#F5F7FA] bg-white/10 px-2 py-1 rounded text-sm">
                           {languageInfo.iso_code}
                         </span>
                       </div>
@@ -171,7 +172,7 @@ const LanguageDetailsSidebar: React.FC<LanguageDetailsSidebarProps> = ({
 
                     {qid && (
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center text-gray-400">
+                        <div className="flex items-center text-[#9CA3B5]">
                           <ExternalLink className="w-4 h-4 mr-2" />
                           <span className="text-sm">Wikidata ID</span>
                         </div>
@@ -179,7 +180,7 @@ const LanguageDetailsSidebar: React.FC<LanguageDetailsSidebarProps> = ({
                           href={`https://www.wikidata.org/wiki/${qid}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="font-mono font-medium text-purple-400 hover:text-purple-300 bg-purple-900/30 px-2 py-1 rounded text-sm transition-colors"
+                          className="font-mono font-medium text-[#6B72FF] hover:text-[#8B7BFF] bg-[#6B72FF]/10 px-2 py-1 rounded text-sm transition-colors"
                         >
                           {qid}
                         </a>
@@ -190,13 +191,13 @@ const LanguageDetailsSidebar: React.FC<LanguageDetailsSidebarProps> = ({
 
                 {/* Distribution Map */}
                 {languageInfo?.distribution_map_url && (
-                  <div className="bg-gray-800/60 backdrop-blur-sm rounded-xl p-4 border border-gray-600/30">
-                    <h3 className="font-semibold text-gray-100 mb-3 flex items-center">
-                      <MapPin className="w-4 h-4 mr-2" />
+                  <div className="backdrop-blur-lg bg-white/5 rounded-xl p-4 border border-white/10">
+                    <h3 className="font-semibold text-[#F5F7FA] mb-3 flex items-center">
+                      <MapPin className="w-4 h-4 mr-2 text-[#6B72FF]" />
                       Distribution Map
                     </h3>
                     
-                    <div className="relative rounded-lg overflow-hidden bg-gray-700">
+                    <div className="relative rounded-lg overflow-hidden bg-white/5">
                       <img
                         src={languageInfo.distribution_map_url}
                         alt={`Distribution map for ${languageName}`}
@@ -206,7 +207,7 @@ const LanguageDetailsSidebar: React.FC<LanguageDetailsSidebarProps> = ({
                           target.style.display = 'none';
                           const parent = target.parentElement;
                           if (parent) {
-                            parent.innerHTML = '<div class="flex items-center justify-center h-32 text-gray-400"><p class="text-sm">Failed to load distribution map</p></div>';
+                            parent.innerHTML = '<div class="flex items-center justify-center h-32 text-[#9CA3B5]"><p class="text-sm">Failed to load distribution map</p></div>';
                           }
                         }}
                       />
@@ -216,7 +217,7 @@ const LanguageDetailsSidebar: React.FC<LanguageDetailsSidebarProps> = ({
                       href={languageInfo.distribution_map_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center mt-2 text-sm text-purple-400 hover:text-purple-300 transition-colors"
+                      className="inline-flex items-center mt-2 text-sm text-[#6B72FF] hover:text-[#8B7BFF] transition-colors"
                     >
                       <ExternalLink className="w-3 h-3 mr-1" />
                       View full size
@@ -226,7 +227,7 @@ const LanguageDetailsSidebar: React.FC<LanguageDetailsSidebarProps> = ({
 
                 {/* No data message */}
                 {languageInfo && !languageInfo.speakers && !languageInfo.iso_code && !languageInfo.distribution_map_url && (
-                  <div className="flex items-center justify-center h-32 text-gray-400">
+                  <div className="flex items-center justify-center h-32 text-[#9CA3B5]">
                     <div className="text-center">
                       <Globe className="w-8 h-8 mx-auto mb-2 opacity-50" />
                       <p>No additional information available</p>

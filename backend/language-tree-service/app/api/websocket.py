@@ -37,6 +37,66 @@ async def websocket_language_relationships(websocket: WebSocket):
 
                 if isinstance(parsed, dict) and parsed.get("action"):
                     action = parsed.get("action")
+                    if action == "expand_node":
+                        # Expected payload: { action: 'expand_node', label: string, existingGraph: LanguageRelationship[]|Tuple[] }
+                        label_value = parsed.get("label")
+                        existing_graph_value = parsed.get("existingGraph")
+                        if not isinstance(label_value, str) or not label_value.strip():
+                            raise ValueError("Missing or invalid 'label' for expand_node")
+                        label = label_value.strip()
+
+                        await websocket_manager.send_status(
+                            f"Expanding node '{label}' using Wikipedia and LLM...",
+                            0,
+                            connection_id,
+                        )
+
+                        async def expand_node_task(node_label: str, existing_graph):
+                            try:
+                                newly_added, merged_graph = await wiki.expand_node_in_graph(
+                                    original_graph=existing_graph or [],
+                                    node_to_expand=node_label,
+                                    websocket_manager=websocket_manager,
+                                    connection_id=connection_id,
+                                )
+
+                                # Convert tuples to LanguageRelationship-like dicts for frontend
+                                def to_rel_dict(t):
+                                    return {
+                                        "language1": t[0],
+                                        "relationship": t[1],
+                                        "language2": t[2],
+                                    }
+
+                                added_payload = [to_rel_dict(t) for t in newly_added]
+                                merged_payload = [to_rel_dict(t) for t in merged_graph]
+
+                                if websocket_manager.is_connection_active(connection_id):
+                                    await websocket_manager.send_json(
+                                        {
+                                            "type": "expand_complete",
+                                            "data": {
+                                                "label": node_label,
+                                                "added": added_payload,
+                                                "merged": merged_payload,
+                                            },
+                                        },
+                                        connection_id,
+                                    )
+                            except asyncio.CancelledError:
+                                print(f"Expand node task cancelled for connection {connection_id}")
+                                raise
+                            except Exception as e:
+                                if websocket_manager.is_connection_active(connection_id):
+                                    await websocket_manager.send_error(
+                                        f"Error expanding node '{node_label}': {str(e)}",
+                                        connection_id,
+                                    )
+
+                        task = asyncio.create_task(expand_node_task(label, existing_graph_value))
+                        websocket_manager.set_active_task(connection_id, task)
+                        await task
+                        continue
                     if action == "expand_by_qid":
                         await websocket_manager.send_error(
                             "Expansion by QID is no longer supported.",

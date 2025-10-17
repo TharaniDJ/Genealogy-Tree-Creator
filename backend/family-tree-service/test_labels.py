@@ -6,7 +6,7 @@ from typing import Dict, Set
 WIKIDATA_API = "https://www.wikidata.org/w/api.php"
 
 def get_labels(qids: Set[str]) -> Dict[str, str]:
-    """Batch-fetch English labels for a set of Q-ids (returns dict)."""
+    """Batch-fetch English labels  for a set of Q-ids (returns dict)."""
     if not qids:
         return {}
 

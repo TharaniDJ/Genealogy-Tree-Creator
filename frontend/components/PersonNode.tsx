@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 import React from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 
@@ -32,43 +33,44 @@ export default function PersonNode({ data, selected }: NodeProps<PersonNodeData>
 
   return (
     <div className="person-node">
-      <Handle type="target" position={Position.Top} />
+      <Handle type="target" position={Position.Top} className="!bg-[#6B72FF] !border-[#6B72FF]" />
       
-      <div className={`w-48 bg-white border-2 rounded-lg shadow-md p-4 text-center transition-all duration-200 ${
-        selected ? 'border-blue-500 shadow-lg' : 'border-gray-300 hover:shadow-lg'
+      <div className={`w-48 backdrop-blur-xl bg-white/10 border-2 rounded-xl shadow-2xl p-4 text-center transition-all duration-200 ${
+        selected ? 'border-[#6B72FF] shadow-[#6B72FF]/25 shadow-lg' : 'border-white/20 hover:shadow-lg hover:border-white/30'
       }`}>
-        <div className="w-16 h-16 mx-auto mb-2 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center">
+        <div className="w-16 h-16 mx-auto mb-2 rounded-full overflow-hidden bg-white/5 border border-white/20 flex items-center justify-center">
           {data.image_url ? (
-            <img 
-              src={data.image_url} 
+            <img
+              crossOrigin="anonymous"
+              src={`/api/image-proxy?url=${encodeURIComponent(data.image_url)}`}
               alt={data.entity}
               className="w-full h-full object-cover"
             />
           ) : (
-            <span className="text-white bg-gradient-to-r from-blue-500 to-purple-600 w-full h-full flex items-center justify-center text-sm font-bold">
+            <span className="text-white bg-gradient-to-r from-[#6B72FF] to-[#8B7BFF] w-full h-full flex items-center justify-center text-sm font-bold">
               {getInitials(data.entity)}
             </span>
           )}
         </div>
         
-        <h3 className="font-semibold text-sm mb-1 line-clamp-2">
+        <h3 className="font-semibold text-sm mb-1 line-clamp-2 text-[#F5F7FA]">
           {data.entity}
         </h3>
         
         {(data.birth_year || data.death_year) && (
-          <p className="text-xs text-gray-600">
+          <p className="text-xs text-[#9CA3B5]">
             {formatYears(data.birth_year, data.death_year)}
           </p>
         )}
         
         {data.qid && (
-          <p className="text-xs text-gray-400 mt-1">
+          <p className="text-xs text-[#9CA3B5]/70 mt-1">
             {data.qid}
           </p>
         )}
       </div>
       
-      <Handle type="source" position={Position.Bottom} />
+      <Handle type="source" position={Position.Bottom} className="!bg-[#6B72FF] !border-[#6B72FF]" />
     </div>
   );
 }

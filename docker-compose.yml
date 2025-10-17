@@ -55,9 +55,9 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=development
-      - NEXT_PUBLIC_FAMILY_API_URL=http://localhost:8000
-      - NEXT_PUBLIC_LANGUAGE_API_URL=http://localhost:8001
-      - NEXT_PUBLIC_SPECIES_API_URL=http://localhost:8002
+      - NEXT_PUBLIC_FAMILY_API_URL=http://localhost:8080/api/family
+      - NEXT_PUBLIC_LANGUAGE_API_URL=http://localhost:8080/api/language
+      - NEXT_PUBLIC_SPECIES_API_URL=http://localhost:8080/api/species
     volumes:
       - ./frontend:/app
       - /app/node_modules
@@ -66,8 +66,52 @@ services:
       - family-tree-service
       - language-tree-service
       - species-tree-service
+      - user-service
+    restart: unless-stopped
+
+  # User Service - Authentication and user management
+  user-service:
+    build:
+      context: ./backend/user-service
+    ports:
+      - "8003:8003"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8003
+      - RELOAD=true
+      - LOG_LEVEL=debug
+      - NODE_ENV=development
+    volumes:
+      - ./backend/user-service/app:/app/app
+    depends_on:
+      - mongo
+    restart: unless-stopped
+
+  mongo:
+    image: mongo:6
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    restart: unless-stopped
+
+  api-gateway:
+    build:
+      context: ./backend/api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - NODE_ENV=development
+    depends_on:
+      - family-tree-service
+      - language-tree-service
+      - species-tree-service
+      - user-service
     restart: unless-stopped
 
 networks:
   default:
     name: genealogy-tree-network-dev
+
+volumes:
+  mongo-data:

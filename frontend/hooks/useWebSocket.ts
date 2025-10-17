@@ -1,22 +1,19 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-
-interface WebSocketMessage {
-  type: 'status' | 'relationship' | 'complete' | 'error' | string; // keep string fallback for forward compatibility
-  data: any;
-}
+import { WebSocketMessage, ConnectionStatus } from '@/types/websocket';
 
 interface UseWebSocketReturn {
   messages: WebSocketMessage[];
-  connectionStatus: 'connecting' | 'connected' | 'disconnected' | 'error';
+  connectionStatus: ConnectionStatus;
   connect: () => void;
   disconnect: () => void;
   clearMessages: () => void;
   sendMessage: (message: any) => void;
+  addMessages: (newMessages: WebSocketMessage[]) => void;
 }
 
-export function useWebSocket(url: string): UseWebSocketReturn {
+export function useWebSocket(url: string, options?: { token?: string | null }): UseWebSocketReturn {
   const [messages, setMessages] = useState<WebSocketMessage[]>([]);
-  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('disconnected');
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttempts = useRef(0);
@@ -30,7 +27,16 @@ export function useWebSocket(url: string): UseWebSocketReturn {
     setConnectionStatus('connecting');
     
     try {
-      const ws = new WebSocket(url);
+      // Add token to URL query parameters if provided
+      let wsUrl = url;
+      if (options?.token) {
+        const separator = url.includes('?') ? '&' : '?';
+        wsUrl = `${url}${separator}token=${encodeURIComponent(options.token)}`;
+      }
+      
+      console.log('Connecting to WebSocket:', wsUrl.replace(/token=[^&]+/, 'token=***'));
+      
+      const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
       ws.onopen = () => {
@@ -72,7 +78,7 @@ export function useWebSocket(url: string): UseWebSocketReturn {
       console.error('Error creating WebSocket connection:', error);
       setConnectionStatus('error');
     }
-  }, [url]);
+  }, [url, options?.token]);
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
@@ -102,6 +108,10 @@ export function useWebSocket(url: string): UseWebSocketReturn {
     setMessages([]);
   }, []);
 
+  const addMessages = useCallback((newMessages: WebSocketMessage[]) => {
+    setMessages(newMessages);
+  }, []);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -115,6 +125,7 @@ export function useWebSocket(url: string): UseWebSocketReturn {
     connect,
     disconnect,
     clearMessages,
-    sendMessage
+    sendMessage,
+    addMessages
   };
 }

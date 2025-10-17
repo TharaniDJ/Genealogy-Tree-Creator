@@ -249,6 +249,7 @@ async def expand_taxonomies(taxon_name: str, rank: str, target_rank: Optional[st
         result = taxonomy_expander.expand_taxonomy(taxon_name, rank)
         print(result)
 
+        
         # If the expander produced no tuples, try Gemini augmentation as a fallback
         try:
             if not getattr(result, 'tuples', None):
