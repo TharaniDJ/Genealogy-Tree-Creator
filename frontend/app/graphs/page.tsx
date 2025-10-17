@@ -157,7 +157,11 @@ const GraphsPage = () => {
     switch (type) {
       case 'language':
         return {
-          icon: '🗣️',
+          icon: (
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+            </svg>
+          ),
           label: 'Language',
           color: 'from-blue-500 to-cyan-500',
           bgColor: 'bg-blue-500/10',
@@ -165,7 +169,11 @@ const GraphsPage = () => {
         };
       case 'species':
         return {
-          icon: '🦋',
+          icon: (
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          ),
           label: 'Species',
           color: 'from-green-500 to-emerald-500',
           bgColor: 'bg-green-500/10',
@@ -173,7 +181,11 @@ const GraphsPage = () => {
         };
       case 'family':
         return {
-          icon: '👨‍👩‍👧‍👦',
+          icon: (
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+          ),
           label: 'Family',
           color: 'from-purple-500 to-pink-500',
           bgColor: 'bg-purple-500/10',
@@ -181,7 +193,11 @@ const GraphsPage = () => {
         };
       default:
         return {
-          icon: '📊',
+          icon: (
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+          ),
           label: 'Graph',
           color: 'from-gray-500 to-gray-600',
           bgColor: 'bg-gray-500/10',
@@ -251,7 +267,11 @@ const GraphsPage = () => {
                   <p className="text-sm text-[#9CA3B5]">Total Graphs</p>
                   <p className="text-2xl font-bold text-[#F5F7FA] mt-1">{stats.total}</p>
                 </div>
-                <div className="text-3xl">📊</div>
+                <div className="w-10 h-10 flex items-center justify-center">
+                  <svg className="w-8 h-8 text-[#6B72FF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                </div>
               </div>
             </div>
 
@@ -267,7 +287,11 @@ const GraphsPage = () => {
                   <p className="text-sm text-[#9CA3B5]">Language Trees</p>
                   <p className="text-2xl font-bold text-[#F5F7FA] mt-1">{stats.language}</p>
                 </div>
-                <div className="text-3xl">🗣️</div>
+                <div className="w-10 h-10 flex items-center justify-center">
+                  <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+                  </svg>
+                </div>
               </div>
             </div>
 
@@ -283,7 +307,11 @@ const GraphsPage = () => {
                   <p className="text-sm text-[#9CA3B5]">Species Trees</p>
                   <p className="text-2xl font-bold text-[#F5F7FA] mt-1">{stats.species}</p>
                 </div>
-                <div className="text-3xl">🦋</div>
+                <div className="w-10 h-10 flex items-center justify-center">
+                  <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
               </div>
             </div>
 
@@ -299,7 +327,11 @@ const GraphsPage = () => {
                   <p className="text-sm text-[#9CA3B5]">Family Trees</p>
                   <p className="text-2xl font-bold text-[#F5F7FA] mt-1">{stats.family}</p>
                 </div>
-                <div className="text-3xl">👨‍👩‍👧‍👦</div>
+                <div className="w-10 h-10 flex items-center justify-center">
+                  <svg className="w-8 h-8 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                </div>
               </div>
             </div>
           </div>
@@ -354,7 +386,13 @@ const GraphsPage = () => {
           </div>
         ) : filteredGraphs.length === 0 ? (
           <div className="text-center py-20">
-            <div className="text-6xl mb-4">📊</div>
+            <div className="mb-4 flex justify-center">
+              <div className="w-20 h-20 bg-white/5 rounded-2xl flex items-center justify-center">
+                <svg className="w-12 h-12 text-[#9CA3B5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              </div>
+            </div>
             <h3 className="text-xl font-semibold text-[#F5F7FA] mb-2">
               {searchQuery || selectedType !== 'all' ? 'No graphs found' : 'No graphs yet'}
             </h3>

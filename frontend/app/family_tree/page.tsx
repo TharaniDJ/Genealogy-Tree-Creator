@@ -280,6 +280,17 @@ const handleClassifyRelationships = useCallback((relationships: any[]) => {
     };
   }, [connect, disconnect]);
 
+  // Auto-load graph from URL parameter
+  useEffect(() => {
+    const loadGraphId = searchParams.get('loadGraph');
+    if (loadGraphId && connectionStatus === 'connected') {
+      // Auto-load the graph
+      handleLoadGraph(loadGraphId);
+      // Clean up URL parameter
+      router.replace('/family_tree', { scroll: false });
+    }
+  }, [searchParams, connectionStatus, handleLoadGraph, router]);
+
   const getConnectionStatusColor = () => {
     switch (connectionStatus) {
       case 'connected': return 'text-green-600';
