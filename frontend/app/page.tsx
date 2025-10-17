@@ -4,12 +4,24 @@ import { useRouter } from 'next/navigation';
 import useAuth from '@/hooks/useAuth';
 import Image from 'next/image';
 import { Network, GitBranch, Dna, Sparkles, ChevronRight, User, LogIn, UserPlus } from 'lucide-react';
+import {
+  Navbar,
+  NavBody,
+  NavItems,
+  MobileNav,
+  NavbarLogo,
+  NavbarButton,
+  MobileNavHeader,
+  MobileNavToggle,
+  MobileNavMenu,
+} from "@/components/ui/resizable-navbar";
 
 export default function LandingPage() {
   const router = useRouter();
   const { getToken } = useAuth();
   const [userName, setUserName] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const token = getToken();
@@ -47,61 +59,123 @@ export default function LandingPage() {
       </div>
 
       {/* Navbar */}
-      <nav className="relative text-[12px] z-10 backdrop-blur-xl bg-white/5 border-b border-white/10 shadow-lg shadow-[#6B72FF]/10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-20">
-            <div className="flex items-center space-x-3">
-              <div className="relative">
-                <Image 
-                  src="/logo.png" 
-                  alt="GeneChain Logo" 
-                  width={50} 
-                  height={50}
-                  className="object-contain"
-                />
-              </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-[#6B72FF] to-[#8B7BFF] bg-clip-text text-transparent">
-                GeneChain
-              </span>
-            </div>
-            
-            <div className="flex items-center space-x-4">
+      <div className="relative z-10">
+        <Navbar>
+          {/* Desktop Navigation */}
+          <NavBody>
+            <NavbarLogo />
+            <NavItems items={[
+              { name: "Features", link: "#features" },
+              { name: "Services", link: "#services" },
+            ]} />
+            <div className="flex items-center gap-4">
               {userName ? (
                 <>
                   <div className="flex items-center space-x-3 px-4 py-2 rounded-lg backdrop-blur-lg bg-white/5 border border-white/10">
                     <User className="w-5 h-5 text-[#9CA3B5]" />
                     <span className="text-[#F5F7FA] font-medium">Welcome, {userName}</span>
                   </div>
-                  <button
+                  <NavbarButton 
+                    variant="primary" 
                     onClick={() => router.push('/select')}
-                    className="group flex items-center space-x-2 px-6 py-2.5 rounded-lg bg-gradient-to-r from-[#6B72FF] to-[#8B7BFF] text-white font-semibold shadow-lg shadow-[#6B72FF]/30 hover:shadow-[#6B72FF]/50 transition-all duration-300 hover:scale-105"
                   >
-                    <span>Continue</span>
-                    <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                  </button>
+                    Continue
+                  </NavbarButton>
                 </>
               ) : (
                 <>
-                  <button
+                  <NavbarButton 
+                    variant="secondary" 
                     onClick={() => router.push('/login')}
-                    className="flex items-center space-x-2 px-5 py-2.5 rounded-lg backdrop-blur-lg bg-white/5 border border-white/10 text-[#F5F7FA] font-medium hover:bg-white/10 transition-all duration-300 hover:scale-105"
                   >
-                    <LogIn className="w-5 h-5" />
-                    <span>Sign In</span>
-                  </button>
-                  <button
+                    Sign In
+                  </NavbarButton>
+                  <NavbarButton 
+                    variant="primary" 
                     onClick={() => router.push('/register')}
-                    className="flex items-center space-x-2 px-6 py-2.5 rounded-lg bg-gradient-to-r from-[#6B72FF] to-[#8B7BFF] text-white font-semibold shadow-lg shadow-[#6B72FF]/30 hover:shadow-[#6B72FF]/50 transition-all duration-300 hover:scale-105"
                   >
-                    <UserPlus className="w-5 h-5" />
-                    <span>Register</span>
-                  </button>
+                    Register
+                  </NavbarButton>
                 </>
               )}
             </div>
-          </div>
-        </div>
-      </nav>
+          </NavBody>
+
+          {/* Mobile Navigation */}
+          <MobileNav>
+            <MobileNavHeader>
+              <NavbarLogo />
+              <MobileNavToggle
+                isOpen={isMobileMenuOpen}
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              />
+            </MobileNavHeader>
+
+            <MobileNavMenu
+              isOpen={isMobileMenuOpen}
+              onClose={() => setIsMobileMenuOpen(false)}
+            >
+              <a
+                href="#features"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="relative text-neutral-600 dark:text-neutral-300"
+              >
+                <span className="block">Features</span>
+              </a>
+              <a
+                href="#services"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="relative text-neutral-600 dark:text-neutral-300"
+              >
+                <span className="block">Services</span>
+              </a>
+              <div className="flex w-full flex-col gap-4">
+                {userName ? (
+                  <>
+                    <div className="flex items-center space-x-3 px-4 py-2 rounded-lg backdrop-blur-lg bg-white/5 border border-white/10">
+                      <User className="w-5 h-5 text-[#9CA3B5]" />
+                      <span className="text-[#F5F7FA] font-medium">Welcome, {userName}</span>
+                    </div>
+                    <NavbarButton
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        router.push('/select');
+                      }}
+                      variant="primary"
+                      className="w-full"
+                    >
+                      Continue
+                    </NavbarButton>
+                  </>
+                ) : (
+                  <>
+                    <NavbarButton
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        router.push('/login');
+                      }}
+                      variant="secondary"
+                      className="w-full"
+                    >
+                      Sign In
+                    </NavbarButton>
+                    <NavbarButton
+                      onClick={() => {
+                        setIsMobileMenuOpen(false);
+                        router.push('/register');
+                      }}
+                      variant="primary"
+                      className="w-full"
+                    >
+                      Register
+                    </NavbarButton>
+                  </>
+                )}
+              </div>
+            </MobileNavMenu>
+          </MobileNav>
+        </Navbar>
+      </div>
 
       {/* Hero Section */}
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
@@ -145,7 +219,7 @@ export default function LandingPage() {
       </div>
 
       {/* Services Section */}
-      <div id="features" className="relative z-10">
+      <div id="services" className="relative z-10">
         {/* Language Tree Section */}
         <div className="min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8 py-16">
           <div className="max-w-7xl w-full mx-auto">
@@ -155,7 +229,7 @@ export default function LandingPage() {
                 <div className="absolute inset-0 bg-gradient-to-br from-[#6B72FF]/20 to-[#8B7BFF]/20 rounded-3xl blur-2xl group-hover:blur-3xl transition-all duration-500"></div>
                 <div className="relative overflow-hidden rounded-3xl border border-white/10 shadow-2xl shadow-[#6B72FF]/20">
                   <Image 
-                    src="/language.jpeg" 
+                    src="/language.webp" 
                     alt="Language Tree" 
                     width={600} 
                     height={600}
@@ -223,7 +297,7 @@ export default function LandingPage() {
                 <div className="absolute inset-0 bg-gradient-to-br from-[#5B62FF]/20 to-[#7B72FF]/20 rounded-3xl blur-2xl group-hover:blur-3xl transition-all duration-500"></div>
                 <div className="relative overflow-hidden rounded-3xl border border-white/10 shadow-2xl shadow-[#5B62FF]/20">
                   <Image 
-                    src="/family.jpg" 
+                    src="/family.webp" 
                     alt="Family Tree" 
                     width={600} 
                     height={600}
@@ -291,7 +365,7 @@ export default function LandingPage() {
                 <div className="absolute inset-0 bg-gradient-to-br from-[#8B7BFF]/20 to-[#9B8BFF]/20 rounded-3xl blur-2xl group-hover:blur-3xl transition-all duration-500"></div>
                 <div className="relative overflow-hidden rounded-3xl border border-white/10 shadow-2xl shadow-[#8B7BFF]/20">
                   <Image 
-                    src="/species.jpeg" 
+                    src="/species.webp" 
                     alt="Species Tree" 
                     width={600} 
                     height={600}

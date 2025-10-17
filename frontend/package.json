@@ -37,6 +37,7 @@
     "@radix-ui/react-toggle": "1.1.1",
     "@radix-ui/react-toggle-group": "1.1.1",
     "@radix-ui/react-tooltip": "1.1.6",
+    "@tabler/icons-react": "^3.35.0",
     "@types/dagre": "^0.7.53",
     "@types/html2canvas": "^1.0.0",
     "autoprefixer": "^10.4.21",
