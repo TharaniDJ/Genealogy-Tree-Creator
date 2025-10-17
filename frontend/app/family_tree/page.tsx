@@ -2,9 +2,16 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import GenealogyTree from '@/components/GenealogyTree';
 import { useWebSocket } from '@/hooks/useWebSocket';
+import useAuth from '@/hooks/useAuth';
+import AuthGuard from '@/components/AuthGuard';
 
-export default function Home() {
-  // WebSocket connection for real-time data
+function FamilyTreePage() {
+  const { getToken } = useAuth();
+  
+  // WebSocket connection for real-time data through API Gateway
+  const wsBase = process.env.NEXT_PUBLIC_FAMILY_API_URL || 'http://localhost:8080/api/family';
+  const wsUrl = wsBase.replace(/^http/, 'ws') + '/ws';
+  
   const { 
     messages: websocketData, 
     connectionStatus, 
@@ -12,7 +19,7 @@ export default function Home() {
     disconnect, 
     clearMessages,
     sendMessage 
-  } = useWebSocket('ws://localhost:8000/ws');
+  } = useWebSocket(wsUrl, { token: getToken() });
 
   const [searchQuery, setSearchQuery] = useState('Albert Einstein');
   const [searchDepth, setSearchDepth] = useState(2);
@@ -254,5 +261,14 @@ const handleClassifyRelationships = useCallback((relationships: any[]) => {
         expandDepth={2}                          // Default expansion depth for nodes
       />
     </main>
+  );
+}
+
+// Wrap with AuthGuard for authentication
+export default function ProtectedFamilyTree() {
+  return (
+    <AuthGuard>
+      <FamilyTreePage />
+    </AuthGuard>
   );
 }
