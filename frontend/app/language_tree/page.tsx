@@ -1128,13 +1128,13 @@ const LanguageTreePage = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
               </div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-[#6B72FF] to-[#8B7BFF] bg-clip-text text-transparent">
+              <h1 className="text-[20px] font-bold bg-gradient-to-r from-[#6B72FF] to-[#8B7BFF] bg-clip-text text-transparent">
                 Language Tree Explorer
               </h1>
             </div>
             
             {/* Connection Status with Modern Badge */}
-            <div className="flex items-center space-x-2">
+            <div className="flex text-[12px] items-center space-x-2">
               <div className={`px-3 py-1.5 rounded-lg text-xs font-medium backdrop-blur-lg bg-white/5 border ${
                 connectionStatus === 'connected' 
                   ? 'border-emerald-500/30 text-emerald-300' 
@@ -1155,7 +1155,7 @@ const LanguageTreePage = () => {
           </div>
 
           {/* Search Controls in Modern Card Layout */}
-          <div className="flex items-center space-x-4 flex-wrap">
+          <div className="flex text-[12px] items-center space-x-4 flex-wrap">
             {/* Language Input */}
             <div className="flex-1 min-w-48">
               <div className="relative">
@@ -1250,7 +1250,7 @@ const LanguageTreePage = () => {
                 onChange={e => setAutoLayoutOnComplete(e.target.checked)}
                 className="w-4 h-4 text-[#6B72FF] bg-white/5 border-2 border-white/20 rounded focus:ring-[#6B72FF] focus:ring-2"
               />
-              <span className="text-sm font-medium text-[#F5F7FA]">Auto layout</span>
+              <span className=" font-medium text-[#F5F7FA]">Auto layout</span>
             </label>
           </div>
 
@@ -1259,12 +1259,12 @@ const LanguageTreePage = () => {
       </div>
 
       {/* React Flow Container with Modern Styling */}
-      <div className="flex-1 relative" ref={reactFlowRef}>
+      <div className="flex-1 text-[12px] relative" ref={reactFlowRef}>
         {/* Status toggle (collapsed) */}
         {isStatusCollapsed && (
           <button
             onClick={() => { setIsStatusCollapsed(false); setStatusPinnedOpen(true); }}
-            className="absolute top-4 left-4 z-20 px-2 py-1 text-xs rounded-md bg-white/10 hover:bg-white/20 text-[#F5F7FA] border border-white/10 shadow"
+            className="absolute top-4 left-4 z-20 px-2 py-1  rounded-md bg-white/10 hover:bg-white/20 text-[#F5F7FA] border border-white/10 shadow"
             title="Show status"
           >
             Status
@@ -1277,7 +1277,7 @@ const LanguageTreePage = () => {
             <div className="px-6 py-3 relative">
               <button
                 onClick={() => { setIsStatusCollapsed(true); setStatusPinnedOpen(false); }}
-                className="absolute top-2 right-2 text-xs px-2 py-1 rounded bg-white/10 hover:bg-white/20 text-[#F5F7FA] border border-white/10"
+                className="absolute top-2 right-2  px-2 py-1 rounded bg-white/10 hover:bg-white/20 text-[#F5F7FA] border border-white/10"
                 title="Hide status"
               >
                 Hide
@@ -1288,7 +1288,7 @@ const LanguageTreePage = () => {
                   {connectionStatus === 'connecting' && (
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#8B7BFF]"></div>
                   )}
-                  <span className="text-sm w-full font-medium text-[#F5F7FA] flex-1 min-w-0 whitespace-pre-wrap break-words">
+                  <span className=" w-full font-medium text-[#F5F7FA] flex-1 min-w-0 whitespace-pre-wrap break-words">
                     {status || (connectionStatus === 'connected' ? 'Idle' : 'Connecting...')}
                   </span>
                 </div>
@@ -1298,7 +1298,7 @@ const LanguageTreePage = () => {
 
                   {progress > 0 && (
                     <div className="flex items-center space-x-3">
-                      <span className="text-sm font-medium text-[#9CA3B5]">{progress}%</span>
+                      <span className=" font-medium text-[#9CA3B5]">{progress}%</span>
                       <div className="w-32 backdrop-blur-lg bg-white/5 rounded-full h-2 overflow-hidden border border-white/10">
                         <div
                           className="h-full bg-gradient-to-r from-[#6B72FF] to-[#8B7BFF] rounded-full transition-all duration-300 ease-out shadow-lg shadow-[#6B72FF]/50"
@@ -1317,7 +1317,7 @@ const LanguageTreePage = () => {
         {isToolbarCollapsed && (
           <button
             onClick={() => { setIsToolbarCollapsed(false); setToolbarPinnedOpen(true); }}
-            className="absolute top-4 right-4 z-20 px-2 py-1 text-xs rounded-md bg-white/10 hover:bg-white/20 text-[#F5F7FA] border border-white/10 shadow"
+            className="absolute top-4 right-4 z-20 px-2 py-1 text-[12px] rounded-md bg-white/10 hover:bg-white/20 text-[#F5F7FA] border border-white/10 shadow"
             title="Show tools"
           >
             Tools
@@ -1359,17 +1359,17 @@ const LanguageTreePage = () => {
           />
           {/* Floating toolbar for CRUD operations (collapsible) */}
           {!isToolbarCollapsed && (
-          <div className="absolute top-4 right-4 z-10 flex items-center gap-2 backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl p-2 shadow-lg shadow-[#6B72FF]/10">
+          <div className="absolute text-[12px] top-4 right-4 z-10 flex items-center gap-2 backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl p-2 shadow-lg shadow-[#6B72FF]/10">
             <button
               onClick={() => { setIsToolbarCollapsed(true); setToolbarPinnedOpen(false); }}
-              className="px-2 py-1 text-xs rounded-md bg-white/10 hover:bg-white/20 text-[#F5F7FA] border border-white/10"
+              className="px-2 py-1  rounded-md bg-white/10 hover:bg-white/20 text-[#F5F7FA] border border-white/10"
               title="Hide tools"
             >
               Hide
             </button>
             <button
               onClick={addStandaloneNode}
-              className="px-3 py-2 text-sm rounded-lg bg-gradient-to-r from-[#6B72FF] to-[#8B7BFF] text-white hover:from-[#7B82FF] hover:to-[#9B8BFF] transition-all shadow-lg shadow-[#6B72FF]/30 hover:scale-105"
+              className="px-3 py-2  rounded-lg bg-gradient-to-r from-[#6B72FF] to-[#8B7BFF] text-white hover:from-[#7B82FF] hover:to-[#9B8BFF] transition-all shadow-lg shadow-[#6B72FF]/30 hover:scale-105"
               title="Add node"
             >
               Add Node
@@ -1377,7 +1377,7 @@ const LanguageTreePage = () => {
             <button
               onClick={addChildNode}
               disabled={!selectedNodeId}
-              className={`px-3 py-2 text-sm rounded-lg transition-all shadow ${selectedNodeId ? 'backdrop-blur-lg bg-white/5 text-[#F5F7FA] hover:bg-[#6B72FF]/20 border border-white/10' : 'bg-white/5 text-[#9CA3B5] border border-white/10 cursor-not-allowed opacity-50'}`}
+              className={`px-3 py-2 rounded-lg transition-all shadow ${selectedNodeId ? 'backdrop-blur-lg bg-white/5 text-[#F5F7FA] hover:bg-[#6B72FF]/20 border border-white/10' : 'bg-white/5 text-[#9CA3B5] border border-white/10 cursor-not-allowed opacity-50'}`}
               title="Add child to selected"
             >
               Add Child
@@ -1385,7 +1385,7 @@ const LanguageTreePage = () => {
             <button
               onClick={editSelectedNode}
               disabled={!selectedNodeId}
-              className={`px-3 py-2 text-sm rounded-lg transition-all shadow ${selectedNodeId ? 'backdrop-blur-lg bg-white/5 text-[#F5F7FA] hover:bg-[#6B72FF]/20 border border-white/10' : 'bg-white/5 text-[#9CA3B5] border border-white/10 cursor-not-allowed opacity-50'}`}
+              className={`px-3 py-2  rounded-lg transition-all shadow ${selectedNodeId ? 'backdrop-blur-lg bg-white/5 text-[#F5F7FA] hover:bg-[#6B72FF]/20 border border-white/10' : 'bg-white/5 text-[#9CA3B5] border border-white/10 cursor-not-allowed opacity-50'}`}
               title="Edit selected node"
             >
               Edit
@@ -1393,7 +1393,7 @@ const LanguageTreePage = () => {
             <button
               onClick={deleteSelectedNode}
               disabled={!selectedNodeId}
-              className={`px-3 py-2 text-sm rounded-lg transition-all shadow ${selectedNodeId ? 'bg-rose-600/80 text-white hover:bg-rose-600 hover:scale-105' : 'bg-white/5 text-[#9CA3B5] border border-white/10 cursor-not-allowed opacity-50'}`}
+              className={`px-3 py-2  rounded-lg transition-all shadow ${selectedNodeId ? 'bg-rose-600/80 text-white hover:bg-rose-600 hover:scale-105' : 'bg-white/5 text-[#9CA3B5] border border-white/10 cursor-not-allowed opacity-50'}`}
               title="Delete selected node"
             >
               Delete

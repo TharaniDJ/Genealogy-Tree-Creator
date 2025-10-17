@@ -5,18 +5,21 @@ import AuthGuard from '@/components/AuthGuard';
 import ReactFlow, {
   Controls,
   Background,
-  addEdge,
   useNodesState,
   useEdgesState,
   ReactFlowProvider,
   Node,
   Edge,
-  Connection,
   Position,
+  useReactFlow,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import dagre from 'dagre';
 import TaxonomyNode from '../../components/TaxonomyNode';
+import useAuth from '@/hooks/useAuth';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 // Dagre layouting
 const dagreGraph = new dagre.graphlib.Graph();
@@ -49,6 +52,16 @@ interface ExpansionApiResponse {
   children: TaxonomicEntity[];
   tuples: TaxonomicTuple[];
   total_children: number;
+}
+
+interface SavedGraph {
+  id: string;
+  graph_name: string;
+  description?: string;
+  nodes_count?: number;
+  depth_usage?: boolean;
+  depth?: number;
+  updated_at: string;
 }
 
 type TaxonomyNodeData = { 
@@ -84,6 +97,8 @@ const getLayoutedElements = (nodes: TaxonomyRFNode[], edges: Edge[], direction =
 };
 
 const TaxonomyTreePage = () => {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [nodes, setNodes, onNodesChange] = useNodesState<TaxonomyNodeData>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge[]>([]);
   const [scientificName, setScientificName] = useState('Homo sapiens');
@@ -100,6 +115,23 @@ const TaxonomyTreePage = () => {
   
   // Track which nodes exist to prevent duplicates
   const existingNodesRef = useRef<Set<string>>(new Set());
+
+  // Collapsible UI state for toolbar
+  const [isToolbarCollapsed, setIsToolbarCollapsed] = useState(true);
+  const [toolbarPinnedOpen, setToolbarPinnedOpen] = useState(false);
+  
+  // Graph saving state
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [showLoadModal, setShowLoadModal] = useState(false);
+  const [graphName, setGraphName] = useState('');
+  const [graphDescription, setGraphDescription] = useState('');
+  const [savedGraphs, setSavedGraphs] = useState<SavedGraph[]>([]);
+  const [loadingGraphs, setLoadingGraphs] = useState(false);
+  const [savingGraph, setSavingGraph] = useState(false);
+
+  const { fitView: fitViewApi } = useReactFlow();
+  const reactFlowRef = useRef<HTMLDivElement>(null);
+  const { getToken } = useAuth();
 
   const nodeTypes = useMemo(() => ({ taxonomy: TaxonomyNode }), []);
 
@@ -141,6 +173,7 @@ const TaxonomyTreePage = () => {
           label,
           rank,
           scientificName,
+          // eslint-disable-next-line react-hooks/exhaustive-deps
           onExpand: () => expandNode(label, rank)
         }, 
         position: { x: 0, y: 0 },
@@ -149,6 +182,7 @@ const TaxonomyTreePage = () => {
     });
     
     return nodeId;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setNodes]);
 
   const ensureEdge = useCallback((sourceId: string, targetId: string) => {
@@ -238,7 +272,7 @@ const TaxonomyTreePage = () => {
         const processedNodes = new Set<string>();
         
         data.tuples.forEach((tuple: TaxonomicTuple) => {
-          const { parent_taxon: parentTaxon, has_child: hasChild, child_taxon: childTaxon } = tuple;
+          const { parent_taxon: parentTaxon, child_taxon: childTaxon } = tuple;
           
           // Create parent node if not exists
           if (!processedNodes.has(parentTaxon.name)) {
@@ -266,9 +300,9 @@ const TaxonomyTreePage = () => {
         setStatus('No taxonomic relationships found');
       }
       
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error loading taxonomy:', error);
-      setStatus(`Error: ${error.message}`);
+      setStatus(`Error: ${(error as Error).message}`);
     } finally {
       setLoading(false);
     }
@@ -344,7 +378,7 @@ const TaxonomyTreePage = () => {
       
       if (data.tuples && Array.isArray(data.tuples)) {
         data.tuples.forEach((tuple: TaxonomicTuple) => {
-          const { parent_taxon: parentTaxon, has_child: hasChild, child_taxon: childTaxon } = tuple;
+          const { parent_taxon: parentTaxon, child_taxon: childTaxon } = tuple;
           
           // Create child node if not exists
           const childId = ensureNode(childTaxon.name, childTaxon.rank);
@@ -364,9 +398,9 @@ const TaxonomyTreePage = () => {
         setStatus(`No children found for ${taxonName} (${rank})`);
       }
       
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error expanding node:', error);
-      setStatus(`Error expanding ${taxonName} (${rank}): ${error.message}`);
+      setStatus(`Error expanding ${taxonName} (${rank}): ${(error as Error).message}`);
       // Remove from expanded set so user can retry
       expandedNodesRef.current.delete(expandKey);
     }
@@ -434,6 +468,362 @@ const TaxonomyTreePage = () => {
     };
   }, [status]);
 
+  // Auto-manage toolbar collapse based on activity
+  useEffect(() => {
+    const hasActiveStatus = status && status !== 'Ready';
+    const eventActive = loading || hasActiveStatus;
+
+    if (eventActive) {
+      setIsToolbarCollapsed(false);
+    } else {
+      if (!toolbarPinnedOpen) {
+        setIsToolbarCollapsed(true);
+      }
+    }
+  }, [loading, status, toolbarPinnedOpen]);
+
+  // Build current relationships payload from edges + nodes
+  const buildRelationshipsPayload = useCallback(() => {
+    const idToNode = new Map(nodes.map(n => [n.id, n] as const));
+    return edges.map(e => {
+      const parentNode = idToNode.get(e.source);
+      const childNode = idToNode.get(e.target);
+      return {
+        parent_taxon: {
+          rank: parentNode?.data.rank || 'unknown',
+          name: parentNode?.data.label || e.source,
+        },
+        has_child: true,
+        child_taxon: {
+          rank: childNode?.data.rank || 'unknown',
+          name: childNode?.data.label || e.target,
+        },
+      };
+    });
+  }, [edges, nodes]);
+
+  // Programmatic fit view button handler
+  const handleFitView = useCallback(() => {
+    setTimeout(() => {
+      fitViewApi({ padding: 0.2, duration: 400 });
+    }, 100);
+  }, [fitViewApi]);
+
+  // Export graph as PNG
+  const exportAsPNG = useCallback(() => {
+    if (!reactFlowRef.current) return;
+    
+    const viewport = reactFlowRef.current.querySelector('.react-flow__viewport') as HTMLElement;
+    if (!viewport) {
+      setStatus('Failed to find graph viewport');
+      return;
+    }
+
+    setStatus('Exporting to PNG...');
+
+    // Use html2canvas to capture the viewport
+    html2canvas(viewport, {
+      backgroundColor: '#0E0F19',
+      scale: 3, // 3x resolution for high quality
+      logging: false,
+      useCORS: true,
+      allowTaint: true,
+    })
+      .then((canvas) => {
+        // Convert canvas to data URL
+        const dataUrl = canvas.toDataURL('image/png', 1.0);
+        
+        // Download the image
+        const link = document.createElement('a');
+        link.download = `taxonomy-tree-${scientificName.replace(/\s+/g, '-')}-${Date.now()}.png`;
+        link.href = dataUrl;
+        link.click();
+        
+        setStatus('PNG exported successfully!');
+      })
+      .catch((err) => {
+        console.error('Failed to export PNG:', err);
+        setStatus('Failed to export PNG');
+      });
+  }, [scientificName]);
+
+  // Export graph as PDF - captures full graph
+  const exportAsPDF = useCallback(() => {
+    if (!reactFlowRef.current) return;
+    
+    setStatus('Preparing PDF export...');
+
+    // First, fit the view to show all nodes
+    fitViewApi({ padding: 0.15, duration: 0 });
+
+    // Wait for the fit to complete and render
+    setTimeout(() => {
+      const viewport = reactFlowRef.current?.querySelector('.react-flow__viewport') as HTMLElement;
+      
+      if (!viewport) {
+        setStatus('Failed to find graph viewport');
+        return;
+      }
+
+      setStatus('Capturing full graph...');
+
+      // Use html2canvas to capture the entire viewport with all nodes visible
+      html2canvas(viewport, {
+        backgroundColor: '#0E0F19',
+        scale: 2, // 2x resolution for good quality
+        logging: false,
+        useCORS: true,
+        allowTaint: true,
+        width: viewport.scrollWidth, // Capture full width including overflow
+        height: viewport.scrollHeight, // Capture full height including overflow
+      })
+        .then((canvas) => {
+          // Convert canvas to data URL
+          const dataUrl = canvas.toDataURL('image/png', 1.0);
+          
+          // Get canvas dimensions
+          const canvasWidth = canvas.width;
+          const canvasHeight = canvas.height;
+          
+          // Determine orientation
+          const orientation = canvasWidth > canvasHeight ? 'landscape' : 'portrait';
+          
+          // Convert pixels to mm for PDF (at 96 DPI: 1px = 0.264583mm)
+          // Divide by scale to get actual dimensions
+          const mmWidth = (canvasWidth / 2) * 0.264583;
+          const mmHeight = (canvasHeight / 2) * 0.264583;
+          
+          setStatus('Creating PDF...');
+          
+          // Create PDF with custom page size matching the graph
+          const pdf = new jsPDF({
+            orientation: orientation,
+            unit: 'mm',
+            format: [mmWidth, mmHeight],
+            compress: true,
+          });
+
+          // Add the image to PDF
+          pdf.addImage(
+            dataUrl,
+            'PNG',
+            0,
+            0,
+            mmWidth,
+            mmHeight,
+            undefined,
+            'FAST'
+          );
+          
+          // Save the PDF
+          pdf.save(`taxonomy-tree-${scientificName.replace(/\s+/g, '-')}-${Date.now()}.pdf`);
+          setStatus('PDF exported successfully!');
+        })
+        .catch((err) => {
+          console.error('Failed to export PDF:', err);
+          setStatus(`Failed to export PDF: ${err.message}`);
+        });
+    }, 500); // Give enough time for fitView to complete
+  }, [scientificName, fitViewApi]);
+
+  // Save graph to backend
+  const handleSaveGraph = useCallback(async () => {
+    if (!graphName.trim()) {
+      setStatus('Please enter a graph name');
+      return;
+    }
+
+    setSavingGraph(true);
+    try {
+      const base = process.env.NEXT_PUBLIC_USER_API_URL || 'http://localhost:8080/api/users';
+      const token = getToken();
+
+      if (!token) {
+        setStatus('Please log in to save graphs');
+        setSavingGraph(false);
+        return;
+      }
+
+      const payload = {
+        graph_name: graphName.trim(),
+        graph_type: 'species',
+        depth_usage: false,
+        depth: null,
+        graph_data: buildRelationshipsPayload(),
+        description: graphDescription.trim() || null,
+      };
+
+      const response = await fetch(`${base}/graphs`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Failed to save graph');
+      }
+
+      setStatus('Graph saved successfully!');
+      setShowSaveModal(false);
+      setGraphName('');
+      setGraphDescription('');
+    } catch (error) {
+      console.error('Error saving graph:', error);
+      setStatus(`Failed to save graph: ${(error as Error).message}`);
+    } finally {
+      setSavingGraph(false);
+    }
+  }, [graphName, graphDescription, buildRelationshipsPayload, getToken]);
+
+  // Load saved graphs list
+  const loadSavedGraphs = useCallback(async () => {
+    setLoadingGraphs(true);
+    try {
+      const base = process.env.NEXT_PUBLIC_USER_API_URL || 'http://localhost:8080/api/users';
+      const token = getToken();
+
+      if (!token) {
+        setStatus('Please log in to load graphs');
+        setLoadingGraphs(false);
+        return;
+      }
+
+      const response = await fetch(`${base}/graphs?graph_type=species`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) throw new Error('Failed to load graphs');
+
+      const graphs = await response.json();
+      setSavedGraphs(graphs);
+    } catch (error) {
+      console.error('Error loading graphs:', error);
+      setStatus(`Failed to load graphs: ${(error as Error).message}`);
+    } finally {
+      setLoadingGraphs(false);
+    }
+  }, [getToken]);
+
+  // Load a specific graph
+  const handleLoadGraph = useCallback(
+    async (graphId: string) => {
+      try {
+        const base = process.env.NEXT_PUBLIC_USER_API_URL || 'http://localhost:8080/api/users';
+        const token = getToken();
+
+        if (!token) {
+          setStatus('Please log in to load graphs');
+          return;
+        }
+
+        const response = await fetch(`${base}/graphs/${graphId}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) throw new Error('Failed to load graph');
+
+        const graph = await response.json();
+        setShowLoadModal(false);
+
+        // Clear existing graph
+        setNodes([]);
+        setEdges([]);
+        existingNodesRef.current.clear();
+        expandedNodesRef.current.clear();
+
+        // Process the tuples to create nodes and edges
+        if (graph.graph_data && Array.isArray(graph.graph_data)) {
+          graph.graph_data.forEach((tuple: TaxonomicTuple) => {
+            const { parent_taxon: parentTaxon, child_taxon: childTaxon } = tuple;
+
+            // Create nodes
+            ensureNode(parentTaxon.name, parentTaxon.rank);
+            ensureNode(childTaxon.name, childTaxon.rank);
+
+            // Create edge
+            const parentId = slugify(parentTaxon.name);
+            const childId = slugify(childTaxon.name);
+            ensureEdge(parentId, childId);
+          });
+
+          setStatus(`Loaded graph: ${graph.graph_name}`);
+          setTimeout(() => layout(layoutDirection), 100);
+        }
+      } catch (error) {
+        console.error('Error loading graph:', error);
+        setStatus(`Failed to load graph: ${(error as Error).message}`);
+      }
+    },
+    [getToken, setNodes, setEdges, ensureNode, ensureEdge, layout, layoutDirection]
+  );
+
+  // Delete a saved graph
+  const handleDeleteGraph = useCallback(
+    async (graphId: string, graphName: string) => {
+      if (!confirm(`Are you sure you want to delete "${graphName}"?`)) return;
+
+      try {
+        const base = process.env.NEXT_PUBLIC_USER_API_URL || 'http://localhost:8080/api/users';
+        const token = getToken();
+
+        if (!token) {
+          setStatus('Please log in to delete graphs');
+          return;
+        }
+
+        const response = await fetch(`${base}/graphs/${graphId}`, {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) throw new Error('Failed to delete graph');
+
+        setStatus(`Deleted graph: ${graphName}`);
+        loadSavedGraphs();
+      } catch (error) {
+        console.error('Error deleting graph:', error);
+        setStatus(`Failed to delete graph: ${(error as Error).message}`);
+      }
+    },
+    [getToken, loadSavedGraphs]
+  );
+
+  // Open save modal
+  const openSaveModal = useCallback(() => {
+    if (nodes.length === 0) {
+      setStatus('No graph to save');
+      return;
+    }
+    setGraphName(`${scientificName} Taxonomy Tree`);
+    setGraphDescription('');
+    setShowSaveModal(true);
+  }, [nodes.length, scientificName]);
+
+  // Open load modal
+  const openLoadModal = useCallback(() => {
+    setShowLoadModal(true);
+    loadSavedGraphs();
+  }, [loadSavedGraphs]);
+
+  // Auto-load graph from URL parameter
+  useEffect(() => {
+    const graphId = searchParams?.get('graphId');
+    if (graphId) {
+      handleLoadGraph(graphId);
+      router.replace('/taxonomy_tree');
+    }
+  }, [searchParams, handleLoadGraph, router]);
+
   return (
     <div className="flex flex-col h-screen bg-[#0E0F19] relative overflow-hidden">
       {/* Animated gradient background */}
@@ -453,12 +843,12 @@ const TaxonomyTreePage = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-[#6B72FF] to-[#8B7BFF] bg-clip-text text-transparent">
+          <h1 className="text-[20px] font-bold bg-gradient-to-r from-[#6B72FF] to-[#8B7BFF] bg-clip-text text-transparent">
             Taxonomic Tree Explorer
           </h1>
         </div>
-        
-        <div className="flex flex-wrap gap-4 items-center">
+
+        <div className="flex text-[12px] flex-wrap gap-4 items-center">
           <div className="flex gap-2 flex-1 min-w-[300px]">
             <div className="relative flex-1">
               <input
@@ -538,7 +928,7 @@ const TaxonomyTreePage = () => {
       </div>
 
       {/* React Flow Graph */}
-      <div className="flex-1 relative">
+      <div className="flex-1 relative" ref={reactFlowRef}>
         {/* Floating status overlay (does not take layout space). Centered horizontally near top of ReactFlow area. */}
         <div
           className={`absolute z-50 top-4 left-4 transition-all duration-300 flex items-center ${showStatusBar ? 'opacity-100 scale-100 pointer-events-auto' : 'opacity-0 scale-95 pointer-events-none'}`}
@@ -553,6 +943,18 @@ const TaxonomyTreePage = () => {
         >
           <div className="text-sm text-white">{status}</div>
         </div>
+
+        {/* Toolbar toggle (collapsed) */}
+        {isToolbarCollapsed && (
+          <button
+            onClick={() => { setIsToolbarCollapsed(false); setToolbarPinnedOpen(true); }}
+            className="absolute top-4 right-4 z-20 px-2 py-1 text-xs rounded-md bg-white/10 hover:bg-white/20 text-[#F5F7FA] border border-white/10 shadow"
+            title="Show tools"
+          >
+            Tools
+          </button>
+        )}
+
         <ReactFlowProvider>
           <ReactFlow
             nodes={nodes}
@@ -581,13 +983,76 @@ const TaxonomyTreePage = () => {
               size={1}
               className="opacity-10"
             />
+            
+            {/* Floating toolbar for operations (collapsible) */}
+            {!isToolbarCollapsed && (
+              <div className="absolute top-4 right-4 z-10 flex items-center gap-2 backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl p-2 shadow-lg shadow-[#6B72FF]/10">
+                <button
+                  onClick={() => { setIsToolbarCollapsed(true); setToolbarPinnedOpen(false); }}
+                  className="px-2 py-1 text-xs rounded-md bg-white/10 hover:bg-white/20 text-[#F5F7FA] border border-white/10"
+                  title="Hide tools"
+                >
+                  Hide
+                </button>
+                <button
+                  onClick={handleFitView}
+                  title="Fit View"
+                  className="p-2 rounded-lg backdrop-blur-lg bg-white/5 hover:bg-[#6B72FF]/20 text-[#9CA3B5] hover:text-[#F5F7FA] transition-all shadow-md hover:shadow-lg border border-white/10 hover:scale-105"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                  </svg>
+                </button>
+                <div className="w-px h-6 bg-white/10 mx-1" />
+                <button
+                  onClick={openSaveModal}
+                  disabled={nodes.length === 0}
+                  title="Save Graph"
+                  className="p-2 rounded-lg backdrop-blur-lg bg-white/5 hover:bg-green-600/80 text-[#9CA3B5] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg border border-white/10 hover:scale-105"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                  </svg>
+                </button>
+                <button
+                  onClick={openLoadModal}
+                  title="Load Saved Graph"
+                  className="p-2 rounded-lg backdrop-blur-lg bg-white/5 hover:bg-amber-600/80 text-[#9CA3B5] hover:text-white transition-all shadow-md hover:shadow-lg border border-white/10 hover:scale-105"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z" />
+                  </svg>
+                </button>
+                <div className="w-px h-6 bg-white/10 mx-1" />
+                <button
+                  onClick={exportAsPNG}
+                  disabled={nodes.length === 0}
+                  title="Export as PNG"
+                  className="p-2 rounded-lg backdrop-blur-lg bg-white/5 hover:bg-blue-600/80 text-[#9CA3B5] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg border border-white/10 hover:scale-105"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                </button>
+                <button
+                  onClick={exportAsPDF}
+                  disabled={nodes.length === 0}
+                  title="Export as PDF"
+                  className="p-2 rounded-lg backdrop-blur-lg bg-white/5 hover:bg-purple-600/80 text-[#9CA3B5] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md hover:shadow-lg border border-white/10 hover:scale-105"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                </button>
+              </div>
+            )}
           </ReactFlow>
         </ReactFlowProvider>
       </div>
       
       {/* Info Panel */}
-      <div className="relative flex-shrink-0 backdrop-blur-xl bg-white/5 border-t border-white/10 p-4">
-        <div className="text-sm text-[#9CA3B5]">
+      <div className="relative rounded-r-lg w-2/12 flex-shrink-0 backdrop-blur-xl bg-white/5 border-t border-white/10 p-4">
+        <div className="text-[12px] text-[#9CA3B5]">
           <div className="flex gap-6">
             <span className="flex items-center space-x-2">
               <div className="w-2 h-2 rounded-full bg-[#6B72FF]"></div>
@@ -597,10 +1062,159 @@ const TaxonomyTreePage = () => {
               <div className="w-2 h-2 rounded-full bg-[#8B7BFF]"></div>
               <span>Edges: <span className="text-[#F5F7FA] font-medium">{edges.length}</span></span>
             </span>
-            <span className="text-[#F5F7FA]">Click nodes to expand • Double-click to focus</span>
-          </div>
+           </div>
         </div>
       </div>
+
+      {/* Save Graph Modal */}
+      {showSaveModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-[#1E1F2E] border border-white/10 rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-[#F5F7FA]">Save Taxonomy Tree</h2>
+              <button
+                onClick={() => setShowSaveModal(false)}
+                className="text-[#9CA3B5] hover:text-[#F5F7FA] transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="graphName" className="block text-sm font-medium text-[#F5F7FA] mb-2">
+                  Graph Name *
+                </label>
+                <input
+                  id="graphName"
+                  type="text"
+                  value={graphName}
+                  onChange={(e) => setGraphName(e.target.value)}
+                  placeholder="e.g., Homo sapiens Taxonomy"
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6B72FF] text-[#F5F7FA] placeholder-[#9CA3B5]"
+                />
+              </div>
+              
+              <div>
+                <label htmlFor="graphDescription" className="block text-sm font-medium text-[#F5F7FA] mb-2">
+                  Description (Optional)
+                </label>
+                <textarea
+                  id="graphDescription"
+                  value={graphDescription}
+                  onChange={(e) => setGraphDescription(e.target.value)}
+                  placeholder="Add notes about this taxonomy tree..."
+                  rows={3}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6B72FF] text-[#F5F7FA] placeholder-[#9CA3B5] resize-none"
+                />
+              </div>
+
+              <div className="bg-[#6B72FF]/10 border border-[#6B72FF]/20 rounded-lg p-3">
+                <p className="text-sm text-[#9CA3B5]">
+                  💾 This will save {buildRelationshipsPayload().length} taxonomic relationships for {scientificName}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex space-x-3 mt-6">
+              <button
+                onClick={() => setShowSaveModal(false)}
+                disabled={savingGraph}
+                className="flex-1 px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-[#F5F7FA] rounded-lg transition-all disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveGraph}
+                disabled={!graphName.trim() || savingGraph}
+                className="flex-1 px-4 py-3 bg-gradient-to-r from-[#6B72FF] to-[#8B7BFF] hover:from-[#7B82FF] hover:to-[#9B8BFF] disabled:from-gray-600 disabled:to-gray-700 text-white rounded-lg transition-all disabled:cursor-not-allowed shadow-lg"
+              >
+                {savingGraph ? 'Saving...' : 'Save Graph'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Load Graph Modal */}
+      {showLoadModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-[#1E1F2E] border border-white/10 rounded-2xl shadow-2xl max-w-2xl w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-[#F5F7FA]">Load Saved Taxonomy Tree</h2>
+              <button
+                onClick={() => setShowLoadModal(false)}
+                className="text-[#9CA3B5] hover:text-[#F5F7FA] transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {loadingGraphs ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#6B72FF]"></div>
+              </div>
+            ) : savedGraphs.length === 0 ? (
+              <div className="text-center py-12">
+                <svg className="w-16 h-16 mx-auto text-[#9CA3B5] mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z" />
+                </svg>
+                <p className="text-[#9CA3B5]">No saved taxonomy trees found</p>
+                <p className="text-sm text-[#9CA3B5] mt-2">Create and save a tree to see it here</p>
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-96 overflow-y-auto">
+                {savedGraphs.map((graph) => (
+                  <div
+                    key={graph.id}
+                    className="bg-white/5 border border-white/10 rounded-lg p-4 hover:bg-white/10 transition-all"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h3 className="text-[#F5F7FA] font-semibold">{graph.graph_name}</h3>
+                        {graph.description && (
+                          <p className="text-sm text-[#9CA3B5] mt-1">{graph.description}</p>
+                        )}
+                        <div className="flex items-center space-x-4 mt-2 text-xs text-[#9CA3B5]">
+                          <span>📊 {graph.nodes_count} relationships</span>
+                          <span>📅 {new Date(graph.updated_at).toLocaleDateString()}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2 ml-4">
+                        <button
+                          onClick={() => handleLoadGraph(graph.id)}
+                          className="px-3 py-2 bg-[#6B72FF]/20 hover:bg-[#6B72FF]/30 text-[#8B7BFF] rounded-lg transition-all text-sm"
+                        >
+                          Load
+                        </button>
+                        <button
+                          onClick={() => handleDeleteGraph(graph.id, graph.graph_name)}
+                          className="px-3 py-2 bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded-lg transition-all text-sm"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="mt-6">
+              <button
+                onClick={() => setShowLoadModal(false)}
+                className="w-full px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-[#F5F7FA] rounded-lg transition-all"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style jsx>{`
         @keyframes blob {

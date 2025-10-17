@@ -330,14 +330,14 @@ const handleClassifyRelationships = useCallback((relationships: any[]) => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
               </div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-[#6B72FF] to-[#8B7BFF] bg-clip-text text-transparent">
+              <h1 className="text-[20px] font-bold bg-gradient-to-r from-[#6B72FF] to-[#8B7BFF] bg-clip-text text-transparent">
                 Family Tree Explorer
               </h1>
             </div>
             
             {/* Connection Status with Modern Badge */}
             <div className="flex items-center space-x-2">
-              <div className={`px-3 py-1.5 rounded-lg text-xs font-medium backdrop-blur-lg bg-white/5 border ${
+              <div className={`px-3 py-1.5 rounded-lg text-[12px] font-medium backdrop-blur-lg bg-white/5 border ${
                 connectionStatus === 'connected' 
                   ? 'border-emerald-500/30 text-emerald-300' 
                   : connectionStatus === 'connecting'
@@ -366,7 +366,7 @@ const handleClassifyRelationships = useCallback((relationships: any[]) => {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Enter person's name..."
-                  className="w-full px-4 py-3 pl-10 backdrop-blur-lg bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#6B72FF]/50 focus:border-[#6B72FF] transition-all duration-200 shadow-sm hover:shadow-md text-[#F5F7FA] placeholder-[#9CA3B5]"
+                  className="w-full text-[12px] px-4 py-3 pl-10 backdrop-blur-lg bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#6B72FF]/50 focus:border-[#6B72FF] transition-all duration-200 shadow-sm hover:shadow-md text-[#F5F7FA] placeholder-[#9CA3B5]"
                   onKeyPress={(e) => {
                     if (e.key === 'Enter') {
                       startGenealogySearch();
@@ -388,7 +388,7 @@ const handleClassifyRelationships = useCallback((relationships: any[]) => {
                 placeholder="Depth"
                 min="1"
                 max="4"
-                className="w-full px-3 py-3 backdrop-blur-lg bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#6B72FF]/50 focus:border-[#6B72FF] transition-all duration-200 shadow-sm hover:shadow-md text-[#F5F7FA] text-center"
+                className="w-full text-[12px] px-3 py-3 backdrop-blur-lg bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#6B72FF]/50 focus:border-[#6B72FF] transition-all duration-200 shadow-sm hover:shadow-md text-[#F5F7FA] text-center"
               />
             </div>
 
@@ -396,7 +396,7 @@ const handleClassifyRelationships = useCallback((relationships: any[]) => {
             <button
               onClick={startGenealogySearch}
               disabled={connectionStatus !== 'connected' || !searchQuery.trim()}
-              className="px-6 py-3 bg-gradient-to-r from-[#6B72FF] to-[#8B7BFF] hover:from-[#7B82FF] hover:to-[#9B8BFF] disabled:from-gray-600 disabled:to-gray-700 text-white font-medium rounded-xl transition-all duration-200 shadow-lg shadow-[#6B72FF]/30 hover:shadow-[#6B72FF]/50 disabled:cursor-not-allowed disabled:shadow-sm transform hover:scale-105 disabled:hover:scale-100"
+              className="px-6 text-[12px] py-3 bg-gradient-to-r from-[#6B72FF] to-[#8B7BFF] hover:from-[#7B82FF] hover:to-[#9B8BFF] disabled:from-gray-600 disabled:to-gray-700 text-white font-medium rounded-xl transition-all duration-200 shadow-lg shadow-[#6B72FF]/30 hover:shadow-[#6B72FF]/50 disabled:cursor-not-allowed disabled:shadow-sm transform hover:scale-105 disabled:hover:scale-100"
             >
               <div className="flex items-center space-x-2">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -125,8 +125,8 @@ export default function RegisterPage() {
               <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#6B72FF] to-[#8B7BFF] flex items-center justify-center mx-auto mb-4 shadow-lg shadow-[#6B72FF]/30">
                 <UserPlus className="w-8 h-8 text-white" />
               </div>
-              <h1 className="text-3xl font-bold text-[#F5F7FA] mb-2">Join Us</h1>
-              <p className="text-[#9CA3B5]">Create your account to start exploring genealogical trees</p>
+              <h1 className="text-2xl font-bold text-[#F5F7FA] mb-2">Join Us</h1>
+              <p className="text-[15px] text-[#9CA3B5]">Create your account to start exploring genealogical trees</p>
             </div>
 
             <form onSubmit={submit} className="space-y-6">
