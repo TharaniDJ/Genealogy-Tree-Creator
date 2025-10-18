@@ -24,7 +24,7 @@ COPY uv.lock ./
 RUN uv pip install --system --index-url https://download.pytorch.org/whl/cpu torch==2.8.0
 
 # Install remaining dependencies (excluding torch since it's already installed)
-RUN uv sync --frozen --all-extras --no-install torch
+RUN uv sync --frozen --all-extras 
 # Copy application code
 COPY app/ ./app/
 
