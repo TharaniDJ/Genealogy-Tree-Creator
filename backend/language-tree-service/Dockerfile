@@ -9,20 +9,21 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-    # Ensure pip doesn't cache wheels (saves space) and add pytorch CPU wheel index
+# Ensure pip doesn't cache wheels (saves space)
 ENV PIP_NO_CACHE_DIR=1
-ENV PIP_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cpu
 
 # Upgrade pip and install uv tool
 RUN python -m pip install --upgrade pip
 RUN pip install --no-cache-dir uv
 
-
 # Copy project files
 COPY pyproject.toml ./
 COPY uv.lock ./
 
-# Install all dependencies (including dev dependencies)
+# Pre-install PyTorch CPU version to prevent CUDA downloads
+RUN uv pip install --index-url https://download.pytorch.org/whl/cpu torch
+
+# Install remaining dependencies (excluding torch since it's already installed)
 RUN uv sync --frozen --all-extras
 
 # Copy application code
