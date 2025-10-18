@@ -21,10 +21,10 @@ COPY pyproject.toml ./
 COPY uv.lock ./
 
 # Pre-install PyTorch CPU version to prevent CUDA downloads
-RUN uv pip install --system --index-url https://download.pytorch.org/whl/cpu torch
-# Install remaining dependencies (excluding torch since it's already installed)
-RUN uv sync --frozen --all-extras
+RUN uv pip install --system --index-url https://download.pytorch.org/whl/cpu torch==2.8.0
 
+# Install remaining dependencies (excluding torch since it's already installed)
+RUN uv sync --system --frozen --all-extras --no-install torch
 # Copy application code
 COPY app/ ./app/
 
