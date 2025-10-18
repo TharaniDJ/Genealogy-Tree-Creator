@@ -9,8 +9,14 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install uv
-RUN pip install uv
+    # Ensure pip doesn't cache wheels (saves space) and add pytorch CPU wheel index
+ENV PIP_NO_CACHE_DIR=1
+ENV PIP_EXTRA_INDEX_URL=https://download.pytorch.org/whl/cpu
+
+# Upgrade pip and install uv tool
+RUN python -m pip install --upgrade pip
+RUN pip install --no-cache-dir uv
+
 
 # Copy project files
 COPY pyproject.toml ./

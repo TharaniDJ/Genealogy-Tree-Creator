@@ -16,7 +16,8 @@ dependencies = [
     "requests>=2.32.4",
     "sentence-transformers>=3.0.0",
     "uvicorn>=0.35.0",
-    "websockets>=15.0.1"
+    "websockets>=15.0.1",
+    "torch==2.8.0+cpu"
 ]
 
 [tool.uv]
