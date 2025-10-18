@@ -87,6 +87,7 @@ export default function LandingPage() {
                   <NavbarButton 
                     variant="secondary" 
                     onClick={() => router.push('/login')}
+                    className="text-white"
                   >
                     Sign In
                   </NavbarButton>
