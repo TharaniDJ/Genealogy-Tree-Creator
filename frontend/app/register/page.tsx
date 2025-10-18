@@ -6,7 +6,7 @@ import { UserPlus, Mail, Lock, User, Network, ArrowLeft, Eye, EyeOff } from 'luc
 
 function useAuth() {
   // API Gateway base URL
-  const API_BASE = process.env.NEXT_PUBLIC_API_GATEWAY_URL || 'http://localhost:8080';
+  const API_BASE = process.env.NEXT_PUBLIC_API_GATEWAY_URL ;
   
   const register = async ({ email, password, full_name }: { email: string; password: string; full_name: string }) => {
     try {

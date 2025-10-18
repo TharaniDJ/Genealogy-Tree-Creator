@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 
-const API_BASE = process.env.NEXT_PUBLIC_FAMILY_API_URL ? process.env.NEXT_PUBLIC_FAMILY_API_URL.replace('/api/family','') : 'http://localhost:8080';
+const API_BASE = process.env.NEXT_PUBLIC_API_GATEWAY_URL ;
 
 export default function useAuth(){
   const login = useCallback(async (email: string, password: string) => {
