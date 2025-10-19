@@ -782,6 +782,21 @@ const handleClassifyRelationships = useCallback(() => {
     );
   };
 
+  // Clear graph when requested
+  useEffect(() => {
+    if (onClearGraph && graphDataLength === 0 && personDetails.size > 0) {
+      // Clear all state
+      setPersonDetails(new Map());
+      setRelationships([]);
+      setNodes([]);
+      setEdges([]);
+      setExpandedNodes(new Set());
+      setClassifiedRelationships(new Map());
+      setStatus('Graph cleared');
+      setProgress(0);
+      setTimeout(() => setStatus(''), 2000);
+    }
+  }, [graphDataLength, onClearGraph, personDetails.size, setNodes, setEdges]);
   useEffect(() => {
     if (websocketData.length === 0) return;
 
