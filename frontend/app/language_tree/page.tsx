@@ -931,7 +931,7 @@ const LanguageTreePage = () => {
       const relationships = buildRelationshipsPayload();
       const token = getToken();
 
-      const apiBase = process.env.NEXT_PUBLIC_API_GATEWAY_URL || 'http://localhost:8080';
+      const apiBase = process.env.NEXT_PUBLIC_API_GATEWAY_URL;
       const response = await fetch(`${apiBase}/api/users/graphs`, {
         method: 'POST',
         headers: {
@@ -973,7 +973,7 @@ const LanguageTreePage = () => {
     setLoadingGraphs(true);
     try {
       const token = getToken();
-      const apiBase = process.env.NEXT_PUBLIC_API_GATEWAY_URL || 'http://localhost:8080';
+      const apiBase = process.env.NEXT_PUBLIC_API_GATEWAY_URL;
       
       const response = await fetch(`${apiBase}/api/users/graphs?graph_type=language`, {
         headers: {
@@ -1000,7 +1000,7 @@ const LanguageTreePage = () => {
   const handleLoadGraph = useCallback(async (graphId: string) => {
     try {
       const token = getToken();
-      const apiBase = process.env.NEXT_PUBLIC_API_GATEWAY_URL || 'http://localhost:8080';
+      const apiBase = process.env.NEXT_PUBLIC_API_GATEWAY_URL;
       
       const response = await fetch(`${apiBase}/api/users/graphs/${graphId}`, {
         headers: {
@@ -1058,7 +1058,7 @@ const LanguageTreePage = () => {
 
     try {
       const token = getToken();
-      const apiBase = process.env.NEXT_PUBLIC_API_GATEWAY_URL || 'http://localhost:8080';
+      const apiBase = process.env.NEXT_PUBLIC_API_GATEWAY_URL;
       
       const response = await fetch(`${apiBase}/api/users/graphs/${graphId}`, {
         method: 'DELETE',

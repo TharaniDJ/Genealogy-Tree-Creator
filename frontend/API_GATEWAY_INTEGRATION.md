@@ -16,7 +16,7 @@ const apiBase = process.env.NEXT_PUBLIC_USER_API_URL || 'http://localhost:8003';
 
 **After:**
 ```typescript
-const apiBase = process.env.NEXT_PUBLIC_API_GATEWAY_URL || 'http://localhost:8080';
+const apiBase = process.env.NEXT_PUBLIC_API_GATEWAY_URL;
 ```
 
 ### 2. API Gateway (`backend/api-gateway/app/main.py`)
@@ -199,7 +199,7 @@ Apply the same pattern to:
 
 Both should use:
 ```typescript
-const apiBase = process.env.NEXT_PUBLIC_API_GATEWAY_URL || 'http://localhost:8080';
+const apiBase = process.env.NEXT_PUBLIC_API_GATEWAY_URL;
 ```
 
 ---

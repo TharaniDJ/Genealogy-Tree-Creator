@@ -48,7 +48,7 @@ const AccountPage = () => {
         return;
       }
 
-      const apiBase = process.env.NEXT_PUBLIC_API_GATEWAY_URL || 'http://localhost:8080';
+      const apiBase = process.env.NEXT_PUBLIC_API_GATEWAY_URL;
       const response = await fetch(`${apiBase}/api/users/me`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -83,7 +83,7 @@ const AccountPage = () => {
 
     try {
       const token = getToken();
-      const apiBase = process.env.NEXT_PUBLIC_API_GATEWAY_URL || 'http://localhost:8080';
+      const apiBase = process.env.NEXT_PUBLIC_API_GATEWAY_URL;
       
       const response = await fetch(`${apiBase}/api/users/me/profile`, {
         method: 'PUT',
@@ -124,7 +124,7 @@ const AccountPage = () => {
 
     try {
       const token = getToken();
-      const apiBase = process.env.NEXT_PUBLIC_API_GATEWAY_URL || 'http://localhost:8080';
+      const apiBase = process.env.NEXT_PUBLIC_API_GATEWAY_URL;
       
       const response = await fetch(`${apiBase}/api/users/me/email`, {
         method: 'PUT',
@@ -172,7 +172,7 @@ const AccountPage = () => {
 
     try {
       const token = getToken();
-      const apiBase = process.env.NEXT_PUBLIC_API_GATEWAY_URL || 'http://localhost:8080';
+      const apiBase = process.env.NEXT_PUBLIC_API_GATEWAY_URL;
       
       const response = await fetch(`${apiBase}/api/users/me/password`, {
         method: 'PUT',
@@ -222,7 +222,7 @@ const AccountPage = () => {
 
     try {
       const token = getToken();
-      const apiBase = process.env.NEXT_PUBLIC_API_GATEWAY_URL || 'http://localhost:8080';
+      const apiBase = process.env.NEXT_PUBLIC_API_GATEWAY_URL;
       
       const response = await fetch(`${apiBase}/api/users/me`, {
         method: 'DELETE',

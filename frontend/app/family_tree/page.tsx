@@ -128,7 +128,7 @@ const handleClassifyRelationships = useCallback((relationships: any[]) => {
     setSavingGraph(true);
     try {
       const token = getToken();
-      const apiBase = process.env.NEXT_PUBLIC_API_GATEWAY_URL || 'http://localhost:8080';
+      const apiBase = process.env.NEXT_PUBLIC_API_GATEWAY_URL;
       
       const response = await fetch(`${apiBase}/api/users/graphs`, {
         method: 'POST',
@@ -168,7 +168,7 @@ const handleClassifyRelationships = useCallback((relationships: any[]) => {
     setLoadingGraphs(true);
     try {
       const token = getToken();
-      const apiBase = process.env.NEXT_PUBLIC_API_GATEWAY_URL || 'http://localhost:8080';
+      const apiBase = process.env.NEXT_PUBLIC_API_GATEWAY_URL;
       
       const response = await fetch(`${apiBase}/api/users/graphs?graph_type=family`, {
         headers: {
@@ -194,7 +194,7 @@ const handleClassifyRelationships = useCallback((relationships: any[]) => {
   const handleLoadGraph = useCallback(async (graphId: string) => {
     try {
       const token = getToken();
-      const apiBase = process.env.NEXT_PUBLIC_API_GATEWAY_URL || 'http://localhost:8080';
+      const apiBase = process.env.NEXT_PUBLIC_API_GATEWAY_URL;
       
       const response = await fetch(`${apiBase}/api/users/graphs/${graphId}`, {
         headers: {
@@ -235,7 +235,7 @@ const handleClassifyRelationships = useCallback((relationships: any[]) => {
 
     try {
       const token = getToken();
-      const apiBase = process.env.NEXT_PUBLIC_API_GATEWAY_URL || 'http://localhost:8080';
+      const apiBase = process.env.NEXT_PUBLIC_API_GATEWAY_URL;
       
       const response = await fetch(`${apiBase}/api/users/graphs/${graphId}`, {
         method: 'DELETE',

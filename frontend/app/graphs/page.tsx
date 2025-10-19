@@ -44,7 +44,7 @@ const GraphsPage = () => {
         return;
       }
 
-      const apiBase = process.env.NEXT_PUBLIC_API_GATEWAY_URL || 'http://localhost:8080';
+      const apiBase = process.env.NEXT_PUBLIC_API_GATEWAY_URL;
       const response = await fetch(`${apiBase}/api/users/graphs`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -133,7 +133,7 @@ const GraphsPage = () => {
 
     try {
       const token = getToken();
-      const apiBase = process.env.NEXT_PUBLIC_API_GATEWAY_URL || 'http://localhost:8080';
+      const apiBase = process.env.NEXT_PUBLIC_API_GATEWAY_URL;
       
       const response = await fetch(`${apiBase}/api/users/graphs/${graphId}`, {
         method: 'DELETE',
