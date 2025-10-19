@@ -1396,12 +1396,26 @@ parentChildRelationships.forEach((rel, index) => {
         <div className="w-px h-6 bg-white/10 mx-1" />
         
         <button
-          onClick={() => {
+          onClick={async () => {
             const domViewport = reactFlowRef.current?.querySelector('.react-flow__viewport') as HTMLElement;
             if (!domViewport) {
               console.error('Viewport not found');
               return;
             }
+
+            setStatus('Preparing PNG export...');
+            
+            // Wait for all images to load
+            const images = domViewport.querySelectorAll('img');
+            await Promise.all(
+              Array.from(images).map((img) => {
+                if (img.complete) return Promise.resolve();
+                return new Promise((resolve) => {
+                  img.onload = resolve;
+                  img.onerror = resolve;
+                });
+              })
+            );
 
             const nodesBounds = getNodesBounds(getNodes());
             const rfViewport = getViewportForBounds(
@@ -1413,28 +1427,38 @@ parentChildRelationships.forEach((rel, index) => {
               0.2
             );
 
-            toPng(domViewport, {
-              backgroundColor: '#0E0F19',
-              width: nodesBounds.width,
-              height: nodesBounds.height,
-              pixelRatio: 2,
-              cacheBust: true,
-              skipFonts: false,
-              style: {
-                width: `${nodesBounds.width}px`,
-                height: `${nodesBounds.height}px`,
-                transform: `translate(${rfViewport.x}px, ${rfViewport.y}px) scale(${rfViewport.zoom})`,
-              },
-            })
-              .then((dataUrl) => {
-                const link = document.createElement('a');
-                link.download = `family-tree-graph.png`;
-                link.href = dataUrl;
-                link.click();
-              })
-              .catch((err) => {
-                console.error('Failed to export PNG:', err);
+            try {
+              const dataUrl = await toPng(domViewport, {
+                backgroundColor: '#0E0F19',
+                width: nodesBounds.width,
+                height: nodesBounds.height,
+                pixelRatio: 2,
+                cacheBust: true,
+                skipFonts: false,
+                filter: (node) => {
+                  // Exclude controls and background
+                  if (node.classList?.contains('react-flow__controls')) return false;
+                  if (node.classList?.contains('react-flow__background')) return false;
+                  return true;
+                },
+                style: {
+                  width: `${nodesBounds.width}px`,
+                  height: `${nodesBounds.height}px`,
+                  transform: `translate(${rfViewport.x}px, ${rfViewport.y}px) scale(${rfViewport.zoom})`,
+                },
               });
+              
+              const link = document.createElement('a');
+              link.download = `family-tree-graph.png`;
+              link.href = dataUrl;
+              link.click();
+              setStatus('PNG exported successfully!');
+              setTimeout(() => setStatus(''), 2000);
+            } catch (err) {
+              console.error('Failed to export PNG:', err);
+              setStatus('PNG export failed');
+              setTimeout(() => setStatus(''), 3000);
+            }
           }}
           title="Export as PNG"
           disabled={nodes.length === 0}
@@ -1446,12 +1470,26 @@ parentChildRelationships.forEach((rel, index) => {
         </button>
         
         <button
-          onClick={() => {
+          onClick={async () => {
             const domViewport = reactFlowRef.current?.querySelector('.react-flow__viewport') as HTMLElement;
             if (!domViewport) {
               console.error('Viewport not found');
               return;
             }
+
+            setStatus('Preparing PDF export...');
+    
+            // Wait for all images to load
+            const images = domViewport.querySelectorAll('img');
+            await Promise.all(
+              Array.from(images).map((img) => {
+                if (img.complete) return Promise.resolve();
+                return new Promise((resolve) => {
+                  img.onload = resolve;
+                  img.onerror = resolve;
+                });
+              })
+            );
 
             const nodesBounds = getNodesBounds(getNodes());
             const rfViewport = getViewportForBounds(
@@ -1463,32 +1501,42 @@ parentChildRelationships.forEach((rel, index) => {
               0.2
             );
 
-            toJpeg(domViewport, {
-              backgroundColor: '#0E0F19',
-              width: nodesBounds.width,
-              height: nodesBounds.height,
-              quality: 0.95,
-              cacheBust: true,
-              skipFonts: false,
-              style: {
-                width: `${nodesBounds.width}px`,
-                height: `${nodesBounds.height}px`,
-                transform: `translate(${rfViewport.x}px, ${rfViewport.y}px) scale(${rfViewport.zoom})`,
-              },
-            })
-              .then((dataUrl) => {
-                const pdf = new jsPDF({
-                  orientation: nodesBounds.width > nodesBounds.height ? 'landscape' : 'portrait',
-                  unit: 'px',
-                  format: [nodesBounds.width, nodesBounds.height],
-                });
-
-                pdf.addImage(dataUrl, 'JPEG', 0, 0, nodesBounds.width, nodesBounds.height);
-                pdf.save(`family-tree-graph.pdf`);
-              })
-              .catch((err) => {
-                console.error('Failed to export PDF:', err);
+            try {
+              const dataUrl = await toJpeg(domViewport, {
+                backgroundColor: '#0E0F19',
+                width: nodesBounds.width,
+                height: nodesBounds.height,
+                quality: 0.95,
+                cacheBust: true,
+                skipFonts: false,
+                filter: (node) => {
+                  // Exclude controls and background
+                  if (node.classList?.contains('react-flow__controls')) return false;
+                  if (node.classList?.contains('react-flow__background')) return false;
+                  return true;
+                },
+                style: {
+                  width: `${nodesBounds.width}px`,
+                  height: `${nodesBounds.height}px`,
+                  transform: `translate(${rfViewport.x}px, ${rfViewport.y}px) scale(${rfViewport.zoom})`,
+                },
               });
+      
+              const pdf = new jsPDF({
+                orientation: nodesBounds.width > nodesBounds.height ? 'landscape' : 'portrait',
+                unit: 'px',
+                format: [nodesBounds.width, nodesBounds.height],
+              });
+
+              pdf.addImage(dataUrl, 'JPEG', 0, 0, nodesBounds.width, nodesBounds.height);
+              pdf.save(`family-tree-graph.pdf`);
+              setStatus('PDF exported successfully!');
+              setTimeout(() => setStatus(''), 2000);
+            } catch (err) {
+              console.error('Failed to export PDF:', err);
+              setStatus('PDF export failed');
+              setTimeout(() => setStatus(''), 3000);
+            }
           }}
           title="Export as PDF"
           disabled={nodes.length === 0}
