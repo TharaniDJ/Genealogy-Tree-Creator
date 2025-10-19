@@ -793,8 +793,12 @@ const handleClassifyRelationships = useCallback(() => {
     websocketData.forEach((message) => {
       switch (message.type) {
         case 'status':
-          latestStatus = message.data.message;
-          latestProgress = message.data.progress;
+          const statusMessage = message.data.message;
+          if (!statusMessage.toLowerCase().includes('disconnected') && 
+              !statusMessage.toLowerCase().includes('client has disconnected')) {
+            latestStatus = statusMessage;
+            latestProgress = message.data.progress;
+              }
           break;
         case 'personal_details':
           newPersonDetails.set(message.data.entity, message.data);
