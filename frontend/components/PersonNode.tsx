@@ -95,19 +95,14 @@ export default function PersonNode({ data, selected }: NodeProps<PersonNodeData>
 
   useEffect(() => {
     if (data.image_url) {
-      // Convert proxy image to base64 for better export compatibility
-      fetch(`/api/image-proxy?url=${encodeURIComponent(data.image_url)}`)
+      fetch(`/image-proxy?url=${encodeURIComponent(data.image_url)}`)
         .then(response => response.blob())
         .then(blob => {
           const reader = new FileReader();
-          reader.onloadend = () => {
-            setImageData(reader.result as string);
-          };
+          reader.onloadend = () => setImageData(reader.result as string);
           reader.readAsDataURL(blob);
         })
-        .catch(() => {
-          setImageError(true);
-        });
+        .catch(() => setImageError(true));
     }
   }, [data.image_url]);
 
