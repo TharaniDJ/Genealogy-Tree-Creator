@@ -68,8 +68,8 @@ import "./globals.css"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Beautiful Animated Knowledge Graph",
-  description: "Interactive knowledge graph with stunning animations",
+  title: "GeneChain 1.0 - Knowledge Graph Explorer",
+  description: "Interactive knowledge graphs",
   generator: 'v0.dev'
 }
 
