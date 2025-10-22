@@ -91,6 +91,14 @@ def _extract_embedding_vector(resp) -> Optional[np.ndarray]:
     """Best-effort extraction of an embedding vector from google-genai response."""
     try:
         # Prefer attribute access (SDK response objects)
+        if hasattr(resp, "embeddings"):
+            embs = getattr(resp, "embeddings")
+            if isinstance(embs, (list, tuple)) and embs:
+                first = embs[0]
+                if hasattr(first, "values") and isinstance(first.values, (list, tuple)):
+                    return np.asarray(first.values, dtype=np.float32)
+                if isinstance(first, dict) and "values" in first:
+                    return np.asarray(first["values"], dtype=np.float32)
         if hasattr(resp, "embedding"):
             emb = getattr(resp, "embedding")
             if hasattr(emb, "values") and isinstance(emb.values, (list, tuple)):
@@ -104,12 +112,19 @@ def _extract_embedding_vector(resp) -> Optional[np.ndarray]:
             data = resp
         else:
             data = getattr(resp, "__dict__", {})
-        if isinstance(data, dict) and "embedding" in data:
-            e = data["embedding"]
-            if isinstance(e, dict) and "values" in e:
-                return np.asarray(e["values"], dtype=np.float32)
-            if isinstance(e, (list, tuple)):
-                return np.asarray(e, dtype=np.float32)
+        if isinstance(data, dict):
+            if "embeddings" in data:
+                embs = data["embeddings"]
+                if isinstance(embs, (list, tuple)) and embs:
+                    e0 = embs[0]
+                    if isinstance(e0, dict) and "values" in e0:
+                        return np.asarray(e0["values"], dtype=np.float32)
+            if "embedding" in data:
+                e = data["embedding"]
+                if isinstance(e, dict) and "values" in e:
+                    return np.asarray(e["values"], dtype=np.float32)
+                if isinstance(e, (list, tuple)):
+                    return np.asarray(e, dtype=np.float32)
     except Exception as exc:
         print(f"[wikipedia_service] Failed to parse embedding response: {exc}")
     return None
@@ -119,7 +134,7 @@ def _embed_text(text: str) -> Optional[np.ndarray]:
     """Get a single text embedding from Gemini; returns None on failure."""
     try:
         client = _get_genai_client()
-        resp = client.models.embed_content(model=EMBEDDING_MODEL_NAME, content=text)
+        resp = client.models.embed_content(model=EMBEDDING_MODEL_NAME, contents=text)
         vec = _extract_embedding_vector(resp)
         return vec
     except Exception as exc:
