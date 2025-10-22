@@ -47,9 +47,58 @@ const CATEGORY_STYLES: Record<string, { from: string; to: string; ring: string; 
     glow: 'from-[#7B82FF] via-[#8B92FF] to-[#9BA2FF]',
     bg: 'bg-[#1A1D2D]/90'
   },
+  sign_language: {
+    from: 'from-[#10B981]',
+    to: 'to-[#34D399]',
+    ring: 'ring-[#10B981]/30',
+    glow: 'from-[#10B981] via-[#34D399] to-[#6EE7B7]',
+    bg: 'bg-[#0f1b17]/90'
+  },
+  creole_language: {
+    from: 'from-[#F59E0B]',
+    to: 'to-[#FBBF24]',
+    ring: 'ring-[#F59E0B]/30',
+    glow: 'from-[#F59E0B] via-[#FBBF24] to-[#FCD34D]',
+    bg: 'bg-[#1b160e]/90'
+  },
+  pidgin_language: {
+    from: 'from-[#EC4899]',
+    to: 'to-[#F472B6]',
+    ring: 'ring-[#EC4899]/30',
+    glow: 'from-[#EC4899] via-[#F472B6] to-[#FDA4AF]',
+    bg: 'bg-[#1b0f16]/90'
+  },
+  modern_language: {
+    from: 'from-[#3B82F6]',
+    to: 'to-[#60A5FA]',
+    ring: 'ring-[#3B82F6]/30',
+    glow: 'from-[#3B82F6] via-[#60A5FA] to-[#93C5FD]',
+    bg: 'bg-[#0f172a]/90'
+  },
+  historical_language: {
+    from: 'from-[#8B5CF6]',
+    to: 'to-[#A78BFA]',
+    ring: 'ring-[#8B5CF6]/30',
+    glow: 'from-[#8B5CF6] via-[#A78BFA] to-[#C4B5FD]',
+    bg: 'bg-[#151225]/90'
+  },
+  ancient_language: {
+    from: 'from-[#F97316]',
+    to: 'to-[#FB923C]',
+    ring: 'ring-[#F97316]/30',
+    glow: 'from-[#F97316] via-[#FB923C] to-[#FDBA74]',
+    bg: 'bg-[#1f1410]/90'
+  },
+  unresolved: {
+    from: 'from-[#EF4444]',
+    to: 'to-[#F87171]',
+    ring: 'ring-[#EF4444]/40',
+    glow: 'from-[#EF4444] via-[#F87171] to-[#FCA5A5]',
+    bg: 'bg-[#1a1010]/90'
+  },
 };
 
-type LanguageNodeData = { label: string; meta?: string; category?: string; qid?: string; onExpand?: () => void };
+type LanguageNodeData = { label: string; meta?: string; category?: string; qid?: string; types?: string[]; onExpand?: () => void };
 
 // Modern styled language node with glassmorphism design for dark theme
 const LanguageNode: React.FC<NodeProps<LanguageNodeData>> = ({ data }) => {

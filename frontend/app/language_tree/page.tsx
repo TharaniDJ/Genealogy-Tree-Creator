@@ -43,6 +43,8 @@ type LanguageNodeData = {
   meta?: string;
   category?: string;
   qid?: string;
+  // Raw type labels returned from classifier (e.g., ["language", "dialect"]) for persistence
+  types?: string[];
   onExpand?: () => void;
 };
 type LanguageRFNode = Node<LanguageNodeData>;
@@ -60,6 +62,9 @@ type RelationshipRecord = {
   language2_qid?: string;
   language1_category?: string;
   language2_category?: string;
+  // Persist raw classifier outputs as well
+  language1_types?: string[];
+  language2_types?: string[];
 };
 
 type SavedGraph = {
@@ -277,6 +282,7 @@ const LanguageTreePage = () => {
   const [loadingGraphs, setLoadingGraphs] = useState(false);
   const [savingGraph, setSavingGraph] = useState(false);
   const [isFullTreeMode, setIsFullTreeMode] = useState(false);
+  const [classifying, setClassifying] = useState(false);
 
   const { getNodes, fitView: fitViewApi } = useReactFlow();
   const reactFlowRef = useRef<HTMLDivElement>(null);
@@ -287,6 +293,7 @@ const LanguageTreePage = () => {
   const { messages, connectionStatus, connect, disconnect, sendMessage } = useWebSocket(wsUrl, { 
     token: getToken() 
   });
+  const httpBase = wsBase; // same base but http
 
   // Track which messages have been processed to avoid losing earlier batches when multiple arrive quickly.
   const lastProcessedIndexRef = useRef(0);
@@ -385,7 +392,7 @@ const LanguageTreePage = () => {
     sendMessage({ action: 'expand_by_qid', qid, depth: 1 });
   }, [sendMessage]);
   
-  // Build current relationships payload from edges + nodes' labels/qids/categories
+  // Build current relationships payload from edges + nodes' labels/qids/categories/types
   const buildRelationshipsPayload = useCallback((): RelationshipRecord[] => {
     const idToNode = new Map(nodes.map(n => [n.id, n] as const));
     // relationships: parent (source) -> child (target)
@@ -400,6 +407,8 @@ const LanguageTreePage = () => {
         language2_qid: parent?.data.qid,
         language1_category: child?.data.category,
         language2_category: parent?.data.category,
+        language1_types: child?.data.types,
+        language2_types: parent?.data.types,
       };
       return record;
     });
@@ -415,7 +424,7 @@ const LanguageTreePage = () => {
     sendMessage({ action: 'expand_node', label: name, existingGraph });
   }, [buildRelationshipsPayload, sendMessage]);
 
-  const ensureNode = useCallback((label: string, category?: string, qid?: string) => {
+  const ensureNode = useCallback((label: string, category?: string, qid?: string, types?: string[]) => {
     if (!label) return null;
     const map = labelToIdRef.current;
     if (map.has(label)) return map.get(label)!;
@@ -441,6 +450,9 @@ const LanguageTreePage = () => {
           if (qid && !n.data.qid) {
             updates.qid = qid;
           }
+          if (types && (!n.data.types || n.data.types.length === 0)) {
+            updates.types = types;
+          }
           return Object.keys(updates).length > 0 ? { ...n, data: { ...n.data, ...updates } } : n;
         });
       }
@@ -451,6 +463,7 @@ const LanguageTreePage = () => {
           category, 
           meta: category ? humanizeCategory(category) : undefined,
           qid,
+          types,
           // Always provide expand by label so every node can be expanded
           onExpand: () => expandNodeByLabel(label)
         }, 
@@ -783,6 +796,93 @@ const LanguageTreePage = () => {
     layout(dir);
   };
 
+  // Classify current node labels using backend batch endpoint (<=50 per call)
+  const classifyRelationships = useCallback(async () => {
+    if (nodes.length === 0) {
+      alert('No nodes to classify. Add or fetch some languages first.');
+      return;
+    }
+    if (classifying) return;
+    setClassifying(true);
+    try {
+      const uniqueLabels = Array.from(new Set(nodes.map(n => (n.data.label || '').trim()).filter(Boolean)));
+      const chunkSize = 50;
+      let processed = 0;
+      const chooseCategory = (types?: string[]): string | undefined => {
+        if (!types || !types.length) return undefined;
+        const tset = new Set(types.map(t => t.toLowerCase().replace(/\s+/g, '_')));
+        if (tset.has('language_family')) return 'language_family';
+        if (tset.has('proto_language')) return 'proto_language';
+        
+        if (tset.has('sign_language')) return 'sign_language';
+        if (tset.has('creole_language')) return 'creole_language';
+        if (tset.has('pidgin_language')) return 'pidgin_language';
+        if (tset.has('extinct_language')) return 'extinct_language';
+        if (tset.has('dead_language')) return 'dead_language';
+        
+        if (tset.has('modern_language')) return 'modern_language';
+        if (tset.has('historical_language')) return 'historical_language';
+        if (tset.has('ancient_language')) return 'ancient_language';
+        if (tset.has('dialect')) return 'dialect';
+        if (tset.has('language')) return 'language';
+        return undefined;
+      };
+
+      for (let i = 0; i < uniqueLabels.length; i += chunkSize) {
+        const batch = uniqueLabels.slice(i, i + chunkSize);
+        setStatus(`Classifying languages ${i + 1}-${Math.min(i + batch.length, uniqueLabels.length)} of ${uniqueLabels.length}...`);
+        setProgress(Math.round(((i) / uniqueLabels.length) * 100));
+        const token = getToken();
+        if (!token) {
+        router.push('/login');
+        return;
+        }
+        const resp = await fetch(`${httpBase}/classify/languages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json','Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ names: batch })
+        });
+        if (!resp.ok) {
+          const err = await resp.text();
+          throw new Error(err || 'Classification request failed');
+        }
+  const data: Record<string, { qid?: string; types?: string[] } | null> = await resp.json();
+        // Update nodes with qids, raw types, and inferred categories (non-destructive: don't overwrite existing category)
+        setNodes(prev => prev.map(n => {
+          const lbl = n.data.label;
+          if (!batch.includes(lbl)) return n;
+          const res = data[lbl];
+          const updates: Partial<LanguageNodeData> = {};
+          if (res && res.qid && n.data.qid !== res.qid) updates.qid = res.qid;
+          if (res && res.types && res.types.length) updates.types = res.types;
+          if (!res || !res.types || res.types.length === 0) {
+            // No type resolved: mark as unresolved
+            updates.category = 'unresolved';
+            updates.meta = 'Unresolved';
+          } else {
+            const inferredCat = chooseCategory(res.types);
+            if (inferredCat) {
+              updates.category = inferredCat;
+              updates.meta = humanizeCategory(inferredCat);
+            }
+          }
+          return Object.keys(updates).length ? { ...n, data: { ...n.data, ...updates } } : n;
+        }));
+        processed += batch.length;
+        setProgress(Math.round((processed / uniqueLabels.length) * 100));
+      }
+      setStatus('Classification complete');
+      // Optional: relayout if categories changed visual sizing
+      setTimeout(() => layout(), 0);
+    } catch (err) {
+      console.error('Classification error:', err);
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      setStatus(`Classification error: ${msg}`);
+    } finally {
+      setClassifying(false);
+    }
+  }, [classifying, httpBase, humanizeCategory, layout, nodes, setNodes, setStatus, setProgress, getToken, router]);
+
   
   // (Save graph removed for now to reduce lint noise; can be reintroduced in toolbar when needed)
 
@@ -1018,15 +1118,15 @@ const LanguageTreePage = () => {
       resetGraphState(`Loading "${graph.graph_name}"...`);
       
       // Rebuild graph from saved data
-      const relationships = graph.graph_data as RelationshipRecord[];
+  const relationships = graph.graph_data as RelationshipRecord[];
       
       relationships.forEach((rel: RelationshipRecord) => {
         const parentLabel = rel.language2;
         const childLabel = rel.language1;
         
         if (parentLabel && childLabel) {
-          const parentId = ensureNode(parentLabel, rel.language2_category, rel.language2_qid);
-          const childId = ensureNode(childLabel, rel.language1_category, rel.language1_qid);
+          const parentId = ensureNode(parentLabel, rel.language2_category, rel.language2_qid, rel.language2_types);
+          const childId = ensureNode(childLabel, rel.language1_category, rel.language1_qid, rel.language1_types);
           
           if (parentId && childId) {
             const edgeId = `e-${parentId}-${childId}`;
@@ -1431,6 +1531,15 @@ const LanguageTreePage = () => {
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z" />
               </svg>
+            </button>
+            <div className="w-px h-6 bg-white/10 mx-1" />
+            <button
+              onClick={classifyRelationships}
+              disabled={nodes.length === 0 || classifying}
+              title="Classify Relationships"
+              className={`px-3 py-2 rounded-lg transition-all shadow ${nodes.length && !classifying ? 'backdrop-blur-lg bg-white/5 text-[#F5F7FA] hover:bg-[#6B72FF]/20 border border-white/10 hover:scale-105' : 'bg-white/5 text-[#9CA3B5] border border-white/10 cursor-not-allowed opacity-50'}`}
+            >
+              {classifying ? 'Classifying…' : 'Classify Relationships'}
             </button>
             <div className="w-px h-6 bg-white/10 mx-1" />
             <button

@@ -1,12 +1,58 @@
 from fastapi import APIRouter, HTTPException
-from typing import List, Optional
+from typing import List, Optional, Dict
+from pydantic import BaseModel, Field
 from app.services.wikipedia_service import fetch_language_relationships, get_distribution_map_image,fetch_language_info
 from app.models.language import LanguageRelationship, LanguageInfo, DistributionMapResponse
 from app.models.graph import GraphSaveRequest, GraphResponse, GraphUpdateRequest
 from app.services.graph_repository import graph_repo
 
 from app.services.generate_relationships import start_dataset_generation, get_task_status
+from app.services.classification_service import LanguageResolver
 router = APIRouter()
+
+
+# ------------------ Language Classification Models/Resolver ------------------
+
+class LanguageClassificationRequest(BaseModel):
+    names: List[str] = Field(..., description="List of language names to classify (max 50)", max_items=50)
+
+
+class LanguageClassificationItem(BaseModel):
+    qid: Optional[str] = None
+    types: Optional[List[str]] = None
+
+
+# Instantiate a reusable resolver (keeps HTTP session and benefits from cache)
+_language_resolver = LanguageResolver()
+
+
+@router.post('/classify/languages', response_model=Dict[str, Optional[LanguageClassificationItem]])
+async def classify_languages(payload: LanguageClassificationRequest):
+    """
+    Classify up to 50 language names by resolving them to Wikidata QIDs and types.
+
+    Body:
+    - names: array of language names (max 50)
+
+    Returns a mapping of original name -> classification info (or null if not found).
+    """
+    try:
+        names = payload.names or []
+        # Validate array size explicitly (in addition to Pydantic's max_items)
+        if len(names) == 0:
+            raise HTTPException(status_code=400, detail="At least one name is required")
+        if len(names) > 50:
+            raise HTTPException(status_code=400, detail="A maximum of 50 names can be classified per request")
+
+        # Use synchronous resolver in thread-friendly manner (it's I/O bound but uses requests)
+        results = _language_resolver.resolve_languages(names)
+        # FastAPI/Pydantic can coerce dict values into LanguageClassificationItem
+        return results
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error classifying languages: {e}")
+        raise HTTPException(status_code=500, detail=f"Error classifying languages: {str(e)}")
 
 @router.get("/relationships/{language_name}/{depth}", response_model=List[LanguageRelationship])
 async def get_language_relationships(language_name: str, depth: int):
