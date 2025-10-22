@@ -337,6 +337,8 @@ const LanguageTreePage = () => {
     }
   }, [connectionStatus, progress, status, statusPinnedOpen, toolbarPinnedOpen]);
 
+  
+
   const nodeTypes = useMemo(() => ({ language: LanguageNode }), []);
 
   const defaultEdgeOptions = useMemo(() => ({
@@ -365,16 +367,24 @@ const LanguageTreePage = () => {
   }, [defaultEdgeOptions]);
 
   const layout = useCallback((direction: 'TB' | 'LR' = layoutDirection) => {
-    setNodes(prevNodes => {
-      setEdges(prevEdges => {
-        const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements([...prevNodes.map(n => ({ ...n }))], [...prevEdges], direction);
-        // Replace with layouted versions
-        setNodes(layoutedNodes);
-        return layoutedEdges;
-      });
-      return prevNodes; 
-    });
-  }, [layoutDirection, setNodes, setEdges]);
+    // Compute layout using the latest nodes/edges to avoid stale state in production batching
+    const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
+      [...nodes.map(n => ({ ...n }))],
+      [...edges.map(e => ({ ...e }))],
+      direction
+    );
+    setNodes(layoutedNodes);
+    setEdges(layoutedEdges);
+  }, [nodes, edges, layoutDirection, setNodes, setEdges]);
+
+  // After batched updates settle (esp. in production), re-apply layout once graph is complete
+  useEffect(() => {
+    if (!autoLayoutOnComplete) return;
+    if (nodes.length && edges.length && (completeRef.current || progress >= 100)) {
+      const t = setTimeout(() => layout(), 0);
+      return () => clearTimeout(t);
+    }
+  }, [nodes.length, edges.length, progress, autoLayoutOnComplete, layout]);
 
   // Mapping label -> node id to avoid duplicates; stored in ref to persist across renders without causing rerenders
   const labelToIdRef = useRef<Map<string,string>>(new Map());
