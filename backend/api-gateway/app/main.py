@@ -7,12 +7,20 @@ from websockets.exceptions import WebSocketException, ConnectionClosed
 import asyncio
 from app.core.config import settings
 from jose import jwt, JWTError
+from dotenv import load_dotenv
+import os
+
+# Load environment variables from .env
+load_dotenv()
+
 
 app = FastAPI(title='API Gateway')
 
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000')
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=['http://localhost:3000'],
+    allow_origins=[FRONTEND_URL],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -20,10 +28,10 @@ app.add_middleware(
 
 # Use localhost for local devel opment (not Docker service names)
 BACKEND_MAP = {
-    "family": "http://localhost:8000/api/family",
-    "language": "http://localhost:8001/api/language",
-    "species": "http://localhost:8002/api/species",
-    "users": "http://localhost:8003/api/users",
+    "family": os.getenv('FAMILY_SERVICE_URL', 'http://localhost:8000/api/family'),
+    "language": os.getenv('LANGUAGE_SERVICE_URL', 'http://localhost:8001/api/language'),
+    "species": os.getenv('SPECIES_SERVICE_URL', 'http://localhost:8002/api/species'),
+    "users": os.getenv('USER_SERVICE_URL', 'http://localhost:8003/api/users'),
 }
 
 
@@ -141,11 +149,11 @@ async def websocket_proxy_simple(service: str, websocket: WebSocket):
         await websocket.close(code=1008, reason=f"Authentication error: {str(e)}")
         return
     
-    # Map service to WebSocket URL
+    # Map service to WebSocket URL (from env with fallbacks)
     ws_map = {
-        "language": "ws://localhost:8001/ws",
-        "family": "ws://localhost:8000/ws",
-        "species": "ws://localhost:8002/ws",
+        "language": os.getenv('LANGUAGE_WS_URL', 'ws://localhost:8001/ws'),
+        "family": os.getenv('FAMILY_WS_URL', 'ws://localhost:8000/ws'),
+        "species": os.getenv('SPECIES_WS_URL', 'ws://localhost:8002/ws'),
     }
     
     backend_ws_base = ws_map.get(service)
@@ -238,11 +246,11 @@ async def websocket_proxy(service: str, path: str, websocket: WebSocket):
         await websocket.close(code=1008, reason=f"Authentication error: {str(e)}")
         return
     
-    # Map service to WebSocket URL
+    # Map service to WebSocket URL (from env with fallbacks)
     ws_map = {
-        "language": "ws://localhost:8001/ws",
-        "family": "ws://localhost:8000/ws",
-        "species": "ws://localhost:8002/ws",
+        "language": os.getenv('LANGUAGE_WS_URL', 'ws://localhost:8001/ws'),
+        "family": os.getenv('FAMILY_WS_URL', 'ws://localhost:8000/ws'),
+        "species": os.getenv('SPECIES_WS_URL', 'ws://localhost:8002/ws'),
     }
     
     backend_ws_base = ws_map.get(service)
