@@ -7,6 +7,8 @@ import ast
 import os
 import re
 import time
+import json
+import sqlite3
 from collections import defaultdict, deque
 from typing import Dict, List, Optional, Sequence, Tuple
 
@@ -76,6 +78,99 @@ GENETIC_RELATIONS = [
 EMBEDDING_MODEL_NAME = "models/text-embedding-004"
 
 _genai_client: Optional[genai.Client] = None
+
+
+# -----------------------------
+# TTL Graph Cache (SQLite)
+# -----------------------------
+class GraphCache:
+    """Simple SQLite-backed TTL cache for storing relationship graphs.
+
+    Keys are strings; values are JSON-serializable Python objects.
+    Each row stores insertion timestamp (epoch seconds). Expiration is checked on read.
+    """
+
+    def __init__(self, db_path: Optional[str] = None, *, ttl_seconds: Optional[int] = None):
+        # Default DB path placed alongside service working directory
+        self.db_path = db_path or os.getenv("LANGUAGE_GRAPH_CACHE_DB", "language_graph_cache.sqlite")
+        # TTL configuration: default to 14 days, configurable via env var (days)
+        if ttl_seconds is not None:
+            self.ttl_seconds = ttl_seconds
+        else:
+            ttl_days_env = os.getenv("LANGUAGE_GRAPH_CACHE_TTL_DAYS")
+            try:
+                ttl_days = int(ttl_days_env) if ttl_days_env else 14
+            except Exception:
+                ttl_days = 14
+            self.ttl_seconds = max(1, ttl_days) * 24 * 60 * 60
+        self._ensure_table()
+
+    def _conn(self):
+        return sqlite3.connect(self.db_path)
+
+    def _ensure_table(self):
+        conn = self._conn()
+        try:
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS graph_cache (key TEXT PRIMARY KEY, value TEXT, ts INTEGER)"
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+    def clear_expired(self):
+        now = int(time.time())
+        expiry = now - self.ttl_seconds
+        conn = self._conn()
+        try:
+            conn.execute("DELETE FROM graph_cache WHERE ts < ?", (expiry,))
+            conn.commit()
+        finally:
+            conn.close()
+
+    def get(self, key: str):
+        """Return cached value if present and not expired; else None."""
+        conn = self._conn()
+        try:
+            row = conn.execute("SELECT value, ts FROM graph_cache WHERE key = ?", (key,)).fetchone()
+            if not row:
+                return None
+            value_txt, ts = row[0], int(row[1])
+            if (int(time.time()) - ts) > self.ttl_seconds:
+                # expired: delete and return None
+                try:
+                    conn.execute("DELETE FROM graph_cache WHERE key = ?", (key,))
+                    conn.commit()
+                except Exception:
+                    pass
+                return None
+            try:
+                return json.loads(value_txt)
+            except Exception:
+                return None
+        finally:
+            conn.close()
+
+    def set(self, key: str, value) -> None:
+        """Set/replace cached value (serialized as JSON)."""
+        try:
+            value_txt = json.dumps(value, ensure_ascii=False)
+        except Exception:
+            # As a safeguard, don't cache non-serializable payloads
+            return
+        conn = self._conn()
+        try:
+            conn.execute(
+                "INSERT OR REPLACE INTO graph_cache (key, value, ts) VALUES (?, ?, strftime('%s','now'))",
+                (key, value_txt),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+
+# one module-level cache instance
+_graph_cache = GraphCache()
 
 
 def _get_genai_client() -> genai.Client:
@@ -1457,6 +1552,25 @@ async def fetch_language_relationships(
         print(f"[wikipedia_service] Resolved '{language_name}' to '{resolved_title}'.")
         await _send_root_language(resolved_title, websocket_manager, connection_id)
 
+    # -----------------------------
+    # Cache check (by resolved/root title + depth)
+    # -----------------------------
+    try:
+        _graph_cache.clear_expired()
+    except Exception:
+        pass
+
+    cache_key = f"{_canonical_label(resolved_title)}|{'full' if depth is None else str(int(depth))}"
+    cached = _graph_cache.get(cache_key)
+    if isinstance(cached, list):
+        await _send_status("Cache hit: returning precomputed relationships.", 90, websocket_manager, connection_id)
+        if websocket_manager and connection_id:
+            await websocket_manager.send_json({"type": "relationships", "data": cached}, connection_id)
+        print(
+            f"[wikipedia_service] Cache hit for '{resolved_title}' ({depth_desc}); returning {len(cached)} relationships."
+        )
+        return cached
+
     await _send_status(f"Fetching Wikipedia content for '{resolved_title}'...", 15, websocket_manager, connection_id)
     wikitext = await asyncio.to_thread(fetch_wikitext, resolved_title)
     if not wikitext:
@@ -1534,6 +1648,11 @@ async def fetch_language_relationships(
         f"[wikipedia_service] Completed extraction for '{resolved_title}' with "
         f"{len(relationships_payload)} relationships ({depth_desc})."
     )
+    # Store in cache for subsequent requests
+    try:
+        _graph_cache.set(cache_key, relationships_payload)
+    except Exception:
+        pass
     
 
     return relationships_payload
