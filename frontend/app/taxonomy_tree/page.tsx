@@ -955,7 +955,6 @@ const TaxonomyTreePage = () => {
           </button>
         )}
 
-        <ReactFlowProvider>
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -1047,7 +1046,6 @@ const TaxonomyTreePage = () => {
               </div>
             )}
           </ReactFlow>
-        </ReactFlowProvider>
       </div>
       
       {/* Info Panel */}
