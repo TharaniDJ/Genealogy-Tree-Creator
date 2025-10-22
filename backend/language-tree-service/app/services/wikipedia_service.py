@@ -16,7 +16,6 @@ import requests
 from google import genai  # type: ignore
 from mwparserfromhell.nodes import Heading
 from mwparserfromhell.wikicode import Wikicode
-from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv
 from app.models.language import LanguageInfo, LanguageRelationship
 import requests
@@ -73,12 +72,8 @@ GENETIC_RELATIONS = [
     "influenced by",
 ]
 
-try:
-    embed_model: Optional[SentenceTransformer] = SentenceTransformer("all-MiniLM-L6-v2")
-    print("[wikipedia_service] Loaded sentence-transformer model 'all-MiniLM-L6-v2'.")
-except Exception as exc:  # pragma: no cover - depends on environment
-    embed_model = None
-    print(f"[wikipedia_service] Failed to load sentence-transformer model: {exc}")
+# Remote embedding model (Gemini) configuration
+EMBEDDING_MODEL_NAME = "models/text-embedding-004"
 
 _genai_client: Optional[genai.Client] = None
 
@@ -90,6 +85,57 @@ def _get_genai_client() -> genai.Client:
         print("[wikipedia_service] Initialising Google Generative AI client.")
         _genai_client = genai.Client(api_key=api_key)
     return _genai_client
+
+
+def _extract_embedding_vector(resp) -> Optional[np.ndarray]:
+    """Best-effort extraction of an embedding vector from google-genai response."""
+    try:
+        # Prefer attribute access (SDK response objects)
+        if hasattr(resp, "embedding"):
+            emb = getattr(resp, "embedding")
+            if hasattr(emb, "values") and isinstance(emb.values, (list, tuple)):
+                return np.asarray(emb.values, dtype=np.float32)
+            if isinstance(emb, (list, tuple)):
+                return np.asarray(emb, dtype=np.float32)
+        # Fallback to dict-like
+        if hasattr(resp, "to_dict"):
+            data = resp.to_dict()
+        elif isinstance(resp, dict):
+            data = resp
+        else:
+            data = getattr(resp, "__dict__", {})
+        if isinstance(data, dict) and "embedding" in data:
+            e = data["embedding"]
+            if isinstance(e, dict) and "values" in e:
+                return np.asarray(e["values"], dtype=np.float32)
+            if isinstance(e, (list, tuple)):
+                return np.asarray(e, dtype=np.float32)
+    except Exception as exc:
+        print(f"[wikipedia_service] Failed to parse embedding response: {exc}")
+    return None
+
+
+def _embed_text(text: str) -> Optional[np.ndarray]:
+    """Get a single text embedding from Gemini; returns None on failure."""
+    try:
+        client = _get_genai_client()
+        resp = client.models.embed_content(model=EMBEDDING_MODEL_NAME, content=text)
+        vec = _extract_embedding_vector(resp)
+        return vec
+    except Exception as exc:
+        print(f"[wikipedia_service] Embedding error: {exc}")
+        return None
+
+
+def _embed_texts(texts: List[str]) -> List[Optional[np.ndarray]]:
+    """Embed a list of texts via Gemini. Returns list of vectors or None where failed."""
+    vectors: List[Optional[np.ndarray]] = []
+    for i, t in enumerate(texts):
+        vec = _embed_text(t)
+        vectors.append(vec)
+        # Optional light backoff to be gentle with rate limits
+        time.sleep(0.05)
+    return vectors
 
 
 def _normalize_relation(rel: str) -> str:
@@ -353,11 +399,12 @@ def extract_clean_sections(wikitext: str) -> Dict[str, str]:
 
 
 def select_relevant_chunks(sections: Dict[str, str], top_k: int = 20) -> str:
-    if not sections or embed_model is None:
-        print("[wikipedia_service] Embedding model unavailable or no sections to select from.")
+    if not sections:
         return ""
-    query = "Genetic language relationships, family trees,belongs to family,descends from,is a child of,part of, ancestry, dialects,early form of,influenced and historical linguistic evolution."
-    query_emb = embed_model.encode(query, normalize_embeddings=True)
+    query = (
+        "Genetic language relationships, family trees,belongs to family,descends from,is a child of,part of, ancestry, dialects,early form of,influenced and historical linguistic evolution."
+        
+    )
     chunks = [
         f"Section: {title}\n{paragraph.strip()}"
         for title, text in sections.items()
@@ -366,21 +413,54 @@ def select_relevant_chunks(sections: Dict[str, str], top_k: int = 20) -> str:
     ]
     if not chunks:
         return ""
-    chunk_embs = embed_model.encode(chunks, normalize_embeddings=True)
-    similarities = np.dot(chunk_embs, query_emb)
-    top_indices = np.argsort(similarities)[-top_k:]
-    return "\n\n".join(chunks[i] for i in top_indices if 0 <= i < len(chunks))
+
+    # Try remote embeddings via Gemini
+    q_vec = _embed_text(query)
+    c_vecs = _embed_texts(chunks) if q_vec is not None else []
+
+    if q_vec is not None and any(v is not None for v in c_vecs):
+        sims: List[Tuple[int, float]] = []
+        q_norm = np.linalg.norm(q_vec) + 1e-12
+        for idx, v in enumerate(c_vecs):
+            if v is None:
+                continue
+            sim = float(np.dot(v, q_vec) / ((np.linalg.norm(v) + 1e-12) * q_norm))
+            sims.append((idx, sim))
+        sims.sort(key=lambda x: x[1], reverse=True)
+        selected = [chunks[i] for i, _ in sims[:top_k]]
+        return "\n\n".join(selected)
+
+    # Fallback: simple keyword scoring if embeddings unavailable
+    print("[wikipedia_service] Falling back to keyword scoring for chunk selection.")
+    keywords = [
+        "belongs to family",
+        "descends from",
+        "child of",
+        "children",
+        "dialect",
+        "parent",
+        "ancestor",
+        "proto",
+        "branch",
+        "family",
+    ]
+    scored: List[Tuple[int, int]] = []
+    for i, chunk in enumerate(chunks):
+        score = sum(1 for kw in keywords if kw.lower() in chunk.lower())
+        scored.append((i, score))
+    scored.sort(key=lambda x: x[1], reverse=True)
+    selected = [chunks[i] for i, _ in scored[:top_k]]
+    return "\n\n".join(selected)
 
 
 def select_relevant_chunks_for_node(sections: Dict[str, str], node_label: str, top_k: int = 20) -> str:
     """Select text most relevant to immediate parent/children/siblings around a node label."""
-    if not sections or embed_model is None:
+    if not sections:
         return ""
-    keywords = (
-        f"{node_label}. immediate parent, immediate children, siblings, same parent, subgroup, branch, dialect, variety, belongs to family," \
-        " part of, member of, descendant of, child of."
+    query = (
+        f"{node_label}. immediate parent, immediate children, siblings, same parent, subgroup, branch, dialect, variety, "
+        "belongs to family, part of, member of, descendant of, child of."
     )
-    query_emb = embed_model.encode(keywords, normalize_embeddings=True)
     chunks = [
         f"Section: {title}\n{paragraph.strip()}"
         for title, text in sections.items()
@@ -389,10 +469,44 @@ def select_relevant_chunks_for_node(sections: Dict[str, str], node_label: str, t
     ]
     if not chunks:
         return ""
-    chunk_embs = embed_model.encode(chunks, normalize_embeddings=True)
-    similarities = np.dot(chunk_embs, query_emb)
-    top_indices = np.argsort(similarities)[-top_k:]
-    return "\n\n".join(chunks[i] for i in top_indices if 0 <= i < len(chunks))
+
+    q_vec = _embed_text(query)
+    c_vecs = _embed_texts(chunks) if q_vec is not None else []
+    if q_vec is not None and any(v is not None for v in c_vecs):
+        sims: List[Tuple[int, float]] = []
+        q_norm = np.linalg.norm(q_vec) + 1e-12
+        for idx, v in enumerate(c_vecs):
+            if v is None:
+                continue
+            sim = float(np.dot(v, q_vec) / ((np.linalg.norm(v) + 1e-12) * q_norm))
+            sims.append((idx, sim))
+        sims.sort(key=lambda x: x[1], reverse=True)
+        selected = [chunks[i] for i, _ in sims[:top_k]]
+        return "\n\n".join(selected)
+
+    # Fallback keyword approach
+    print("[wikipedia_service] Falling back to keyword scoring for node-specific chunk selection.")
+    node_keywords = [
+        node_label.lower(),
+        "parent",
+        "child",
+        "children",
+        "sibling",
+        "dialect",
+        "subgroup",
+        "branch",
+        "family",
+        "member",
+        "descendant",
+    ]
+    scored: List[Tuple[int, int]] = []
+    for i, chunk in enumerate(chunks):
+        text_l = chunk.lower()
+        score = sum(1 for kw in node_keywords if kw in text_l)
+        scored.append((i, score))
+    scored.sort(key=lambda x: x[1], reverse=True)
+    selected = [chunks[i] for i, _ in scored[:top_k]]
+    return "\n\n".join(selected)
 
 
 def parse_list_like_from_text(raw: str):
