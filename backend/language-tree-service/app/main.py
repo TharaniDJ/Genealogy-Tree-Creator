@@ -25,7 +25,7 @@ async def startup_event():
     """Startup event handler"""
     # Initialize MongoDB connection for graph repository
     await graph_repo.setup(
-        uri="mongodb://localhost:27017/",
+        
         db_name="Genealogy_Tree_Creator",
         collection_name="Language_Trees"
     )
@@ -33,11 +33,13 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     """Shutdown event handler"""
-    # Cancel all active tasks and disconnect WebSocket connections
+    # Cancel all active tasks and disco nnect WebSocket connections
     for connection_id in list(websocket_manager.active_connections.keys()):
         websocket_manager.disconnect(connection_id)
 
+# Expose API routes at root and with a service prefix for consistency with gateway-style URLs
 app.include_router(api_router)
+app.include_router(api_router, prefix="/api/language")
 app.include_router(websocket_router)
 
 @app.get('/')

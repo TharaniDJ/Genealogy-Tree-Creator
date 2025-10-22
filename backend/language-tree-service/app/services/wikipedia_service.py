@@ -7,6 +7,8 @@ import ast
 import os
 import re
 import time
+import json
+import sqlite3
 from collections import defaultdict, deque
 from typing import Dict, List, Optional, Sequence, Tuple
 
@@ -16,10 +18,12 @@ import requests
 from google import genai  # type: ignore
 from mwparserfromhell.nodes import Heading
 from mwparserfromhell.wikicode import Wikicode
-from sentence_transformers import SentenceTransformer
-
+from dotenv import load_dotenv
 from app.models.language import LanguageInfo, LanguageRelationship
+import requests
+from urllib.parse import quote
 
+load_dotenv()
 WIKIPEDIA_API = "https://en.wikipedia.org/w/api.php"
 DEFAULT_HEADERS = {
     "User-Agent": "GenealogyTreeLanguageService/1.0 (language-tree-service)"
@@ -27,9 +31,11 @@ DEFAULT_HEADERS = {
 
 DEFAULT_GENAI_MODELS = [
     "models/gemini-2.5-flash",
-    "models/gemini-2.5-flash-preview-09-2025",
-    "models/gemini-2.5-flash-preview-05-20",
-    "models/gemini-2.5-pro-preview-06-05",
+    "models/gemini-2.5-pro",
+    "models/gemini-2.5-flash-lite",
+    "models/gemini-2.0-flash",
+    "models/gemini-2.0-flash-lite",
+    "models/gemini-2.0-flash-exp",
     "models/gemini-2.0-flash",
     "models/gemini-2.0-flash-lite-001",
 ]
@@ -68,23 +74,206 @@ GENETIC_RELATIONS = [
     "influenced by",
 ]
 
-try:
-    embed_model: Optional[SentenceTransformer] = SentenceTransformer("all-MiniLM-L6-v2")
-    print("[wikipedia_service] Loaded sentence-transformer model 'all-MiniLM-L6-v2'.")
-except Exception as exc:  # pragma: no cover - depends on environment
-    embed_model = None
-    print(f"[wikipedia_service] Failed to load sentence-transformer model: {exc}")
+# Remote embedding model (Gemini) configuration
+EMBEDDING_MODEL_NAME = "models/text-embedding-004"
 
 _genai_client: Optional[genai.Client] = None
+
+
+# -----------------------------
+# TTL Graph Cache (SQLite)
+# -----------------------------
+class GraphCache:
+    """Simple SQLite-backed TTL cache for storing relationship graphs.
+
+    Keys are strings; values are JSON-serializable Python objects.
+    Each row stores insertion timestamp (epoch seconds). Expiration is checked on read.
+    """
+
+    def __init__(self, db_path: Optional[str] = None, *, ttl_seconds: Optional[int] = None):
+        # Default DB path placed alongside service working directory
+        self.db_path = db_path or os.getenv("LANGUAGE_GRAPH_CACHE_DB", "language_graph_cache.sqlite")
+        # TTL configuration: default to 14 days, configurable via env var (days)
+        if ttl_seconds is not None:
+            self.ttl_seconds = ttl_seconds
+        else:
+            ttl_days_env = os.getenv("LANGUAGE_GRAPH_CACHE_TTL_DAYS")
+            try:
+                ttl_days = int(ttl_days_env) if ttl_days_env else 14
+            except Exception:
+                ttl_days = 14
+            self.ttl_seconds = max(1, ttl_days) * 24 * 60 * 60
+        self._ensure_table()
+
+    def _conn(self):
+        return sqlite3.connect(self.db_path)
+
+    def _ensure_table(self):
+        conn = self._conn()
+        try:
+            conn.execute(
+                "CREATE TABLE IF NOT EXISTS graph_cache (key TEXT PRIMARY KEY, value TEXT, ts INTEGER)"
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+    def clear_expired(self):
+        now = int(time.time())
+        expiry = now - self.ttl_seconds
+        conn = self._conn()
+        try:
+            conn.execute("DELETE FROM graph_cache WHERE ts < ?", (expiry,))
+            conn.commit()
+        finally:
+            conn.close()
+
+    def get(self, key: str):
+        """Return cached value if present and not expired; else None."""
+        conn = self._conn()
+        try:
+            row = conn.execute("SELECT value, ts FROM graph_cache WHERE key = ?", (key,)).fetchone()
+            if not row:
+                return None
+            value_txt, ts = row[0], int(row[1])
+            if (int(time.time()) - ts) > self.ttl_seconds:
+                # expired: delete and return None
+                try:
+                    conn.execute("DELETE FROM graph_cache WHERE key = ?", (key,))
+                    conn.commit()
+                except Exception:
+                    pass
+                return None
+            try:
+                return json.loads(value_txt)
+            except Exception:
+                return None
+        finally:
+            conn.close()
+
+    def set(self, key: str, value) -> None:
+        """Set/replace cached value (serialized as JSON)."""
+        try:
+            value_txt = json.dumps(value, ensure_ascii=False)
+        except Exception:
+            # As a safeguard, don't cache non-serializable payloads
+            return
+        conn = self._conn()
+        try:
+            conn.execute(
+                "INSERT OR REPLACE INTO graph_cache (key, value, ts) VALUES (?, ?, strftime('%s','now'))",
+                (key, value_txt),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+
+# one module-level cache instance
+_graph_cache = GraphCache()
 
 
 def _get_genai_client() -> genai.Client:
     global _genai_client
     if _genai_client is None:
-        api_key = "AIzaSyCjm3E6c33P7DfORc7lwggHstlughbgY5o"
+        api_key = os.getenv("GEMINI_API_KEY")
         print("[wikipedia_service] Initialising Google Generative AI client.")
         _genai_client = genai.Client(api_key=api_key)
     return _genai_client
+
+
+def _extract_embedding_vector(resp) -> Optional[np.ndarray]:
+    """Best-effort extraction of an embedding vector from google-genai response."""
+    try:
+        # Prefer attribute access (SDK response objects)
+        if hasattr(resp, "embeddings"):
+            embs = getattr(resp, "embeddings")
+            if isinstance(embs, (list, tuple)) and embs:
+                first = embs[0]
+                if hasattr(first, "values") and isinstance(first.values, (list, tuple)):
+                    return np.asarray(first.values, dtype=np.float32)
+                if isinstance(first, dict) and "values" in first:
+                    return np.asarray(first["values"], dtype=np.float32)
+        if hasattr(resp, "embedding"):
+            emb = getattr(resp, "embedding")
+            if hasattr(emb, "values") and isinstance(emb.values, (list, tuple)):
+                return np.asarray(emb.values, dtype=np.float32)
+            if isinstance(emb, (list, tuple)):
+                return np.asarray(emb, dtype=np.float32)
+        # Fallback to dict-like
+        if hasattr(resp, "to_dict"):
+            data = resp.to_dict()
+        elif isinstance(resp, dict):
+            data = resp
+        else:
+            data = getattr(resp, "__dict__", {})
+        if isinstance(data, dict):
+            if "embeddings" in data:
+                embs = data["embeddings"]
+                if isinstance(embs, (list, tuple)) and embs:
+                    e0 = embs[0]
+                    if isinstance(e0, dict) and "values" in e0:
+                        return np.asarray(e0["values"], dtype=np.float32)
+            if "embedding" in data:
+                e = data["embedding"]
+                if isinstance(e, dict) and "values" in e:
+                    return np.asarray(e["values"], dtype=np.float32)
+                if isinstance(e, (list, tuple)):
+                    return np.asarray(e, dtype=np.float32)
+    except Exception as exc:
+        print(f"[wikipedia_service] Failed to parse embedding response: {exc}")
+    return None
+
+
+def _embed_text(text: str) -> Optional[np.ndarray]:
+    """Get a single text embedding from Gemini; returns None on failure."""
+    try:
+        client = _get_genai_client()
+        resp = client.models.embed_content(model=EMBEDDING_MODEL_NAME, contents=text)
+        vec = _extract_embedding_vector(resp)
+        return vec
+    except Exception as exc:
+        print(f"[wikipedia_service] Embedding error: {exc}")
+        return None
+
+
+def _embed_texts(texts: List[str]) -> List[Optional[np.ndarray]]:
+    """Embed a list of texts via Gemini. Returns list of vectors or None where failed."""
+    vectors: List[Optional[np.ndarray]] = []
+    for i, t in enumerate(texts):
+        vec = _embed_text(t)
+        vectors.append(vec)
+        # Optional light backoff to be gentle with rate limits
+        time.sleep(0.05)
+    return vectors
+
+
+def _normalize_relation(rel: str) -> str:
+    """Normalize various relationship spellings to canonical forms used internally.
+
+    Canonical outputs:
+    - "is child of"
+    - "is a dialect of"
+    - "belongs to family"
+    - "descends from"
+    Other relations are returned as-is (lowercased trimmed) to avoid accidental inversion.
+    """
+    r = rel.strip().lower()
+    # unify common child-of variants (e.g., "child of", "is a child of", case-insensitive)
+    if "child" in r and "of" in r:
+        return "is child of"
+    # unify dialect-of
+    if "dialect" in r and "of" in r:
+        return "is a dialect of"
+    # unify belongs-to-family
+    if "belongs" in r and "family" in r:
+        return "belongs to family"
+    # unify descend(s) from / posterior forms
+    if "descend" in r:
+        return "descends from"
+    if "posterior forms" in r:
+        return "descends from"
+    return r
 
 
 def _coerce_to_triples(graph_like: Optional[Sequence]) -> List[Tuple[str, str, str]]:
@@ -102,13 +291,15 @@ def _coerce_to_triples(graph_like: Optional[Sequence]) -> List[Tuple[str, str, s
         try:
             if isinstance(item, dict):
                 c = str(item.get("language1", "")).strip()
-                r = str(item.get("relationship", "")).strip()
+                r_raw = str(item.get("relationship", "")).strip()
                 p = str(item.get("language2", "")).strip()
-                if c and r and p:
+                if c and r_raw and p:
+                    r = _normalize_relation(r_raw)
                     triples.append((c, r, p))
             elif isinstance(item, (list, tuple)) and len(item) == 3:
-                c, r, p = str(item[0]).strip(), str(item[1]).strip(), str(item[2]).strip()
-                if c and r and p:
+                c, r_raw, p = str(item[0]).strip(), str(item[1]).strip(), str(item[2]).strip()
+                if c and r_raw and p:
+                    r = _normalize_relation(r_raw)
                     triples.append((c, r, p))
         except Exception:
             # ignore malformed entries
@@ -150,6 +341,44 @@ def fetch_wikitext(title: str, headers: Optional[dict] = None, max_retries: int 
             else:
                 print(f"[wikipedia_service] Unexpected error fetching wikitext for {title}: {exc}")
     return ""
+
+
+def search_wikipedia_titles(query: str, limit: int = 10, headers: Optional[dict] = None) -> List[Dict[str, str]]:
+    """Search Wikipedia for page titles related to the query.
+
+    Returns a list of dictionaries with keys: title, snippet, url.
+    """
+    headers = headers or DEFAULT_HEADERS
+    if not query or not query.strip():
+        return []
+    try:
+        params = {
+            "action": "query",
+            "format": "json",
+            "list": "search",
+            "srsearch": query.strip(),
+            "srlimit": max(1, min(int(limit), 20)),
+            "utf8": 1,
+            "formatversion": 2,
+        }
+        resp = requests.get(WIKIPEDIA_API, params=params, headers=headers, timeout=15)
+        if resp.status_code != 200:
+            return []
+        data = resp.json() or {}
+        results = data.get("query", {}).get("search", []) or []
+        out: List[Dict[str, str]] = []
+        for r in results:
+            title = r.get("title")
+            snippet = r.get("snippet") or ""
+            if not title:
+                continue
+            url = f"https://en.wikipedia.org/wiki/{quote(title.replace(' ', '_'))}"
+            # Wikipedia search returns HTML snippets with tags; strip most basic tags
+            snippet_clean = re.sub(r"<.*?>", "", snippet)
+            out.append({"title": title, "snippet": snippet_clean, "url": url})
+        return out
+    except Exception:
+        return []
 
 
 def _template_name_matches(name: str) -> bool:
@@ -280,11 +509,12 @@ def extract_clean_sections(wikitext: str) -> Dict[str, str]:
 
 
 def select_relevant_chunks(sections: Dict[str, str], top_k: int = 20) -> str:
-    if not sections or embed_model is None:
-        print("[wikipedia_service] Embedding model unavailable or no sections to select from.")
+    if not sections:
         return ""
-    query = "Genetic language relationships, family trees,belongs to family,descends from,is a child of,part of, ancestry, dialects,early form of,influenced and historical linguistic evolution."
-    query_emb = embed_model.encode(query, normalize_embeddings=True)
+    query = (
+        "Genetic language relationships, family trees,belongs to family,descends from,is a child of,part of, ancestry, dialects,early form of,influenced and historical linguistic evolution."
+        
+    )
     chunks = [
         f"Section: {title}\n{paragraph.strip()}"
         for title, text in sections.items()
@@ -293,21 +523,54 @@ def select_relevant_chunks(sections: Dict[str, str], top_k: int = 20) -> str:
     ]
     if not chunks:
         return ""
-    chunk_embs = embed_model.encode(chunks, normalize_embeddings=True)
-    similarities = np.dot(chunk_embs, query_emb)
-    top_indices = np.argsort(similarities)[-top_k:]
-    return "\n\n".join(chunks[i] for i in top_indices if 0 <= i < len(chunks))
+
+    # Try remote embeddings via Gemini
+    q_vec = _embed_text(query)
+    c_vecs = _embed_texts(chunks) if q_vec is not None else []
+
+    if q_vec is not None and any(v is not None for v in c_vecs):
+        sims: List[Tuple[int, float]] = []
+        q_norm = np.linalg.norm(q_vec) + 1e-12
+        for idx, v in enumerate(c_vecs):
+            if v is None:
+                continue
+            sim = float(np.dot(v, q_vec) / ((np.linalg.norm(v) + 1e-12) * q_norm))
+            sims.append((idx, sim))
+        sims.sort(key=lambda x: x[1], reverse=True)
+        selected = [chunks[i] for i, _ in sims[:top_k]]
+        return "\n\n".join(selected)
+
+    # Fallback: simple keyword scoring if embeddings unavailable
+    print("[wikipedia_service] Falling back to keyword scoring for chunk selection.")
+    keywords = [
+        "belongs to family",
+        "descends from",
+        "child of",
+        "children",
+        "dialect",
+        "parent",
+        "ancestor",
+        "proto",
+        "branch",
+        "family",
+    ]
+    scored: List[Tuple[int, int]] = []
+    for i, chunk in enumerate(chunks):
+        score = sum(1 for kw in keywords if kw.lower() in chunk.lower())
+        scored.append((i, score))
+    scored.sort(key=lambda x: x[1], reverse=True)
+    selected = [chunks[i] for i, _ in scored[:top_k]]
+    return "\n\n".join(selected)
 
 
 def select_relevant_chunks_for_node(sections: Dict[str, str], node_label: str, top_k: int = 20) -> str:
     """Select text most relevant to immediate parent/children/siblings around a node label."""
-    if not sections or embed_model is None:
+    if not sections:
         return ""
-    keywords = (
-        f"{node_label}. immediate parent, immediate children, siblings, same parent, subgroup, branch, dialect, variety, belongs to family," \
-        " part of, member of, descendant of, child of."
+    query = (
+        f"{node_label}. immediate parent, immediate children, siblings, same parent, subgroup, branch, dialect, variety, "
+        "belongs to family, part of, member of, descendant of, child of."
     )
-    query_emb = embed_model.encode(keywords, normalize_embeddings=True)
     chunks = [
         f"Section: {title}\n{paragraph.strip()}"
         for title, text in sections.items()
@@ -316,10 +579,44 @@ def select_relevant_chunks_for_node(sections: Dict[str, str], node_label: str, t
     ]
     if not chunks:
         return ""
-    chunk_embs = embed_model.encode(chunks, normalize_embeddings=True)
-    similarities = np.dot(chunk_embs, query_emb)
-    top_indices = np.argsort(similarities)[-top_k:]
-    return "\n\n".join(chunks[i] for i in top_indices if 0 <= i < len(chunks))
+
+    q_vec = _embed_text(query)
+    c_vecs = _embed_texts(chunks) if q_vec is not None else []
+    if q_vec is not None and any(v is not None for v in c_vecs):
+        sims: List[Tuple[int, float]] = []
+        q_norm = np.linalg.norm(q_vec) + 1e-12
+        for idx, v in enumerate(c_vecs):
+            if v is None:
+                continue
+            sim = float(np.dot(v, q_vec) / ((np.linalg.norm(v) + 1e-12) * q_norm))
+            sims.append((idx, sim))
+        sims.sort(key=lambda x: x[1], reverse=True)
+        selected = [chunks[i] for i, _ in sims[:top_k]]
+        return "\n\n".join(selected)
+
+    # Fallback keyword approach
+    print("[wikipedia_service] Falling back to keyword scoring for node-specific chunk selection.")
+    node_keywords = [
+        node_label.lower(),
+        "parent",
+        "child",
+        "children",
+        "sibling",
+        "dialect",
+        "subgroup",
+        "branch",
+        "family",
+        "member",
+        "descendant",
+    ]
+    scored: List[Tuple[int, int]] = []
+    for i, chunk in enumerate(chunks):
+        text_l = chunk.lower()
+        score = sum(1 for kw in node_keywords if kw in text_l)
+        scored.append((i, score))
+    scored.sort(key=lambda x: x[1], reverse=True)
+    selected = [chunks[i] for i, _ in scored[:top_k]]
+    return "\n\n".join(selected)
 
 
 def parse_list_like_from_text(raw: str):
@@ -628,11 +925,14 @@ async def expand_node_in_graph(
     await _send_status(f"Initiating expansion for '{node_to_expand}'...", 0, websocket_manager, connection_id)
 
     # Coerce original_graph
+    print("[wikipedia_service] Coercing original graph data to triples... with \n")
+    print(original_graph)
     original_triples = _coerce_to_triples(original_graph)
-
+    print(f"[wikipedia_service] Original graph has {len(original_triples)} triples.")
     # Resolve node to page title
     await _send_status("Resolving node to Wikipedia page...", 5, websocket_manager, connection_id)
     resolved_title = await asyncio.to_thread(get_wikipedia_language_page_title, node_to_expand)
+    
     if not resolved_title:
         raise ValueError(f"Could not resolve a Wikipedia page for '{node_to_expand}'.")
     await _send_root_language(resolved_title, websocket_manager, connection_id)
@@ -662,16 +962,35 @@ async def expand_node_in_graph(
     )
 
     # Compute current immediate parent and children of the node from existing graph
+    # IMPORTANT: Always compute for the requested node_to_expand (not the resolved Wikipedia title),
+    # so we don't accidentally pivot to a different node when the page resolution is imperfect.
     current_parent_map, current_children_map = _build_relationship_graph([
         t for t in original_triples if t[1] == "is child of"
     ])
-    current_parent = current_parent_map.get(resolved_title)
-    current_children = sorted(list(current_children_map.get(resolved_title, set())))
+    # Try exact label first; if not present, try canonical label match using node_to_expand
+    lookup_label = node_to_expand
+    resolved_key = _canonical_label(node_to_expand)
+    graph_labels = (
+        set(current_parent_map.keys())
+        | set(current_children_map.keys())
+        | set(current_parent_map.values())
+    )
+    for lbl in graph_labels:
+        if _canonical_label(lbl) == resolved_key:
+            lookup_label = lbl
+            break
+    if lookup_label != node_to_expand:
+        print(
+            f"[wikipedia_service] Expansion target '{node_to_expand}' matched existing label '{lookup_label}' by canonicalization."
+        )
 
+    current_parent = current_parent_map.get(lookup_label)
+    current_children = sorted(list(current_children_map.get(lookup_label, set())))
+    print(f"[wikipedia_service] Current parent: {current_parent}, current children: {current_children}")
     # Ask LLM for only local neighborhood and return edges to attach
     newly_added_triples = await asyncio.to_thread(
         get_local_neighborhood_edges,
-        node_label=resolved_title,
+        node_label=node_to_expand,
         new_infobox_triples=new_infobox_processed,
         relevant_text=new_relevant_text,
         current_parent=current_parent,
@@ -683,7 +1002,7 @@ async def expand_node_in_graph(
 
     await _send_status(
         f"Expansion complete. Added {len(newly_added_triples)} relationship(s).",
-        95,
+        100,
         websocket_manager,
         connection_id,
     )
@@ -709,6 +1028,26 @@ def get_wikipedia_language_page_title(input_name: str) -> Optional[str]:
 
     if not results:
         return None
+
+    # Prefer exact title match (case-insensitive), ignoring underscores and extra spaces
+    norm_input = re.sub(r"\s+", " ", input_name.strip().replace("_", " ")).lower()
+    for entry in results:
+        title = entry.get("title")
+        if not title:
+            continue
+        norm_title = re.sub(r"\s+", " ", str(title).strip().replace("_", " ")).lower()
+        if norm_title == norm_input:
+            return title
+
+    # Prefer canonicalized match (strip common tokens like 'language(s)')
+    try:
+        canon_input = _canonical_label(input_name)
+        for entry in results:
+            title = entry.get("title")
+            if title and _canonical_label(str(title)) == canon_input:
+                return title
+    except Exception:
+        pass
 
     input_words = set(input_name.lower().split())
     best_match = None
@@ -1195,16 +1534,42 @@ async def fetch_language_relationships(
     depth: Optional[int],
     websocket_manager=None,
     connection_id: Optional[str] = None,
+    use_exact_title: bool = False,
 ) -> List[Dict[str, object]]:
     depth_desc = f"depth={depth}" if depth is not None else "full-tree"
     print(f"[wikipedia_service] Starting extraction for '{language_name}' ({depth_desc}).")
 
-    await _send_status("Resolving Wikipedia page title...", 5, websocket_manager, connection_id)
-    resolved_title = await asyncio.to_thread(get_wikipedia_language_page_title, language_name)
-    if not resolved_title:
-        raise ValueError(f"Unable to find a Wikipedia page for '{language_name}'")
-    print(f"[wikipedia_service] Resolved '{language_name}' to '{resolved_title}'.")
-    await _send_root_language(resolved_title, websocket_manager, connection_id)
+    if use_exact_title:
+        resolved_title = language_name.strip()
+        await _send_status(f"Using exact Wikipedia page title '{resolved_title}'...", 5, websocket_manager, connection_id)
+        print(f"[wikipedia_service] Using exact title for fetch: '{resolved_title}'.")
+        await _send_root_language(resolved_title, websocket_manager, connection_id)
+    else:
+        await _send_status("Resolving Wikipedia page title...", 5, websocket_manager, connection_id)
+        resolved_title = await asyncio.to_thread(get_wikipedia_language_page_title, language_name)
+        if not resolved_title:
+            raise ValueError(f"Unable to find a Wikipedia page for '{language_name}'")
+        print(f"[wikipedia_service] Resolved '{language_name}' to '{resolved_title}'.")
+        await _send_root_language(resolved_title, websocket_manager, connection_id)
+
+    # -----------------------------
+    # Cache check (by resolved/root title + depth)
+    # -----------------------------
+    try:
+        _graph_cache.clear_expired()
+    except Exception:
+        pass
+
+    cache_key = f"{_canonical_label(resolved_title)}|{'full' if depth is None else str(int(depth))}"
+    cached = _graph_cache.get(cache_key)
+    if isinstance(cached, list):
+        await _send_status("Cache hit: returning precomputed relationships.", 90, websocket_manager, connection_id)
+        if websocket_manager and connection_id:
+            await websocket_manager.send_json({"type": "relationships", "data": cached}, connection_id)
+        print(
+            f"[wikipedia_service] Cache hit for '{resolved_title}' ({depth_desc}); returning {len(cached)} relationships."
+        )
+        return cached
 
     await _send_status(f"Fetching Wikipedia content for '{resolved_title}'...", 15, websocket_manager, connection_id)
     wikitext = await asyncio.to_thread(fetch_wikitext, resolved_title)
@@ -1283,6 +1648,11 @@ async def fetch_language_relationships(
         f"[wikipedia_service] Completed extraction for '{resolved_title}' with "
         f"{len(relationships_payload)} relationships ({depth_desc})."
     )
+    # Store in cache for subsequent requests
+    try:
+        _graph_cache.set(cache_key, relationships_payload)
+    except Exception:
+        pass
     
 
     return relationships_payload

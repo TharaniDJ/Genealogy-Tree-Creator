@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { X, Users, Globe, MapPin, ExternalLink, Loader2 } from 'lucide-react';
+import useAuth from '@/hooks/useAuth';
 
 interface LanguageInfo {
   speakers?: string;
   iso_code?: string;
   distribution_map_url?: string;
+  short_description?: string;
 }
 
 interface LanguageDetailsSidebarProps {
@@ -27,26 +29,23 @@ const LanguageDetailsSidebar: React.FC<LanguageDetailsSidebarProps> = ({
   const [languageInfo, setLanguageInfo] = useState<LanguageInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { getToken } = useAuth();
 
-  useEffect(() => {
-    if (isOpen && qid) {
-      fetchLanguageInfo();
-    }
-  }, [isOpen, qid]);
-
-  const fetchLanguageInfo = async () => {
-    if (!qid) return;
-    
+  const fetchLanguageInfo = useCallback(async () => {
     setLoading(true);
     setError(null);
-    
     try {
-      const base = process.env.NEXT_PUBLIC_LANGUAGE_API_URL || 'http://localhost:8001';
-      const response = await fetch(`${base}/info/${qid}`);
+      const base = process.env.NEXT_PUBLIC_LANGUAGE_API_URL;
+      const url = qid
+        ? `${base}/info/${qid}`
+        : `${base}/info/by-name/${encodeURIComponent(languageName)}`;
+      const token = getToken?.();
+      const response = await fetch(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
       if (!response.ok) {
         throw new Error(`Failed to fetch language info: ${response.statusText}`);
       }
-      
       const data = await response.json();
       setLanguageInfo(data);
     } catch (err) {
@@ -55,7 +54,13 @@ const LanguageDetailsSidebar: React.FC<LanguageDetailsSidebarProps> = ({
     } finally {
       setLoading(false);
     }
-  };
+  }, [qid, languageName, getToken]);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchLanguageInfo();
+    }
+  }, [isOpen, fetchLanguageInfo]);
 
   const formatSpeakers = (speakers?: string) => {
     if (!speakers) return 'Unknown';
@@ -98,6 +103,9 @@ const LanguageDetailsSidebar: React.FC<LanguageDetailsSidebarProps> = ({
               {category && (
                 <p className="text-sm text-[#9CA3B5] mt-1">{humanizeCategory(category)}</p>
               )}
+              {languageInfo?.short_description && (
+                <p className="text-sm text-[#BFC6D4] mt-2 line-clamp-3">{languageInfo.short_description}</p>
+              )}
             </div>
             <button
               onClick={onClose}
@@ -109,14 +117,7 @@ const LanguageDetailsSidebar: React.FC<LanguageDetailsSidebarProps> = ({
 
           {/* Content */}
           <div className="flex-1 overflow-y-auto p-6">
-            {!qid ? (
-              <div className="flex items-center justify-center h-32 text-[#9CA3B5]">
-                <div className="text-center">
-                  <Globe className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                  <p>No Wikidata ID available</p>
-                </div>
-              </div>
-            ) : loading ? (
+            {loading ? (
               <div className="flex items-center justify-center h-32 text-[#9CA3B5]">
                 <div className="text-center">
                   <Loader2 className="w-8 h-8 mx-auto mb-2 animate-spin text-[#6B72FF]" />
@@ -186,6 +187,14 @@ const LanguageDetailsSidebar: React.FC<LanguageDetailsSidebarProps> = ({
                         </a>
                       </div>
                     )}
+                    {!qid && (
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center text-[#9CA3B5]">
+                          <Globe className="w-4 h-4 mr-2" />
+                          <span className="text-sm">Resolved by name (no Wikidata ID)</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -198,6 +207,7 @@ const LanguageDetailsSidebar: React.FC<LanguageDetailsSidebarProps> = ({
                     </h3>
                     
                     <div className="relative rounded-lg overflow-hidden bg-white/5">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={languageInfo.distribution_map_url}
                         alt={`Distribution map for ${languageName}`}

@@ -43,6 +43,8 @@ type LanguageNodeData = {
   meta?: string;
   category?: string;
   qid?: string;
+  // Raw type labels returned from classifier (e.g., ["language", "dialect"]) for persistence
+  types?: string[];
   onExpand?: () => void;
 };
 type LanguageRFNode = Node<LanguageNodeData>;
@@ -60,6 +62,9 @@ type RelationshipRecord = {
   language2_qid?: string;
   language1_category?: string;
   language2_category?: string;
+  // Persist raw classifier outputs as well
+  language1_types?: string[];
+  language2_types?: string[];
 };
 
 type SavedGraph = {
@@ -277,6 +282,19 @@ const LanguageTreePage = () => {
   const [loadingGraphs, setLoadingGraphs] = useState(false);
   const [savingGraph, setSavingGraph] = useState(false);
   const [isFullTreeMode, setIsFullTreeMode] = useState(false);
+  const [classifying, setClassifying] = useState(false);
+  // Wikipedia URL input
+  const [wikiUrl, setWikiUrl] = useState('');
+  // Title choices modal state
+  const [showTitleModal, setShowTitleModal] = useState(false);
+  const [titleChoices, setTitleChoices] = useState<{
+    query: string;
+    context: 'search' | 'expand_node' | 'fetch_full_tree';
+    depth?: number;
+    nodeLabel?: string;
+    results: { title: string; snippet?: string; url: string }[];
+    existingGraph?: RelationshipRecord[] | null;
+  } | null>(null);
 
   const { getNodes, fitView: fitViewApi } = useReactFlow();
   const reactFlowRef = useRef<HTMLDivElement>(null);
@@ -287,6 +305,7 @@ const LanguageTreePage = () => {
   const { messages, connectionStatus, connect, disconnect, sendMessage } = useWebSocket(wsUrl, { 
     token: getToken() 
   });
+  const httpBase = wsBase; // same base but http
 
   // Track which messages have been processed to avoid losing earlier batches when multiple arrive quickly.
   const lastProcessedIndexRef = useRef(0);
@@ -385,7 +404,7 @@ const LanguageTreePage = () => {
     sendMessage({ action: 'expand_by_qid', qid, depth: 1 });
   }, [sendMessage]);
   
-  // Build current relationships payload from edges + nodes' labels/qids/categories
+  // Build current relationships payload from edges + nodes' labels/qids/categories/types
   const buildRelationshipsPayload = useCallback((): RelationshipRecord[] => {
     const idToNode = new Map(nodes.map(n => [n.id, n] as const));
     // relationships: parent (source) -> child (target)
@@ -400,6 +419,8 @@ const LanguageTreePage = () => {
         language2_qid: parent?.data.qid,
         language1_category: child?.data.category,
         language2_category: parent?.data.category,
+        language1_types: child?.data.types,
+        language2_types: parent?.data.types,
       };
       return record;
     });
@@ -415,7 +436,7 @@ const LanguageTreePage = () => {
     sendMessage({ action: 'expand_node', label: name, existingGraph });
   }, [buildRelationshipsPayload, sendMessage]);
 
-  const ensureNode = useCallback((label: string, category?: string, qid?: string) => {
+  const ensureNode = useCallback((label: string, category?: string, qid?: string, types?: string[]) => {
     if (!label) return null;
     const map = labelToIdRef.current;
     if (map.has(label)) return map.get(label)!;
@@ -441,6 +462,9 @@ const LanguageTreePage = () => {
           if (qid && !n.data.qid) {
             updates.qid = qid;
           }
+          if (types && (!n.data.types || n.data.types.length === 0)) {
+            updates.types = types;
+          }
           return Object.keys(updates).length > 0 ? { ...n, data: { ...n.data, ...updates } } : n;
         });
       }
@@ -451,6 +475,7 @@ const LanguageTreePage = () => {
           category, 
           meta: category ? humanizeCategory(category) : undefined,
           qid,
+          types,
           // Always provide expand by label so every node can be expanded
           onExpand: () => expandNodeByLabel(label)
         }, 
@@ -585,6 +610,26 @@ const LanguageTreePage = () => {
       // ignore errors when no nodes are present
     }
   }, [fitViewApi]);
+
+  // Ask backend for suggestions explicitly
+  const requestSuggestions = useCallback((q: string, ctx: 'search' | 'expand_node', d?: number, existingGraph?: RelationshipRecord[] | null, nodeLabel?: string) => {
+    if (!q || !q.trim()) return;
+    setStatus('Looking up Wikipedia pages...');
+    setProgress(0);
+    sendMessage({ action: 'suggest_titles', query: q.trim(), context: ctx, depth: d, existingGraph, nodeLabel });
+  }, [sendMessage]);
+
+  // Start from a Wikipedia URL
+  const handleUseUrl = useCallback(() => {
+    const url = (wikiUrl || '').trim();
+    if (!url) {
+      setStatus('Please paste a Wikipedia URL.');
+      return;
+    }
+    setStatus('Starting from Wikipedia URL...');
+    setProgress(0);
+    sendMessage({ action: 'start_with_url', url, context: 'search', depth });
+  }, [wikiUrl, depth, sendMessage]);
 
   // Process streaming messages from backend (status, relationship, complete, error)
   useEffect(() => {
@@ -736,17 +781,49 @@ const LanguageTreePage = () => {
             try { handleFitView(); } catch { /* no-op */ }
           }, 250);
           break; }
+        case 'title_choices': {
+          // { query, context, depth?, nodeLabel?, results: [{title, snippet, url}], existingGraph? }
+          if (!data) break;
+          const query = typeof data.query === 'string' ? data.query : '';
+          const contextValue = typeof data.context === 'string' ? data.context : 'search';
+          const context: 'search' | 'expand_node' | 'fetch_full_tree' =
+            contextValue === 'expand_node' ? 'expand_node' : contextValue === 'fetch_full_tree' ? 'fetch_full_tree' : 'search';
+          const d = typeof data.depth === 'number' ? data.depth : undefined;
+          const nodeLabel = typeof data.nodeLabel === 'string' ? data.nodeLabel : undefined;
+          const existingGraph = Array.isArray(data.existingGraph) ? (data.existingGraph as unknown as RelationshipRecord[]) : null;
+          const results = Array.isArray(data.results)
+            ? (data.results as unknown[])
+                .map((r) => {
+                  const rec = isRecord(r) ? (r as Record<string, unknown>) : undefined;
+                  return {
+                    title: rec && typeof rec.title === 'string' ? rec.title : '',
+                    snippet: rec && typeof rec.snippet === 'string' ? rec.snippet : '',
+                    url: rec && typeof rec.url === 'string' ? rec.url : ''
+                  };
+                })
+                .filter((r) => r.title)
+            : [];
+          setTitleChoices({ query, context, depth: d, nodeLabel, results, existingGraph });
+          setShowTitleModal(true);
+          setStatus(`Select the correct Wikipedia page for "${query}"`);
+          setProgress(0);
+          break; }
         case 'error': {
           const messageText = data && typeof data.message === 'string' ? data.message : 'Unknown error';
           setStatus(`Error: ${messageText}`);
           setProgress(100);
+          // If it looks like a missing or ambiguous title, auto-suggest
+          const msgLower = (messageText || '').toLowerCase();
+          if (/wikipedia|title|not\s*found|no\s*page/.test(msgLower)) {
+            requestSuggestions(language, 'search', depth);
+          }
           break; }
         default:
           break;
       }
     }
     lastProcessedIndexRef.current = messages.length;
-  }, [messages, autoLayoutOnComplete, layout, ensureNode, setEdges, createEdge, expandNodeByQid, humanizeCategory, setNodes, expandNodeByLabel, canonical, nodes, handleFitView]);
+  }, [messages, autoLayoutOnComplete, layout, ensureNode, setEdges, createEdge, expandNodeByQid, humanizeCategory, setNodes, expandNodeByLabel, canonical, nodes, handleFitView, requestSuggestions, language, depth]);
 
   const resetGraphState = useCallback((statusMessage: string) => {
     setNodes([]);
@@ -783,6 +860,93 @@ const LanguageTreePage = () => {
     layout(dir);
   };
 
+  // Classify current node labels using backend batch endpoint (<=50 per call)
+  const classifyRelationships = useCallback(async () => {
+    if (nodes.length === 0) {
+      alert('No nodes to classify. Add or fetch some languages first.');
+      return;
+    }
+    if (classifying) return;
+    setClassifying(true);
+    try {
+      const uniqueLabels = Array.from(new Set(nodes.map(n => (n.data.label || '').trim()).filter(Boolean)));
+      const chunkSize = 50;
+      let processed = 0;
+      const chooseCategory = (types?: string[]): string | undefined => {
+        if (!types || !types.length) return undefined;
+        const tset = new Set(types.map(t => t.toLowerCase().replace(/\s+/g, '_')));
+        if (tset.has('language_family')) return 'language_family';
+        if (tset.has('proto_language')) return 'proto_language';
+        
+        if (tset.has('sign_language')) return 'sign_language';
+        if (tset.has('creole_language')) return 'creole_language';
+        if (tset.has('pidgin_language')) return 'pidgin_language';
+        if (tset.has('extinct_language')) return 'extinct_language';
+        if (tset.has('dead_language')) return 'dead_language';
+        
+        if (tset.has('modern_language')) return 'modern_language';
+        if (tset.has('historical_language')) return 'historical_language';
+        if (tset.has('ancient_language')) return 'ancient_language';
+        if (tset.has('dialect')) return 'dialect';
+        if (tset.has('language')) return 'language';
+        return undefined;
+      };
+
+      for (let i = 0; i < uniqueLabels.length; i += chunkSize) {
+        const batch = uniqueLabels.slice(i, i + chunkSize);
+        setStatus(`Classifying languages ${i + 1}-${Math.min(i + batch.length, uniqueLabels.length)} of ${uniqueLabels.length}...`);
+        setProgress(Math.round(((i) / uniqueLabels.length) * 100));
+        const token = getToken();
+        if (!token) {
+        router.push('/login');
+        return;
+        }
+        const resp = await fetch(`${httpBase}/classify/languages`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json','Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ names: batch })
+        });
+        if (!resp.ok) {
+          const err = await resp.text();
+          throw new Error(err || 'Classification request failed');
+        }
+  const data: Record<string, { qid?: string; types?: string[] } | null> = await resp.json();
+        // Update nodes with qids, raw types, and inferred categories (non-destructive: don't overwrite existing category)
+        setNodes(prev => prev.map(n => {
+          const lbl = n.data.label;
+          if (!batch.includes(lbl)) return n;
+          const res = data[lbl];
+          const updates: Partial<LanguageNodeData> = {};
+          if (res && res.qid && n.data.qid !== res.qid) updates.qid = res.qid;
+          if (res && res.types && res.types.length) updates.types = res.types;
+          if (!res || !res.types || res.types.length === 0) {
+            // No type resolved: mark as unresolved
+            updates.category = 'unresolved';
+            updates.meta = 'Unresolved';
+          } else {
+            const inferredCat = chooseCategory(res.types);
+            if (inferredCat) {
+              updates.category = inferredCat;
+              updates.meta = humanizeCategory(inferredCat);
+            }
+          }
+          return Object.keys(updates).length ? { ...n, data: { ...n.data, ...updates } } : n;
+        }));
+        processed += batch.length;
+        setProgress(Math.round((processed / uniqueLabels.length) * 100));
+      }
+      setStatus('Classification complete');
+      // Optional: relayout if categories changed visual sizing
+      setTimeout(() => layout(), 0);
+    } catch (err) {
+      console.error('Classification error:', err);
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      setStatus(`Classification error: ${msg}`);
+    } finally {
+      setClassifying(false);
+    }
+  }, [classifying, httpBase, humanizeCategory, layout, nodes, setNodes, setStatus, setProgress, getToken, router]);
+
   
   // (Save graph removed for now to reduce lint noise; can be reintroduced in toolbar when needed)
 
@@ -815,7 +979,7 @@ const LanguageTreePage = () => {
     });
   }, [edges, selectedNodeId]);
 
-  // Handle node click to open sidebar
+  // Handle node click: only select/deselect, do not auto-open sidebar
   const handleNodeClick = useCallback((event: React.MouseEvent, node: LanguageRFNode) => {
     setSelectedNodeId(prev => prev === node.id ? null : node.id);
     setSelectedLanguage({
@@ -823,7 +987,7 @@ const LanguageTreePage = () => {
       qid: node.data.qid,
       category: node.data.category
     });
-    setSidebarOpen(true);
+    // Sidebar opening is now controlled via toolbar button
   }, []);
 
   const handleCloseSidebar = useCallback(() => {
@@ -1018,15 +1182,15 @@ const LanguageTreePage = () => {
       resetGraphState(`Loading "${graph.graph_name}"...`);
       
       // Rebuild graph from saved data
-      const relationships = graph.graph_data as RelationshipRecord[];
+  const relationships = graph.graph_data as RelationshipRecord[];
       
       relationships.forEach((rel: RelationshipRecord) => {
         const parentLabel = rel.language2;
         const childLabel = rel.language1;
         
         if (parentLabel && childLabel) {
-          const parentId = ensureNode(parentLabel, rel.language2_category, rel.language2_qid);
-          const childId = ensureNode(childLabel, rel.language1_category, rel.language1_qid);
+          const parentId = ensureNode(parentLabel, rel.language2_category, rel.language2_qid, rel.language2_types);
+          const childId = ensureNode(childLabel, rel.language1_category, rel.language1_qid, rel.language1_types);
           
           if (parentId && childId) {
             const edgeId = `e-${parentId}-${childId}`;
@@ -1176,6 +1340,22 @@ const LanguageTreePage = () => {
               </div>
             </div>
 
+            {/* OR paste Wikipedia URL */}
+            <div className="flex-1 min-w-64">
+              <div className="relative">
+                <input
+                  type="url"
+                  value={wikiUrl}
+                  onChange={(e) => setWikiUrl(e.target.value)}
+                  placeholder="Or paste a Wikipedia URL (e.g., https://en.wikipedia.org/wiki/English_language)"
+                  className="w-full px-4 py-3 pl-10 backdrop-blur-lg bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#6B72FF]/50 focus:border-[#6B72FF] transition-all duration-200 shadow-sm hover:shadow-md text-[#F5F7FA] placeholder-[#9CA3B5]"
+                />
+                <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#9CA3B5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 010 5.656l-2 2a4 4 0 11-5.656-5.656l1-1M10.172 13.828a4 4 0 010-5.656l2-2a4 4 0 115.656 5.656l-1 1" />
+                </svg>
+              </div>
+            </div>
+
             {/* Depth Input */}
             <div className="w-24">
               <input 
@@ -1214,6 +1394,24 @@ const LanguageTreePage = () => {
                 </svg>
                 <span>{connectionStatus === 'connected' ? 'Explore Full Tree' : 'Connecting...'}</span>
               </div>
+            </button>
+
+            {/* Use URL Button */}
+            <button 
+              onClick={handleUseUrl}
+              disabled={connectionStatus !== 'connected' || !wikiUrl.trim()}
+              className="px-6 py-3 bg-white/5 hover:bg-white/10 disabled:bg-white/5 text-[#F5F7FA] font-medium rounded-xl transition-all duration-200 border border-white/10 disabled:cursor-not-allowed"
+            >
+              Use URL
+            </button>
+
+            {/* Find Pages Button */}
+            <button 
+              onClick={() => requestSuggestions(language, 'search', depth)}
+              disabled={connectionStatus !== 'connected' || !language.trim()}
+              className="px-6 py-3 bg-white/5 hover:bg-white/10 disabled:bg-white/5 text-[#F5F7FA] font-medium rounded-xl transition-all duration-200 border border-white/10 disabled:cursor-not-allowed"
+            >
+              Find Pages
             </button>
 
             {/* Layout Controls */}
@@ -1277,24 +1475,23 @@ const LanguageTreePage = () => {
 
         {/* Horizontal Status Bar (collapsible) */}
         {!isStatusCollapsed && (
-          <div className="absolute w-6/12 top-4 left-4 z-10 backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl shadow-lg">
+          <div className="absolute w-fit top-4 left-4 z-10 backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl shadow-lg">
             <div className="px-6 py-3 relative">
-              <button
-                onClick={() => { setIsStatusCollapsed(true); setStatusPinnedOpen(false); }}
-                className="absolute top-2 right-2  px-2 py-1 rounded bg-white/10 hover:bg-white/20 text-[#F5F7FA] border border-white/10"
-                title="Hide status"
-              >
-                Hide
-              </button>
-
               <div className="space-y-2">
-                <div className="flex items-start space-x-2">
+                <div className="flex items-center space-x-2">
                   {connectionStatus === 'connecting' && (
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#8B7BFF]"></div>
                   )}
                   <span className=" w-full font-medium text-[#F5F7FA] flex-1 min-w-0 whitespace-pre-wrap break-words">
                     {status || (connectionStatus === 'connected' ? 'Idle' : 'Connecting...')}
                   </span>
+                  <button
+                    onClick={() => { setIsStatusCollapsed(true); setStatusPinnedOpen(false); }}
+                    className="px-2 py-1 rounded bg-white/10 hover:bg-white/20 text-[#F5F7FA] border border-white/10"
+                    title="Hide status"
+                  >
+                    Hide
+                  </button>
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -1395,6 +1592,14 @@ const LanguageTreePage = () => {
               Edit
             </button>
             <button
+              onClick={() => selectedNodeId && setSidebarOpen(true)}
+              disabled={!selectedNodeId}
+              className={`px-3 py-2  rounded-lg transition-all shadow ${selectedNodeId ? 'backdrop-blur-lg bg-white/5 text-[#F5F7FA] hover:bg-[#6B72FF]/20 border border-white/10' : 'bg-white/5 text-[#9CA3B5] border border-white/10 cursor-not-allowed opacity-50'}`}
+              title="Open details sidebar for selected node"
+            >
+              View Info
+            </button>
+            <button
               onClick={deleteSelectedNode}
               disabled={!selectedNodeId}
               className={`px-3 py-2  rounded-lg transition-all shadow ${selectedNodeId ? 'bg-rose-600/80 text-white hover:bg-rose-600 hover:scale-105' : 'bg-white/5 text-[#9CA3B5] border border-white/10 cursor-not-allowed opacity-50'}`}
@@ -1431,6 +1636,15 @@ const LanguageTreePage = () => {
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 19a2 2 0 01-2-2V7a2 2 0 012-2h4l2 2h4a2 2 0 012 2v1M5 19h14a2 2 0 002-2v-5a2 2 0 00-2-2H9a2 2 0 00-2 2v5a2 2 0 01-2 2z" />
               </svg>
+            </button>
+            <div className="w-px h-6 bg-white/10 mx-1" />
+            <button
+              onClick={classifyRelationships}
+              disabled={nodes.length === 0 || classifying}
+              title="Classify Relationships"
+              className={`px-3 py-2 rounded-lg transition-all shadow ${nodes.length && !classifying ? 'backdrop-blur-lg bg-white/5 text-[#F5F7FA] hover:bg-[#6B72FF]/20 border border-white/10 hover:scale-105' : 'bg-white/5 text-[#9CA3B5] border border-white/10 cursor-not-allowed opacity-50'}`}
+            >
+              {classifying ? 'Classifying…' : 'Classify Relationships'}
             </button>
             <div className="w-px h-6 bg-white/10 mx-1" />
             <button
@@ -1532,6 +1746,111 @@ const LanguageTreePage = () => {
         </div>
       )}
 
+      {/* Title Choices Modal */}
+      {showTitleModal && titleChoices && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-[#1E1F2E] border border-white/10 rounded-2xl shadow-2xl max-w-3xl w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-[#F5F7FA]">Choose the correct Wikipedia page</h2>
+              <button
+                onClick={() => { setShowTitleModal(false); setTitleChoices(null); }}
+                className="text-[#9CA3B5] hover:text-[#F5F7FA] transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <p className="text-sm text-[#9CA3B5] mb-4">We couldn&apos;t match &quot;{titleChoices.query}&quot; exactly. Pick one of the top results below, or paste a specific URL.</p>
+
+            {/* Quick URL input inside modal */}
+            <div className="flex items-center gap-2 mb-6">
+              <input
+                type="url"
+                value={wikiUrl}
+                onChange={(e) => setWikiUrl(e.target.value)}
+                placeholder="Wikipedia URL (e.g., https://en.wikipedia.org/wiki/English_language)"
+                className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6B72FF] text-[#F5F7FA] placeholder-[#9CA3B5]"
+              />
+              <button
+                onClick={() => {
+                  const url = (wikiUrl || '').trim();
+                  if (!url || !titleChoices) return;
+                  const payload: Record<string, unknown> = { action: 'start_with_url', url, context: titleChoices.context };
+                  if (titleChoices.context === 'search') payload.depth = typeof titleChoices.depth === 'number' ? titleChoices.depth : depth;
+                  if (titleChoices.context === 'expand_node') {
+                    payload.existingGraph = titleChoices.existingGraph || buildRelationshipsPayload();
+                    if (titleChoices.nodeLabel) payload.nodeLabel = titleChoices.nodeLabel;
+                  }
+                  setShowTitleModal(false);
+                  setTitleChoices(null);
+                  setStatus('Using Wikipedia URL...');
+                  setProgress(0);
+                  sendMessage(payload);
+                }}
+                disabled={!wikiUrl.trim()}
+                className="px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-[#F5F7FA] rounded-lg transition-all disabled:opacity-50"
+              >
+                Use URL
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto pr-1">
+              {titleChoices.results.map((r, idx) => (
+                <div key={`${r.title}-${idx}`} className="bg-white/5 border border-white/10 rounded-xl p-4 hover:bg-white/10 transition-all">
+                  <div className="flex items-start justify-between">
+                    <div className="pr-3">
+                      <h3 className="text-[#F5F7FA] font-semibold">{r.title}</h3>
+                      {r.snippet && <p className="text-sm text-[#9CA3B5] mt-2 line-clamp-3">{r.snippet}</p>}
+                      <a href={r.url} target="_blank" rel="noreferrer" className="text-xs text-[#8B7BFF] hover:underline mt-2 inline-block">Open Wikipedia</a>
+                    </div>
+                    <button
+                      onClick={() => {
+                        // Choose this title
+                        const chooseTitle = (title: string) => {
+                          const payload: Record<string, unknown> = { action: 'choose_title', title, context: titleChoices.context };
+                          if (titleChoices.context === 'search') {
+                            payload.depth = typeof titleChoices.depth === 'number' ? titleChoices.depth : depth;
+                          } else if (titleChoices.context === 'expand_node') {
+                            payload.existingGraph = titleChoices.existingGraph || buildRelationshipsPayload();
+                            if (titleChoices.nodeLabel) payload.nodeLabel = titleChoices.nodeLabel;
+                          } else if (titleChoices.context === 'fetch_full_tree') {
+                            // No extra fields; backend will do a full-tree fetch (depth=None)
+                          }
+                          setShowTitleModal(false);
+                          setTitleChoices(null);
+                          setStatus(`Using "${title}"...`);
+                          setProgress(0);
+                          sendMessage(payload);
+                        };
+                        chooseTitle(r.title);
+                      }}
+                      className="px-3 py-2 bg-gradient-to-r from-[#6B72FF] to-[#8B7BFF] text-white rounded-lg hover:scale-105 transition-all shadow-lg shadow-[#6B72FF]/30"
+                    >
+                      Use
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {titleChoices.results.length === 0 && (
+              <div className="text-center py-10 text-[#9CA3B5]">No results from Wikipedia search.</div>
+            )}
+
+            <div className="mt-6">
+              <button
+                onClick={() => { setShowTitleModal(false); setTitleChoices(null); }}
+                className="w-full px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-[#F5F7FA] rounded-lg transition-all"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Load Graph Modal */}
       {showLoadModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -1627,7 +1946,8 @@ const LanguageTreePage = () => {
           66% { transform: translate(-20px, 20px) scale(0.9); }
         }
         .animate-blob {
-          animation: blob 7s infinite;
+          /* Animation disabled for performance */
+          animation: none;
         }
         .animation-delay-2000 {
           animation-delay: 2s;
