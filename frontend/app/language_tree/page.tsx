@@ -283,6 +283,18 @@ const LanguageTreePage = () => {
   const [savingGraph, setSavingGraph] = useState(false);
   const [isFullTreeMode, setIsFullTreeMode] = useState(false);
   const [classifying, setClassifying] = useState(false);
+  // Wikipedia URL input
+  const [wikiUrl, setWikiUrl] = useState('');
+  // Title choices modal state
+  const [showTitleModal, setShowTitleModal] = useState(false);
+  const [titleChoices, setTitleChoices] = useState<{
+    query: string;
+    context: 'search' | 'expand_node' | 'fetch_full_tree';
+    depth?: number;
+    nodeLabel?: string;
+    results: { title: string; snippet?: string; url: string }[];
+    existingGraph?: RelationshipRecord[] | null;
+  } | null>(null);
 
   const { getNodes, fitView: fitViewApi } = useReactFlow();
   const reactFlowRef = useRef<HTMLDivElement>(null);
@@ -599,6 +611,26 @@ const LanguageTreePage = () => {
     }
   }, [fitViewApi]);
 
+  // Ask backend for suggestions explicitly
+  const requestSuggestions = useCallback((q: string, ctx: 'search' | 'expand_node', d?: number, existingGraph?: RelationshipRecord[] | null, nodeLabel?: string) => {
+    if (!q || !q.trim()) return;
+    setStatus('Looking up Wikipedia pages...');
+    setProgress(0);
+    sendMessage({ action: 'suggest_titles', query: q.trim(), context: ctx, depth: d, existingGraph, nodeLabel });
+  }, [sendMessage]);
+
+  // Start from a Wikipedia URL
+  const handleUseUrl = useCallback(() => {
+    const url = (wikiUrl || '').trim();
+    if (!url) {
+      setStatus('Please paste a Wikipedia URL.');
+      return;
+    }
+    setStatus('Starting from Wikipedia URL...');
+    setProgress(0);
+    sendMessage({ action: 'start_with_url', url, context: 'search', depth });
+  }, [wikiUrl, depth, sendMessage]);
+
   // Process streaming messages from backend (status, relationship, complete, error)
   useEffect(() => {
     if (!messages.length) return;
@@ -749,17 +781,49 @@ const LanguageTreePage = () => {
             try { handleFitView(); } catch { /* no-op */ }
           }, 250);
           break; }
+        case 'title_choices': {
+          // { query, context, depth?, nodeLabel?, results: [{title, snippet, url}], existingGraph? }
+          if (!data) break;
+          const query = typeof data.query === 'string' ? data.query : '';
+          const contextValue = typeof data.context === 'string' ? data.context : 'search';
+          const context: 'search' | 'expand_node' | 'fetch_full_tree' =
+            contextValue === 'expand_node' ? 'expand_node' : contextValue === 'fetch_full_tree' ? 'fetch_full_tree' : 'search';
+          const d = typeof data.depth === 'number' ? data.depth : undefined;
+          const nodeLabel = typeof data.nodeLabel === 'string' ? data.nodeLabel : undefined;
+          const existingGraph = Array.isArray(data.existingGraph) ? (data.existingGraph as unknown as RelationshipRecord[]) : null;
+          const results = Array.isArray(data.results)
+            ? (data.results as unknown[])
+                .map((r) => {
+                  const rec = isRecord(r) ? (r as Record<string, unknown>) : undefined;
+                  return {
+                    title: rec && typeof rec.title === 'string' ? rec.title : '',
+                    snippet: rec && typeof rec.snippet === 'string' ? rec.snippet : '',
+                    url: rec && typeof rec.url === 'string' ? rec.url : ''
+                  };
+                })
+                .filter((r) => r.title)
+            : [];
+          setTitleChoices({ query, context, depth: d, nodeLabel, results, existingGraph });
+          setShowTitleModal(true);
+          setStatus(`Select the correct Wikipedia page for "${query}"`);
+          setProgress(0);
+          break; }
         case 'error': {
           const messageText = data && typeof data.message === 'string' ? data.message : 'Unknown error';
           setStatus(`Error: ${messageText}`);
           setProgress(100);
+          // If it looks like a missing or ambiguous title, auto-suggest
+          const msgLower = (messageText || '').toLowerCase();
+          if (/wikipedia|title|not\s*found|no\s*page/.test(msgLower)) {
+            requestSuggestions(language, 'search', depth);
+          }
           break; }
         default:
           break;
       }
     }
     lastProcessedIndexRef.current = messages.length;
-  }, [messages, autoLayoutOnComplete, layout, ensureNode, setEdges, createEdge, expandNodeByQid, humanizeCategory, setNodes, expandNodeByLabel, canonical, nodes, handleFitView]);
+  }, [messages, autoLayoutOnComplete, layout, ensureNode, setEdges, createEdge, expandNodeByQid, humanizeCategory, setNodes, expandNodeByLabel, canonical, nodes, handleFitView, requestSuggestions, language, depth]);
 
   const resetGraphState = useCallback((statusMessage: string) => {
     setNodes([]);
@@ -1276,6 +1340,22 @@ const LanguageTreePage = () => {
               </div>
             </div>
 
+            {/* OR paste Wikipedia URL */}
+            <div className="flex-1 min-w-64">
+              <div className="relative">
+                <input
+                  type="url"
+                  value={wikiUrl}
+                  onChange={(e) => setWikiUrl(e.target.value)}
+                  placeholder="Or paste a Wikipedia URL (e.g., https://en.wikipedia.org/wiki/English_language)"
+                  className="w-full px-4 py-3 pl-10 backdrop-blur-lg bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#6B72FF]/50 focus:border-[#6B72FF] transition-all duration-200 shadow-sm hover:shadow-md text-[#F5F7FA] placeholder-[#9CA3B5]"
+                />
+                <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#9CA3B5]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 010 5.656l-2 2a4 4 0 11-5.656-5.656l1-1M10.172 13.828a4 4 0 010-5.656l2-2a4 4 0 115.656 5.656l-1 1" />
+                </svg>
+              </div>
+            </div>
+
             {/* Depth Input */}
             <div className="w-24">
               <input 
@@ -1314,6 +1394,24 @@ const LanguageTreePage = () => {
                 </svg>
                 <span>{connectionStatus === 'connected' ? 'Explore Full Tree' : 'Connecting...'}</span>
               </div>
+            </button>
+
+            {/* Use URL Button */}
+            <button 
+              onClick={handleUseUrl}
+              disabled={connectionStatus !== 'connected' || !wikiUrl.trim()}
+              className="px-6 py-3 bg-white/5 hover:bg-white/10 disabled:bg-white/5 text-[#F5F7FA] font-medium rounded-xl transition-all duration-200 border border-white/10 disabled:cursor-not-allowed"
+            >
+              Use URL
+            </button>
+
+            {/* Find Pages Button */}
+            <button 
+              onClick={() => requestSuggestions(language, 'search', depth)}
+              disabled={connectionStatus !== 'connected' || !language.trim()}
+              className="px-6 py-3 bg-white/5 hover:bg-white/10 disabled:bg-white/5 text-[#F5F7FA] font-medium rounded-xl transition-all duration-200 border border-white/10 disabled:cursor-not-allowed"
+            >
+              Find Pages
             </button>
 
             {/* Layout Controls */}
@@ -1642,6 +1740,111 @@ const LanguageTreePage = () => {
                 className="flex-1 px-4 py-3 bg-gradient-to-r from-[#6B72FF] to-[#8B7BFF] hover:from-[#7B82FF] hover:to-[#9B8BFF] disabled:from-gray-600 disabled:to-gray-700 text-white rounded-lg transition-all disabled:cursor-not-allowed shadow-lg"
               >
                 {savingGraph ? 'Saving...' : 'Save Graph'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Title Choices Modal */}
+      {showTitleModal && titleChoices && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-[#1E1F2E] border border-white/10 rounded-2xl shadow-2xl max-w-3xl w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-[#F5F7FA]">Choose the correct Wikipedia page</h2>
+              <button
+                onClick={() => { setShowTitleModal(false); setTitleChoices(null); }}
+                className="text-[#9CA3B5] hover:text-[#F5F7FA] transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <p className="text-sm text-[#9CA3B5] mb-4">We couldn&apos;t match &quot;{titleChoices.query}&quot; exactly. Pick one of the top results below, or paste a specific URL.</p>
+
+            {/* Quick URL input inside modal */}
+            <div className="flex items-center gap-2 mb-6">
+              <input
+                type="url"
+                value={wikiUrl}
+                onChange={(e) => setWikiUrl(e.target.value)}
+                placeholder="Wikipedia URL (e.g., https://en.wikipedia.org/wiki/English_language)"
+                className="flex-1 px-4 py-3 bg-white/5 border border-white/10 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#6B72FF] text-[#F5F7FA] placeholder-[#9CA3B5]"
+              />
+              <button
+                onClick={() => {
+                  const url = (wikiUrl || '').trim();
+                  if (!url || !titleChoices) return;
+                  const payload: Record<string, unknown> = { action: 'start_with_url', url, context: titleChoices.context };
+                  if (titleChoices.context === 'search') payload.depth = typeof titleChoices.depth === 'number' ? titleChoices.depth : depth;
+                  if (titleChoices.context === 'expand_node') {
+                    payload.existingGraph = titleChoices.existingGraph || buildRelationshipsPayload();
+                    if (titleChoices.nodeLabel) payload.nodeLabel = titleChoices.nodeLabel;
+                  }
+                  setShowTitleModal(false);
+                  setTitleChoices(null);
+                  setStatus('Using Wikipedia URL...');
+                  setProgress(0);
+                  sendMessage(payload);
+                }}
+                disabled={!wikiUrl.trim()}
+                className="px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-[#F5F7FA] rounded-lg transition-all disabled:opacity-50"
+              >
+                Use URL
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto pr-1">
+              {titleChoices.results.map((r, idx) => (
+                <div key={`${r.title}-${idx}`} className="bg-white/5 border border-white/10 rounded-xl p-4 hover:bg-white/10 transition-all">
+                  <div className="flex items-start justify-between">
+                    <div className="pr-3">
+                      <h3 className="text-[#F5F7FA] font-semibold">{r.title}</h3>
+                      {r.snippet && <p className="text-sm text-[#9CA3B5] mt-2 line-clamp-3">{r.snippet}</p>}
+                      <a href={r.url} target="_blank" rel="noreferrer" className="text-xs text-[#8B7BFF] hover:underline mt-2 inline-block">Open Wikipedia</a>
+                    </div>
+                    <button
+                      onClick={() => {
+                        // Choose this title
+                        const chooseTitle = (title: string) => {
+                          const payload: Record<string, unknown> = { action: 'choose_title', title, context: titleChoices.context };
+                          if (titleChoices.context === 'search') {
+                            payload.depth = typeof titleChoices.depth === 'number' ? titleChoices.depth : depth;
+                          } else if (titleChoices.context === 'expand_node') {
+                            payload.existingGraph = titleChoices.existingGraph || buildRelationshipsPayload();
+                            if (titleChoices.nodeLabel) payload.nodeLabel = titleChoices.nodeLabel;
+                          } else if (titleChoices.context === 'fetch_full_tree') {
+                            // No extra fields; backend will do a full-tree fetch (depth=None)
+                          }
+                          setShowTitleModal(false);
+                          setTitleChoices(null);
+                          setStatus(`Using "${title}"...`);
+                          setProgress(0);
+                          sendMessage(payload);
+                        };
+                        chooseTitle(r.title);
+                      }}
+                      className="px-3 py-2 bg-gradient-to-r from-[#6B72FF] to-[#8B7BFF] text-white rounded-lg hover:scale-105 transition-all shadow-lg shadow-[#6B72FF]/30"
+                    >
+                      Use
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {titleChoices.results.length === 0 && (
+              <div className="text-center py-10 text-[#9CA3B5]">No results from Wikipedia search.</div>
+            )}
+
+            <div className="mt-6">
+              <button
+                onClick={() => { setShowTitleModal(false); setTitleChoices(null); }}
+                className="w-full px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-[#F5F7FA] rounded-lg transition-all"
+              >
+                Close
               </button>
             </div>
           </div>

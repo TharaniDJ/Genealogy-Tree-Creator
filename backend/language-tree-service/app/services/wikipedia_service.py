@@ -19,6 +19,8 @@ from mwparserfromhell.wikicode import Wikicode
 from sentence_transformers import SentenceTransformer
 
 from app.models.language import LanguageInfo, LanguageRelationship
+import requests
+from urllib.parse import quote
 
 WIKIPEDIA_API = "https://en.wikipedia.org/w/api.php"
 DEFAULT_HEADERS = {
@@ -180,6 +182,44 @@ def fetch_wikitext(title: str, headers: Optional[dict] = None, max_retries: int 
             else:
                 print(f"[wikipedia_service] Unexpected error fetching wikitext for {title}: {exc}")
     return ""
+
+
+def search_wikipedia_titles(query: str, limit: int = 10, headers: Optional[dict] = None) -> List[Dict[str, str]]:
+    """Search Wikipedia for page titles related to the query.
+
+    Returns a list of dictionaries with keys: title, snippet, url.
+    """
+    headers = headers or DEFAULT_HEADERS
+    if not query or not query.strip():
+        return []
+    try:
+        params = {
+            "action": "query",
+            "format": "json",
+            "list": "search",
+            "srsearch": query.strip(),
+            "srlimit": max(1, min(int(limit), 20)),
+            "utf8": 1,
+            "formatversion": 2,
+        }
+        resp = requests.get(WIKIPEDIA_API, params=params, headers=headers, timeout=15)
+        if resp.status_code != 200:
+            return []
+        data = resp.json() or {}
+        results = data.get("query", {}).get("search", []) or []
+        out: List[Dict[str, str]] = []
+        for r in results:
+            title = r.get("title")
+            snippet = r.get("snippet") or ""
+            if not title:
+                continue
+            url = f"https://en.wikipedia.org/wiki/{quote(title.replace(' ', '_'))}"
+            # Wikipedia search returns HTML snippets with tags; strip most basic tags
+            snippet_clean = re.sub(r"<.*?>", "", snippet)
+            out.append({"title": title, "snippet": snippet_clean, "url": url})
+        return out
+    except Exception:
+        return []
 
 
 def _template_name_matches(name: str) -> bool:
@@ -669,7 +709,7 @@ async def expand_node_in_graph(
     if not resolved_title:
         raise ValueError(f"Could not resolve a Wikipedia page for '{node_to_expand}'.")
     await _send_root_language(resolved_title, websocket_manager, connection_id)
-
+	
     # Fetch and parse new node data
     await _send_status(f"Fetching and parsing '{resolved_title}'...", 20, websocket_manager, connection_id)
     wikitext = await asyncio.to_thread(fetch_wikitext, resolved_title)
@@ -761,6 +801,26 @@ def get_wikipedia_language_page_title(input_name: str) -> Optional[str]:
 
     if not results:
         return None
+
+    # Prefer exact title match (case-insensitive), ignoring underscores and extra spaces
+    norm_input = re.sub(r"\s+", " ", input_name.strip().replace("_", " ")).lower()
+    for entry in results:
+        title = entry.get("title")
+        if not title:
+            continue
+        norm_title = re.sub(r"\s+", " ", str(title).strip().replace("_", " ")).lower()
+        if norm_title == norm_input:
+            return title
+
+    # Prefer canonicalized match (strip common tokens like 'language(s)')
+    try:
+        canon_input = _canonical_label(input_name)
+        for entry in results:
+            title = entry.get("title")
+            if title and _canonical_label(str(title)) == canon_input:
+                return title
+    except Exception:
+        pass
 
     input_words = set(input_name.lower().split())
     best_match = None
@@ -1247,16 +1307,23 @@ async def fetch_language_relationships(
     depth: Optional[int],
     websocket_manager=None,
     connection_id: Optional[str] = None,
+    use_exact_title: bool = False,
 ) -> List[Dict[str, object]]:
     depth_desc = f"depth={depth}" if depth is not None else "full-tree"
     print(f"[wikipedia_service] Starting extraction for '{language_name}' ({depth_desc}).")
 
-    await _send_status("Resolving Wikipedia page title...", 5, websocket_manager, connection_id)
-    resolved_title = await asyncio.to_thread(get_wikipedia_language_page_title, language_name)
-    if not resolved_title:
-        raise ValueError(f"Unable to find a Wikipedia page for '{language_name}'")
-    print(f"[wikipedia_service] Resolved '{language_name}' to '{resolved_title}'.")
-    await _send_root_language(resolved_title, websocket_manager, connection_id)
+    if use_exact_title:
+        resolved_title = language_name.strip()
+        await _send_status(f"Using exact Wikipedia page title '{resolved_title}'...", 5, websocket_manager, connection_id)
+        print(f"[wikipedia_service] Using exact title for fetch: '{resolved_title}'.")
+        await _send_root_language(resolved_title, websocket_manager, connection_id)
+    else:
+        await _send_status("Resolving Wikipedia page title...", 5, websocket_manager, connection_id)
+        resolved_title = await asyncio.to_thread(get_wikipedia_language_page_title, language_name)
+        if not resolved_title:
+            raise ValueError(f"Unable to find a Wikipedia page for '{language_name}'")
+        print(f"[wikipedia_service] Resolved '{language_name}' to '{resolved_title}'.")
+        await _send_root_language(resolved_title, websocket_manager, connection_id)
 
     await _send_status(f"Fetching Wikipedia content for '{resolved_title}'...", 15, websocket_manager, connection_id)
     wikitext = await asyncio.to_thread(fetch_wikitext, resolved_title)

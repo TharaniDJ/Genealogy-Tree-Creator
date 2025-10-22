@@ -4,8 +4,59 @@ import uuid
 import asyncio
 import app.services.wikipedia_service as wiki
 from app.core.shared import websocket_manager
+import re
+from urllib.parse import urlparse, unquote, quote
 
 router = APIRouter()
+
+
+def _extract_wikipedia_title_from_url(url: str) -> str | None:
+    """Extract the page title from a Wikipedia URL (desktop or mobile)."""
+    if not isinstance(url, str) or not url:
+        return None
+    try:
+        u = urlparse(url.strip())
+        host = (u.netloc or '').lower()
+        if not host.endswith("wikipedia.org"):
+            return None
+        # Accept /wiki/Title or /w/index.php?title=Title
+        path = u.path or ''
+        if path.startswith('/wiki/'):
+            title = path.split('/wiki/', 1)[1]
+            return unquote(title.replace('_', ' ')) if title else None
+        if path.endswith('/w/index.php'):
+            # Try query param title
+            qs = u.query or ''
+            m = re.search(r'(?:^|&)title=([^&]+)', qs)
+            if m:
+                return unquote(m.group(1).replace('_', ' '))
+        return None
+    except Exception:
+        return None
+
+
+def _normalized(s: str) -> str:
+    try:
+        return wiki._strip_language_tokens(s or "").strip().lower()
+    except Exception:
+        return (s or "").strip().lower()
+
+
+def _title_mismatch(input_name: str, resolved_title: str) -> bool:
+    """Heuristic: if resolved title does not match input even after stripping tokens, ask user.
+
+    Returns True when we should prompt the user for confirmation/choice.
+    """
+    a = _normalized(input_name)
+    b = _normalized(resolved_title)
+    if not a or not b:
+        return False
+    if a == b:
+        return False
+    # Allow simple containment (e.g., Fingallian vs Fingallian language)
+    if a in b or b in a:
+        return False
+    return True
 
 @router.websocket("/ws/relationships")
 async def websocket_language_relationships(websocket: WebSocket):
@@ -37,6 +88,255 @@ async def websocket_language_relationships(websocket: WebSocket):
 
                 if isinstance(parsed, dict) and parsed.get("action"):
                     action = parsed.get("action")
+                    # 1) Return title suggestions for a query
+                    if action == "suggest_titles":
+                        query = parsed.get("query")
+                        context = parsed.get("context") or "search"
+                        depth = parsed.get("depth")
+                        existing_graph_value = parsed.get("existingGraph")
+                        node_label = parsed.get("nodeLabel")
+                        if not isinstance(query, str) or not query.strip():
+                            raise ValueError("Missing or invalid 'query' for suggest_titles")
+                        results = wiki.search_wikipedia_titles(query, limit=10)
+                        payload = {
+                            "type": "title_choices",
+                            "data": {
+                                "query": query,
+                                "context": context,
+                                "depth": depth,
+                                "nodeLabel": node_label,
+                                "results": results,
+                                # Pass through existing graph if present (for expand path)
+                                "existingGraph": existing_graph_value if context == "expand_node" else None,
+                            },
+                        }
+                        await websocket_manager.send_json(payload, connection_id)
+                        continue
+
+                    # 2) Start from a chosen Wikipedia title (user-approved)
+                    if action == "choose_title":
+                        chosen_title = parsed.get("title")
+                        context = parsed.get("context") or "search"
+                        depth = parsed.get("depth")
+                        existing_graph_value = parsed.get("existingGraph") or []
+                        node_label = parsed.get("nodeLabel")
+                        if not isinstance(chosen_title, str) or not chosen_title.strip():
+                            raise ValueError("Missing or invalid 'title' for choose_title")
+
+                        # For search context: fetch relationships at requested depth
+                        if context == "search":
+                            if not isinstance(depth, int):
+                                try:
+                                    depth_int = int(depth) if depth is not None else 2
+                                except Exception:
+                                    depth_int = 2
+                            else:
+                                depth_int = depth
+                            await websocket_manager.send_status(
+                                f"Using Wikipedia page '{chosen_title}'...", 0, connection_id
+                            )
+
+                            async def from_title_task():
+                                try:
+                                    relationships = await wiki.fetch_language_relationships(
+                                        str(chosen_title), int(depth_int), websocket_manager, connection_id, use_exact_title=True
+                                    )
+                                    if websocket_manager.is_connection_active(connection_id):
+                                        await websocket_manager.send_json({
+                                            "type": "complete",
+                                            "data": {
+                                                "language": chosen_title,
+                                                "depth": depth,
+                                                "total_relationships": len(relationships),
+                                                "relationships": relationships
+                                            }
+                                        }, connection_id)
+                                except asyncio.CancelledError:
+                                    raise
+                                except Exception as e:
+                                    if websocket_manager.is_connection_active(connection_id):
+                                        await websocket_manager.send_error(f"Error processing chosen title: {str(e)}", connection_id)
+
+                            task = asyncio.create_task(from_title_task())
+                            websocket_manager.set_active_task(connection_id, task)
+                            await task
+                            continue
+
+                        # Full tree context: fetch relationships without depth limit
+                        if context == "fetch_full_tree":
+                            await websocket_manager.send_status(
+                                f"Using Wikipedia page '{chosen_title}' (full tree)...", 0, connection_id
+                            )
+
+                            async def from_title_full_task():
+                                try:
+                                    relationships = await wiki.fetch_language_relationships(
+                                        str(chosen_title), None, websocket_manager, connection_id, use_exact_title=True
+                                    )
+                                    if websocket_manager.is_connection_active(connection_id):
+                                        await websocket_manager.send_json({
+                                            "type": "complete",
+                                            "data": {
+                                                "language": chosen_title,
+                                                "depth": None,
+                                                "total_relationships": len(relationships),
+                                                "relationships": relationships
+                                            }
+                                        }, connection_id)
+                                except asyncio.CancelledError:
+                                    raise
+                                except Exception as e:
+                                    if websocket_manager.is_connection_active(connection_id):
+                                        await websocket_manager.send_error(f"Error processing chosen title (full tree): {str(e)}", connection_id)
+
+                            task = asyncio.create_task(from_title_full_task())
+                            websocket_manager.set_active_task(connection_id, task)
+                            await task
+                            continue
+
+                        # For expand_node context: call the expand flow with existing graph
+                        if context == "expand_node":
+                            label_to_expand = node_label or chosen_title
+                            await websocket_manager.send_status(
+                                f"Expanding node using '{chosen_title}'...", 0, connection_id
+                            )
+
+                            async def expand_from_title_task():
+                                try:
+                                    newly_added, merged_graph = await wiki.expand_node_in_graph(
+                                        original_graph=existing_graph_value or [],
+                                        node_to_expand=label_to_expand,
+                                        websocket_manager=websocket_manager,
+                                        connection_id=connection_id,
+                                    )
+                                    def to_rel_dict(t):
+                                        return {"language1": t[0], "relationship": t[1], "language2": t[2]}
+                                    if websocket_manager.is_connection_active(connection_id):
+                                        await websocket_manager.send_json(
+                                            {
+                                                "type": "expand_complete",
+                                                "data": {
+                                                    "label": label_to_expand,
+                                                    "added": [to_rel_dict(t) for t in newly_added],
+                                                    "merged": [to_rel_dict(t) for t in merged_graph],
+                                                },
+                                            },
+                                            connection_id,
+                                        )
+                                except asyncio.CancelledError:
+                                    raise
+                                except Exception as e:
+                                    if websocket_manager.is_connection_active(connection_id):
+                                        await websocket_manager.send_error(f"Error expanding from chosen title: {str(e)}", connection_id)
+
+                            task = asyncio.create_task(expand_from_title_task())
+                            websocket_manager.set_active_task(connection_id, task)
+                            await task
+                            continue
+
+                    # 3) Start directly from a Wikipedia URL
+                    if action == "start_with_url":
+                        url = parsed.get("url")
+                        context = parsed.get("context") or "search"
+                        depth = parsed.get("depth")
+                        existing_graph_value = parsed.get("existingGraph") or []
+                        node_label = parsed.get("nodeLabel")
+                        if not isinstance(url, str) or not url.strip():
+                            raise ValueError("Missing or invalid 'url' for start_with_url")
+                        title_from_url = _extract_wikipedia_title_from_url(url)
+                        if not title_from_url:
+                            await websocket_manager.send_error("Unable to extract a Wikipedia title from the provided URL.", connection_id)
+                            continue
+                        if context == "search":
+                            if not isinstance(depth, int):
+                                try:
+                                    depth_int = int(depth) if depth is not None else 2
+                                except Exception:
+                                    depth_int = 2
+                            else:
+                                depth_int = depth
+                            async def url_search_task():
+                                try:
+                                    relationships = await wiki.fetch_language_relationships(
+                                        str(title_from_url), int(depth_int), websocket_manager, connection_id, use_exact_title=True
+                                    )
+                                    if websocket_manager.is_connection_active(connection_id):
+                                        await websocket_manager.send_json({
+                                            "type": "complete",
+                                            "data": {
+                                                "language": title_from_url,
+                                                "depth": depth,
+                                                "total_relationships": len(relationships),
+                                                "relationships": relationships
+                                            }
+                                        }, connection_id)
+                                except asyncio.CancelledError:
+                                    raise
+                                except Exception as e:
+                                    if websocket_manager.is_connection_active(connection_id):
+                                        await websocket_manager.send_error(f"Error processing URL: {str(e)}", connection_id)
+                            task = asyncio.create_task(url_search_task())
+                            websocket_manager.set_active_task(connection_id, task)
+                            await task
+                            continue
+                        if context == "expand_node":
+                            label_to_expand = node_label or title_from_url
+                            async def url_expand_task():
+                                try:
+                                    newly_added, merged_graph = await wiki.expand_node_in_graph(
+                                        original_graph=existing_graph_value or [],
+                                        node_to_expand=label_to_expand,
+                                        websocket_manager=websocket_manager,
+                                        connection_id=connection_id,
+                                    )
+                                    def to_rel_dict(t):
+                                        return {"language1": t[0], "relationship": t[1], "language2": t[2]}
+                                    if websocket_manager.is_connection_active(connection_id):
+                                        await websocket_manager.send_json(
+                                            {
+                                                "type": "expand_complete",
+                                                "data": {
+                                                    "label": label_to_expand,
+                                                    "added": [to_rel_dict(t) for t in newly_added],
+                                                    "merged": [to_rel_dict(t) for t in merged_graph],
+                                                },
+                                            },
+                                            connection_id,
+                                        )
+                                except asyncio.CancelledError:
+                                    raise
+                                except Exception as e:
+                                    if websocket_manager.is_connection_active(connection_id):
+                                        await websocket_manager.send_error(f"Error expanding from URL: {str(e)}", connection_id)
+                            task = asyncio.create_task(url_expand_task())
+                            websocket_manager.set_active_task(connection_id, task)
+                            await task
+                            continue
+                        if context == "fetch_full_tree":
+                            async def url_full_task():
+                                try:
+                                    relationships = await wiki.fetch_language_relationships(
+                                        str(title_from_url), None, websocket_manager, connection_id, use_exact_title=True
+                                    )
+                                    if websocket_manager.is_connection_active(connection_id):
+                                        await websocket_manager.send_json({
+                                            "type": "complete",
+                                            "data": {
+                                                "language": title_from_url,
+                                                "depth": None,
+                                                "total_relationships": len(relationships),
+                                                "relationships": relationships
+                                            }
+                                        }, connection_id)
+                                except asyncio.CancelledError:
+                                    raise
+                                except Exception as e:
+                                    if websocket_manager.is_connection_active(connection_id):
+                                        await websocket_manager.send_error(f"Error processing URL (full tree): {str(e)}", connection_id)
+                            task = asyncio.create_task(url_full_task())
+                            websocket_manager.set_active_task(connection_id, task)
+                            await task
+                            continue
                     if action == "expand_node":
                         # Expected payload: { action: 'expand_node', label: string, existingGraph: LanguageRelationship[]|Tuple[] }
                         label_value = parsed.get("label")
@@ -44,6 +344,51 @@ async def websocket_language_relationships(websocket: WebSocket):
                         if not isinstance(label_value, str) or not label_value.strip():
                             raise ValueError("Missing or invalid 'label' for expand_node")
                         label = label_value.strip()
+
+                        # Pre-resolve page title; if unresolved send suggestions and stop here
+                        resolved = wiki.get_wikipedia_language_page_title(label)
+                        if not resolved:
+                            results = wiki.search_wikipedia_titles(label, limit=10)
+                            await websocket_manager.send_json(
+                                {
+                                    "type": "title_choices",
+                                    "data": {
+                                        "query": label,
+                                        "context": "expand_node",
+                                        "nodeLabel": label,
+                                        "results": results,
+                                        "existingGraph": existing_graph_value,
+                                    },
+                                },
+                                connection_id,
+                            )
+                            continue
+                        # If resolved title looks mismatched, prompt user with suggestions including the resolved one
+                        if _title_mismatch(label, resolved):
+                            choices = wiki.search_wikipedia_titles(label, limit=10) or []
+                            # Prepend resolved suggestion if not present
+                            if not any((c.get("title") or "") == resolved for c in choices):
+                                choices = (
+                                    [{
+                                        "title": resolved,
+                                        "snippet": "Resolved title",
+                                        "url": f"https://en.wikipedia.org/wiki/{quote(resolved.replace(' ', '_'))}",
+                                    }] + choices
+                                )
+                            await websocket_manager.send_json(
+                                {
+                                    "type": "title_choices",
+                                    "data": {
+                                        "query": label,
+                                        "context": "expand_node",
+                                        "nodeLabel": label,
+                                        "results": choices,
+                                        "existingGraph": existing_graph_value,
+                                    },
+                                },
+                                connection_id,
+                            )
+                            continue
 
                         await websocket_manager.send_status(
                             f"Expanding node '{label}' using Wikipedia and LLM...",
@@ -110,6 +455,48 @@ async def websocket_language_relationships(websocket: WebSocket):
                         if not isinstance(label_value, str) or not label_value.strip():
                             raise ValueError("Missing or invalid 'label' for expand_by_label")
                         label = label_value.strip()
+                        # Pre-resolve before attempting
+                        resolved = wiki.get_wikipedia_language_page_title(label)
+                        if not resolved:
+                            results = wiki.search_wikipedia_titles(label, limit=10)
+                            await websocket_manager.send_json(
+                                {
+                                    "type": "title_choices",
+                                    "data": {
+                                        "query": label,
+                                        "context": "expand_node",
+                                        "nodeLabel": label,
+                                        "results": results,
+                                        "existingGraph": None,
+                                    },
+                                },
+                                connection_id,
+                            )
+                            continue
+                        if _title_mismatch(label, resolved):
+                            choices = wiki.search_wikipedia_titles(label, limit=10) or []
+                            if not any((c.get("title") or "") == resolved for c in choices):
+                                choices = (
+                                    [{
+                                        "title": resolved,
+                                        "snippet": "Resolved title",
+                                        "url": f"https://en.wikipedia.org/wiki/{quote(resolved.replace(' ', '_'))}",
+                                    }] + choices
+                                )
+                            await websocket_manager.send_json(
+                                {
+                                    "type": "title_choices",
+                                    "data": {
+                                        "query": label,
+                                        "context": "expand_node",
+                                        "nodeLabel": label,
+                                        "results": choices,
+                                        "existingGraph": None,
+                                    },
+                                },
+                                connection_id,
+                            )
+                            continue
                         await websocket_manager.send_status(
                             f"Expanding node '{label}' (depth 1)...",
                             0,
@@ -157,6 +544,43 @@ async def websocket_language_relationships(websocket: WebSocket):
 
                         async def full_tree_task():
                             try:
+                                # Pre-resolve exact title; on failure or mismatch, prompt for choices and stop
+                                resolved = wiki.get_wikipedia_language_page_title(language_name)
+                                if not resolved:
+                                    results = wiki.search_wikipedia_titles(language_name, limit=10)
+                                    if websocket_manager.is_connection_active(connection_id):
+                                        await websocket_manager.send_json({
+                                            "type": "title_choices",
+                                            "data": {
+                                                "query": language_name,
+                                                "context": "fetch_full_tree",
+                                                "depth": None,
+                                                "results": results,
+                                            }
+                                        }, connection_id)
+                                    return
+                                if _title_mismatch(language_name, resolved):
+                                    choices = wiki.search_wikipedia_titles(language_name, limit=10) or []
+                                    if not any((c.get("title") or "") == resolved for c in choices):
+                                        choices = (
+                                            [{
+                                                "title": resolved,
+                                                "snippet": "Resolved title",
+                                                "url": f"https://en.wikipedia.org/wiki/{quote(resolved.replace(' ', '_'))}",
+                                            }] + choices
+                                        )
+                                    if websocket_manager.is_connection_active(connection_id):
+                                        await websocket_manager.send_json({
+                                            "type": "title_choices",
+                                            "data": {
+                                                "query": language_name,
+                                                "context": "fetch_full_tree",
+                                                "depth": None,
+                                                "results": choices,
+                                            }
+                                        }, connection_id)
+                                    return
+                                # Proceed with full tree since title resolved & matches
                                 relationships = await wiki.fetch_language_relationships(
                                     language_name,
                                     None,
@@ -209,6 +633,43 @@ async def websocket_language_relationships(websocket: WebSocket):
                 # Create a task for the main exploration
                 async def exploration_task():
                     try:
+                        # Try to resolve exact title first; if not found, provide suggestions and stop
+                        resolved = wiki.get_wikipedia_language_page_title(language_name)
+                        if not resolved:
+                            results = wiki.search_wikipedia_titles(language_name, limit=10)
+                            if websocket_manager.is_connection_active(connection_id):
+                                await websocket_manager.send_json({
+                                    "type": "title_choices",
+                                    "data": {
+                                        "query": language_name,
+                                        "context": "search",
+                                        "depth": depth,
+                                        "results": results,
+                                    }
+                                }, connection_id)
+                            return
+                        # If heuristic indicates mismatch, present suggestions (include resolved first)
+                        if _title_mismatch(language_name, resolved):
+                            choices = wiki.search_wikipedia_titles(language_name, limit=10) or []
+                            if not any((c.get("title") or "") == resolved for c in choices):
+                                choices = (
+                                    [{
+                                        "title": resolved,
+                                        "snippet": "Resolved title",
+                                        "url": f"https://en.wikipedia.org/wiki/{quote(resolved.replace(' ', '_'))}",
+                                    }] + choices
+                                )
+                            if websocket_manager.is_connection_active(connection_id):
+                                await websocket_manager.send_json({
+                                    "type": "title_choices",
+                                    "data": {
+                                        "query": language_name,
+                                        "context": "search",
+                                        "depth": depth,
+                                        "results": choices,
+                                    }
+                                }, connection_id)
+                            return
                         # Fetch relationships with real-time updates
                         relationships = await wiki.fetch_language_relationships(
                             language_name, 
