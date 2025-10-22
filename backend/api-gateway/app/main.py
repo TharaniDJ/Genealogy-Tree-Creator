@@ -12,7 +12,7 @@ app = FastAPI(title='API Gateway')
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=['http://localhost:3000'],
+    allow_origins=['http://localhost:3000','https://genealogy-tree-creator.vercel.app','https://genealogy-tree-creator-git-main-dasun-pramodyas-projects.vercel.app','https://genealogy-tree-creator-74k14uffn-dasun-pramodyas-projects.vercel.app'],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
