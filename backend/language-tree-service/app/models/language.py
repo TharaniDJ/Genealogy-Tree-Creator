@@ -30,6 +30,7 @@ class LanguageInfo(BaseModel):
     speakers: Optional[str] = None
     iso_code: Optional[str] = None
     distribution_map_url: Optional[str] = None
+    short_description: Optional[str] = None
 
 class UserInput(BaseModel):
     """Model for user input"""

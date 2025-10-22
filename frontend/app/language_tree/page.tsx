@@ -1379,22 +1379,21 @@ const LanguageTreePage = () => {
         {!isStatusCollapsed && (
           <div className="absolute w-fit top-4 left-4 z-10 backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl shadow-lg">
             <div className="px-6 py-3 relative">
-              <button
-                onClick={() => { setIsStatusCollapsed(true); setStatusPinnedOpen(false); }}
-                className=" absolute top-2 right-1  px-2 py-1 rounded bg-white/10 hover:bg-white/20 text-[#F5F7FA] border border-white/10"
-                title="Hide status"
-              >
-                Hide
-              </button>
-
               <div className="space-y-2">
-                <div className="flex items-start space-x-2">
+                <div className="flex items-center space-x-2">
                   {connectionStatus === 'connecting' && (
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#8B7BFF]"></div>
                   )}
                   <span className=" w-full font-medium text-[#F5F7FA] flex-1 min-w-0 whitespace-pre-wrap break-words">
                     {status || (connectionStatus === 'connected' ? 'Idle' : 'Connecting...')}
                   </span>
+                  <button
+                    onClick={() => { setIsStatusCollapsed(true); setStatusPinnedOpen(false); }}
+                    className="px-2 py-1 rounded bg-white/10 hover:bg-white/20 text-[#F5F7FA] border border-white/10"
+                    title="Hide status"
+                  >
+                    Hide
+                  </button>
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -1500,7 +1499,7 @@ const LanguageTreePage = () => {
               className={`px-3 py-2  rounded-lg transition-all shadow ${selectedNodeId ? 'backdrop-blur-lg bg-white/5 text-[#F5F7FA] hover:bg-[#6B72FF]/20 border border-white/10' : 'bg-white/5 text-[#9CA3B5] border border-white/10 cursor-not-allowed opacity-50'}`}
               title="Open details sidebar for selected node"
             >
-              Open Sidebar
+              View Info
             </button>
             <button
               onClick={deleteSelectedNode}

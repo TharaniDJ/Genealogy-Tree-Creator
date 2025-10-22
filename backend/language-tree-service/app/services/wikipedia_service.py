@@ -87,6 +87,34 @@ def _get_genai_client() -> genai.Client:
     return _genai_client
 
 
+def _normalize_relation(rel: str) -> str:
+    """Normalize various relationship spellings to canonical forms used internally.
+
+    Canonical outputs:
+    - "is child of"
+    - "is a dialect of"
+    - "belongs to family"
+    - "descends from"
+    Other relations are returned as-is (lowercased trimmed) to avoid accidental inversion.
+    """
+    r = rel.strip().lower()
+    # unify common child-of variants (e.g., "child of", "is a child of", case-insensitive)
+    if "child" in r and "of" in r:
+        return "is child of"
+    # unify dialect-of
+    if "dialect" in r and "of" in r:
+        return "is a dialect of"
+    # unify belongs-to-family
+    if "belongs" in r and "family" in r:
+        return "belongs to family"
+    # unify descend(s) from / posterior forms
+    if "descend" in r:
+        return "descends from"
+    if "posterior forms" in r:
+        return "descends from"
+    return r
+
+
 def _coerce_to_triples(graph_like: Optional[Sequence]) -> List[Tuple[str, str, str]]:
     """Best-effort conversion of incoming graph data to list of (child, rel, parent) tuples.
 
@@ -102,13 +130,15 @@ def _coerce_to_triples(graph_like: Optional[Sequence]) -> List[Tuple[str, str, s
         try:
             if isinstance(item, dict):
                 c = str(item.get("language1", "")).strip()
-                r = str(item.get("relationship", "")).strip()
+                r_raw = str(item.get("relationship", "")).strip()
                 p = str(item.get("language2", "")).strip()
-                if c and r and p:
+                if c and r_raw and p:
+                    r = _normalize_relation(r_raw)
                     triples.append((c, r, p))
             elif isinstance(item, (list, tuple)) and len(item) == 3:
-                c, r, p = str(item[0]).strip(), str(item[1]).strip(), str(item[2]).strip()
-                if c and r and p:
+                c, r_raw, p = str(item[0]).strip(), str(item[1]).strip(), str(item[2]).strip()
+                if c and r_raw and p:
+                    r = _normalize_relation(r_raw)
                     triples.append((c, r, p))
         except Exception:
             # ignore malformed entries
@@ -628,11 +658,14 @@ async def expand_node_in_graph(
     await _send_status(f"Initiating expansion for '{node_to_expand}'...", 0, websocket_manager, connection_id)
 
     # Coerce original_graph
+    print("[wikipedia_service] Coercing original graph data to triples... with \n")
+    print(original_graph)
     original_triples = _coerce_to_triples(original_graph)
-
+    print(f"[wikipedia_service] Original graph has {len(original_triples)} triples.")
     # Resolve node to page title
     await _send_status("Resolving node to Wikipedia page...", 5, websocket_manager, connection_id)
     resolved_title = await asyncio.to_thread(get_wikipedia_language_page_title, node_to_expand)
+    
     if not resolved_title:
         raise ValueError(f"Could not resolve a Wikipedia page for '{node_to_expand}'.")
     await _send_root_language(resolved_title, websocket_manager, connection_id)
@@ -662,16 +695,35 @@ async def expand_node_in_graph(
     )
 
     # Compute current immediate parent and children of the node from existing graph
+    # IMPORTANT: Always compute for the requested node_to_expand (not the resolved Wikipedia title),
+    # so we don't accidentally pivot to a different node when the page resolution is imperfect.
     current_parent_map, current_children_map = _build_relationship_graph([
         t for t in original_triples if t[1] == "is child of"
     ])
-    current_parent = current_parent_map.get(resolved_title)
-    current_children = sorted(list(current_children_map.get(resolved_title, set())))
+    # Try exact label first; if not present, try canonical label match using node_to_expand
+    lookup_label = node_to_expand
+    resolved_key = _canonical_label(node_to_expand)
+    graph_labels = (
+        set(current_parent_map.keys())
+        | set(current_children_map.keys())
+        | set(current_parent_map.values())
+    )
+    for lbl in graph_labels:
+        if _canonical_label(lbl) == resolved_key:
+            lookup_label = lbl
+            break
+    if lookup_label != node_to_expand:
+        print(
+            f"[wikipedia_service] Expansion target '{node_to_expand}' matched existing label '{lookup_label}' by canonicalization."
+        )
 
+    current_parent = current_parent_map.get(lookup_label)
+    current_children = sorted(list(current_children_map.get(lookup_label, set())))
+    print(f"[wikipedia_service] Current parent: {current_parent}, current children: {current_children}")
     # Ask LLM for only local neighborhood and return edges to attach
     newly_added_triples = await asyncio.to_thread(
         get_local_neighborhood_edges,
-        node_label=resolved_title,
+        node_label=node_to_expand,
         new_infobox_triples=new_infobox_processed,
         relevant_text=new_relevant_text,
         current_parent=current_parent,
@@ -683,7 +735,7 @@ async def expand_node_in_graph(
 
     await _send_status(
         f"Expansion complete. Added {len(newly_added_triples)} relationship(s).",
-        95,
+        100,
         websocket_manager,
         connection_id,
     )
