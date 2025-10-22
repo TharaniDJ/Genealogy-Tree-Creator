@@ -207,11 +207,7 @@ const TaxonomyTreePage = () => {
     });
   }, [setEdges]);
 
-  // Get authentication token from localStorage
-  const getAuthToken = () => {
-    if (typeof window === 'undefined') return null;
-    return localStorage.getItem('token');
-  };
+  // Use getToken from auth hook (reads cookie)
 
   // Create initial graph from scientific name
   const createTaxonomyGraph = useCallback(async (speciesName: string) => {
@@ -222,8 +218,8 @@ const TaxonomyTreePage = () => {
       // Try the real API first, fallback to mock data if service is not available
       let data;
       try {
-        const base = process.env.NEXT_PUBLIC_SPECIES_API_URL || 'http://127.0.0.1:8002';
-        const token = getAuthToken();
+  const base = process.env.NEXT_PUBLIC_SPECIES_API_URL || 'http://127.0.0.1:8002';
+  const token = getToken ? getToken() : null;
         
         const headers: HeadersInit = {
           'Content-Type': 'application/json',
@@ -307,7 +303,7 @@ const TaxonomyTreePage = () => {
     } finally {
       setLoading(false);
     }
-  }, [ensureNode, ensureEdge, setNodes, setEdges, layout]);
+  }, [ensureNode, ensureEdge, setNodes, setEdges, layout, getToken]);
 
   // Expand a specific node to show its children
   const expandNode = useCallback(async (taxonName: string, rank?: string) => {
@@ -332,8 +328,8 @@ const TaxonomyTreePage = () => {
       // Try the real API first, fallback to mock data if service is not available
       let data;
       try {
-        const base = process.env.NEXT_PUBLIC_SPECIES_API_URL || 'http://127.0.0.1:8002';
-        const token = getAuthToken();
+  const base = process.env.NEXT_PUBLIC_SPECIES_API_URL || 'http://127.0.0.1:8002';
+  const token = getToken ? getToken() : null;
         
         const headers: HeadersInit = {
           'Content-Type': 'application/json',
@@ -405,7 +401,7 @@ const TaxonomyTreePage = () => {
       // Remove from expanded set so user can retry
       expandedNodesRef.current.delete(expandKey);
     }
-  }, [ensureNode, ensureEdge, layout]);
+  }, [ensureNode, ensureEdge, layout, getToken]);
 
   const handleSearch = useCallback(() => {
     if (!scientificName.trim()) {
@@ -959,7 +955,6 @@ const TaxonomyTreePage = () => {
           </button>
         )}
 
-        <ReactFlowProvider>
           <ReactFlow
             nodes={nodes}
             edges={edges}
@@ -1051,7 +1046,6 @@ const TaxonomyTreePage = () => {
               </div>
             )}
           </ReactFlow>
-        </ReactFlowProvider>
       </div>
       
       {/* Info Panel */}
