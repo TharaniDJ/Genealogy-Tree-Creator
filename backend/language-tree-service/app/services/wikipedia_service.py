@@ -17,11 +17,12 @@ from google import genai  # type: ignore
 from mwparserfromhell.nodes import Heading
 from mwparserfromhell.wikicode import Wikicode
 from sentence_transformers import SentenceTransformer
-
+from dotenv import load_dotenv
 from app.models.language import LanguageInfo, LanguageRelationship
 import requests
 from urllib.parse import quote
 
+load_dotenv()
 WIKIPEDIA_API = "https://en.wikipedia.org/w/api.php"
 DEFAULT_HEADERS = {
     "User-Agent": "GenealogyTreeLanguageService/1.0 (language-tree-service)"
@@ -29,9 +30,11 @@ DEFAULT_HEADERS = {
 
 DEFAULT_GENAI_MODELS = [
     "models/gemini-2.5-flash",
-    "models/gemini-2.5-flash-preview-09-2025",
-    "models/gemini-2.5-flash-preview-05-20",
-    "models/gemini-2.5-pro-preview-06-05",
+    "models/gemini-2.5-pro",
+    "models/gemini-2.5-flash-lite",
+    "models/gemini-2.0-flash",
+    "models/gemini-2.0-flash-lite",
+    "models/gemini-2.0-flash-exp",
     "models/gemini-2.0-flash",
     "models/gemini-2.0-flash-lite-001",
 ]
@@ -83,7 +86,7 @@ _genai_client: Optional[genai.Client] = None
 def _get_genai_client() -> genai.Client:
     global _genai_client
     if _genai_client is None:
-        api_key = "AIzaSyCjm3E6c33P7DfORc7lwggHstlughbgY5o"
+        api_key = os.getenv("GEMINI_API_KEY")
         print("[wikipedia_service] Initialising Google Generative AI client.")
         _genai_client = genai.Client(api_key=api_key)
     return _genai_client
@@ -709,7 +712,7 @@ async def expand_node_in_graph(
     if not resolved_title:
         raise ValueError(f"Could not resolve a Wikipedia page for '{node_to_expand}'.")
     await _send_root_language(resolved_title, websocket_manager, connection_id)
-	
+
     # Fetch and parse new node data
     await _send_status(f"Fetching and parsing '{resolved_title}'...", 20, websocket_manager, connection_id)
     wikitext = await asyncio.to_thread(fetch_wikitext, resolved_title)

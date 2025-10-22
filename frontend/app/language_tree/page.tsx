@@ -1946,7 +1946,8 @@ const LanguageTreePage = () => {
           66% { transform: translate(-20px, 20px) scale(0.9); }
         }
         .animate-blob {
-          animation: blob 7s infinite;
+          /* Animation disabled for performance */
+          animation: none;
         }
         .animation-delay-2000 {
           animation-delay: 2s;
