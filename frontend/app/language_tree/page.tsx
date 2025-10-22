@@ -915,7 +915,7 @@ const LanguageTreePage = () => {
     });
   }, [edges, selectedNodeId]);
 
-  // Handle node click to open sidebar
+  // Handle node click: only select/deselect, do not auto-open sidebar
   const handleNodeClick = useCallback((event: React.MouseEvent, node: LanguageRFNode) => {
     setSelectedNodeId(prev => prev === node.id ? null : node.id);
     setSelectedLanguage({
@@ -923,7 +923,7 @@ const LanguageTreePage = () => {
       qid: node.data.qid,
       category: node.data.category
     });
-    setSidebarOpen(true);
+    // Sidebar opening is now controlled via toolbar button
   }, []);
 
   const handleCloseSidebar = useCallback(() => {
@@ -1377,11 +1377,11 @@ const LanguageTreePage = () => {
 
         {/* Horizontal Status Bar (collapsible) */}
         {!isStatusCollapsed && (
-          <div className="absolute w-6/12 top-4 left-4 z-10 backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl shadow-lg">
+          <div className="absolute w-fit top-4 left-4 z-10 backdrop-blur-xl bg-white/5 border border-white/10 rounded-xl shadow-lg">
             <div className="px-6 py-3 relative">
               <button
                 onClick={() => { setIsStatusCollapsed(true); setStatusPinnedOpen(false); }}
-                className="absolute top-2 right-2  px-2 py-1 rounded bg-white/10 hover:bg-white/20 text-[#F5F7FA] border border-white/10"
+                className=" absolute top-2 right-1  px-2 py-1 rounded bg-white/10 hover:bg-white/20 text-[#F5F7FA] border border-white/10"
                 title="Hide status"
               >
                 Hide
@@ -1493,6 +1493,14 @@ const LanguageTreePage = () => {
               title="Edit selected node"
             >
               Edit
+            </button>
+            <button
+              onClick={() => selectedNodeId && setSidebarOpen(true)}
+              disabled={!selectedNodeId}
+              className={`px-3 py-2  rounded-lg transition-all shadow ${selectedNodeId ? 'backdrop-blur-lg bg-white/5 text-[#F5F7FA] hover:bg-[#6B72FF]/20 border border-white/10' : 'bg-white/5 text-[#9CA3B5] border border-white/10 cursor-not-allowed opacity-50'}`}
+              title="Open details sidebar for selected node"
+            >
+              Open Sidebar
             </button>
             <button
               onClick={deleteSelectedNode}
